@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { useGame } from './game/useGame';
-import { DIGITS } from './game/logic';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
 import './App.css';
 
 export default function App() {
-  const { state, pushDigit, popDigit, submit, cycleMemo, reset } = useGame();
+  const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame();
   const [memoMode, setMemoMode] = useState(false);
   const finished = state.status !== 'playing';
-  const slots = Array.from({ length: DIGITS }, (_, i) => state.input[i] ?? '');
 
   const newGame = () => {
     setMemoMode(false);
@@ -29,10 +27,17 @@ export default function App() {
 
       <section className="board">
         <div className="input-display" aria-label="현재 입력">
-          {slots.map((d, i) => (
-            <span key={i} className={`slot${d ? ' filled' : ''}`}>
+          {state.slots.map((d, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`slot${d ? ' filled' : ''}`}
+              disabled={finished || !d}
+              aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
+              onClick={() => clearSlot(i)}
+            >
               {d || '·'}
-            </span>
+            </button>
           ))}
         </div>
 
@@ -56,7 +61,7 @@ export default function App() {
               </button>
             </div>
             <Keypad
-              input={state.input}
+              slots={state.slots}
               memo={state.memo}
               mode={memoMode ? 'memo' : 'input'}
               disabled={finished}

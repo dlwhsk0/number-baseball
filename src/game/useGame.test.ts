@@ -15,24 +15,49 @@ function type(state: GameState, digits: string): GameState {
 describe('gameReducer — 입력', () => {
   it('세 자리까지만 입력된다', () => {
     const s = type(start('123'), '4567');
-    expect(s.input).toBe('456');
+    expect(s.slots).toEqual(['4', '5', '6']);
   });
 
   it('중복 숫자는 무시된다', () => {
     const s = type(start('123'), '454');
-    expect(s.input).toBe('45');
+    expect(s.slots).toEqual(['4', '5', '']);
   });
 
   it('맨 앞 0은 무시된다', () => {
     const s = type(start('123'), '0');
-    expect(s.input).toBe('');
+    expect(s.slots).toEqual(['', '', '']);
     // 앞자리가 채워지면 이후 0은 허용
-    expect(type(start('123'), '90').input).toBe('90');
+    expect(type(start('123'), '90').slots).toEqual(['9', '0', '']);
   });
 
-  it('pop은 마지막 한 자리를 지운다', () => {
+  it('pop은 마지막으로 채운 칸을 지운다', () => {
     const s = gameReducer(type(start('123'), '456'), { type: 'pop' });
-    expect(s.input).toBe('45');
+    expect(s.slots).toEqual(['4', '5', '']);
+  });
+});
+
+describe('gameReducer — 칸 지우기(clearSlot)', () => {
+  it('해당 칸만 제자리에서 비운다', () => {
+    const s = gameReducer(type(start('123'), '456'), { type: 'clearSlot', index: 1 });
+    expect(s.slots).toEqual(['4', '', '6']);
+  });
+
+  it('빈 칸을 누르면 아무 변화 없다', () => {
+    const before = type(start('123'), '45'); // ['4','5','']
+    const s = gameReducer(before, { type: 'clearSlot', index: 2 });
+    expect(s).toBe(before);
+  });
+
+  it('가운데를 비운 뒤 입력하면 왼쪽 빈 칸부터 채운다', () => {
+    let s = gameReducer(type(start('123'), '456'), { type: 'clearSlot', index: 1 }); // ['4','','6']
+    s = gameReducer(s, { type: 'push', digit: '7' });
+    expect(s.slots).toEqual(['4', '7', '6']);
+  });
+
+  it('첫 칸을 비운 뒤 0은 다시 막힌다', () => {
+    let s = gameReducer(type(start('123'), '456'), { type: 'clearSlot', index: 0 }); // ['','5','6']
+    s = gameReducer(s, { type: 'push', digit: '0' });
+    expect(s.slots).toEqual(['', '5', '6']); // 맨 앞 0 거부
   });
 });
 
@@ -40,14 +65,20 @@ describe('gameReducer — 제출', () => {
   it('세 자리가 아니면 제출되지 않는다', () => {
     const s = gameReducer(type(start('123'), '45'), { type: 'submit' });
     expect(s.guesses).toHaveLength(0);
-    expect(s.input).toBe('45');
+    expect(s.slots).toEqual(['4', '5', '']);
   });
 
-  it('제출하면 히스토리에 판정이 쌓이고 입력이 비워진다', () => {
+  it('빈 칸(구멍)이 있으면 제출되지 않는다', () => {
+    const holed = gameReducer(type(start('123'), '456'), { type: 'clearSlot', index: 1 });
+    const s = gameReducer(holed, { type: 'submit' });
+    expect(s.guesses).toHaveLength(0);
+  });
+
+  it('제출하면 히스토리에 판정이 쌓이고 칸이 비워진다', () => {
     const s = gameReducer(type(start('123'), '135'), { type: 'submit' });
     expect(s.guesses).toHaveLength(1);
     expect(s.guesses[0]).toEqual({ guess: '135', judgement: { strikes: 1, balls: 1, isOut: false } });
-    expect(s.input).toBe('');
+    expect(s.slots).toEqual(['', '', '']);
   });
 
   it('정답을 맞히면 status가 won', () => {
@@ -66,7 +97,7 @@ describe('gameReducer — 제출', () => {
   it('게임이 끝나면 추가 입력/제출이 막힌다', () => {
     let s = gameReducer(type(start('123'), '123'), { type: 'submit' }); // won
     s = gameReducer(s, { type: 'push', digit: '4' });
-    expect(s.input).toBe('');
+    expect(s.slots).toEqual(['', '', '']);
   });
 });
 
