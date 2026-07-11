@@ -2,7 +2,7 @@
 
 서로 다른 세 자리 숫자를 맞히는 숫자 야구 게임 모바일 웹앱.
 
-**▶ 라이브: https://number-baseball-nc3yma6qz-hanas-projects-efc20dee.vercel.app**
+**▶ 라이브: https://number-baseball-chi.vercel.app**
 
 ## 규칙
 - 컴퓨터가 서로 다른 세 자리 숫자(0~9, 중복 없음, 맨 앞자리 0 제외)를 정합니다.
