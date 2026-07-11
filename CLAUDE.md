@@ -4,7 +4,10 @@
 
 ## 스택
 - Vite + React + TypeScript
-- 배포 대상: 모바일 웹(반응형), 추후 PWA 옵션
+- 배포 대상: 모바일 웹(반응형) + PWA. Vercel 배포.
+- **패키지 매니저는 pnpm.** Vite 8은 rolldown 네이티브 바이너리를 쓰는데, npm은
+  optional-deps 버그(npm/cli#4828)로 이 환경에서 바이너리를 못 받는다. pnpm은 정상.
+  darwin(로컬)/linux(Vercel) 바이너리를 devDependencies에 직접 명시해 둠.
 
 ## 명령어
 - 개발: `npm run dev`

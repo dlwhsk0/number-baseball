@@ -28,3 +28,4 @@ dist-ssr
 
 # vite-plugin-pwa dev 산출물
 dev-dist
+.vercel
