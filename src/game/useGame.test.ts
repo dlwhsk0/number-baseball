@@ -80,22 +80,24 @@ describe('gameReducer — reset', () => {
 });
 
 describe('gameReducer — 메모', () => {
-  it('메모는 기본→아웃→있음→기본 순으로 순환한다', () => {
+  it('메모는 기본→스트라이크→볼→아웃→기본 순으로 순환한다', () => {
     let s = start('123');
     expect(s.memo['7']).toBeUndefined();
     s = gameReducer(s, { type: 'memo', digit: '7' });
-    expect(s.memo['7']).toBe('out');
+    expect(s.memo['7']).toBe('strike');
     s = gameReducer(s, { type: 'memo', digit: '7' });
-    expect(s.memo['7']).toBe('in');
+    expect(s.memo['7']).toBe('ball');
+    s = gameReducer(s, { type: 'memo', digit: '7' });
+    expect(s.memo['7']).toBe('out');
     s = gameReducer(s, { type: 'memo', digit: '7' });
     expect(s.memo['7']).toBeUndefined();
   });
 
   it('숫자별로 독립적으로 표시된다', () => {
-    let s = gameReducer(start('123'), { type: 'memo', digit: '0' });
+    let s = gameReducer(start('123'), { type: 'memo', digit: '0' }); // strike
     s = gameReducer(s, { type: 'memo', digit: '9' });
-    s = gameReducer(s, { type: 'memo', digit: '9' });
-    expect(s.memo).toEqual({ '0': 'out', '9': 'in' });
+    s = gameReducer(s, { type: 'memo', digit: '9' }); // ball
+    expect(s.memo).toEqual({ '0': 'strike', '9': 'ball' });
   });
 
   it('reset(새 게임)하면 메모가 초기화된다', () => {
