@@ -25,7 +25,11 @@
 - [x] 단계 1: 게임 로직(정답 생성 / 판정) + 단위 테스트
 - [x] 단계 2: 입력 UI(모바일 친화 키패드) + 히스토리 표시
 - [x] 단계 3: 승리/패배 상태 + 다시하기
-- [ ] 단계 4: 스타일 다듬기 + (선택) PWA
+- [x] 단계 4: 스타일 다듬기 + PWA
+
+## PWA / 아이콘
+- `vite-plugin-pwa`로 매니페스트·서비스워커 자동 생성(`registerType: autoUpdate`).
+- 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. 재생성하려면 `npm i -D sharp` 후 `node scripts/gen-icons.mjs`.
 
 ## 컨벤션
 - 커밋 메시지: 한국어, 의미 단위. 배포는 `ship` 스킬 사용.

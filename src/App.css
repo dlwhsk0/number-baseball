@@ -9,7 +9,8 @@
 
   max-width: 420px;
   margin: 0 auto;
-  padding: 20px 16px 40px;
+  padding: max(20px, env(safe-area-inset-top)) 16px
+    calc(40px + env(safe-area-inset-bottom));
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -71,19 +72,6 @@
 .slot.filled {
   color: var(--text);
   background: var(--panel-2);
-}
-
-.status {
-  margin: 0;
-  text-align: center;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-.status-won {
-  color: var(--strike);
-}
-.status-lost {
-  color: var(--out);
 }
 
 .keypad {
@@ -158,6 +146,17 @@
   padding: 8px 10px;
   background: var(--panel-2);
   border-radius: 10px;
+  animation: row-in 0.18s ease-out;
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .history-index {
   color: var(--muted);

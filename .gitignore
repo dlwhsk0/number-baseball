@@ -25,3 +25,6 @@ dist-ssr
 
 # Claude 개인 설정
 .claude/settings.local.json
+
+# vite-plugin-pwa dev 산출물
+dev-dist
