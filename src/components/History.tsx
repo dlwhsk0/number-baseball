@@ -1,16 +1,19 @@
+import { DIGITS } from '../game/logic';
 import type { GuessRecord } from '../game/useGame';
 
 interface Props {
   guesses: GuessRecord[];
 }
 
-/** 판정을 사람이 읽는 라벨로. */
-function label({ strikes, balls, isOut }: GuessRecord['judgement']): string {
-  if (isOut) return '아웃';
-  const parts: string[] = [];
-  if (strikes) parts.push(`${strikes}S`);
-  if (balls) parts.push(`${balls}B`);
-  return parts.join(' ');
+/** 각 추측은 세 자리라 S+B+O = DIGITS. O(아웃)은 정답에 없는 자리 수. */
+const CELLS = [
+  { key: 'strike', letter: 'S' },
+  { key: 'ball', letter: 'B' },
+  { key: 'out', letter: 'O' },
+] as const;
+
+function counts({ strikes, balls }: GuessRecord['judgement']) {
+  return { strike: strikes, ball: balls, out: DIGITS - strikes - balls };
 }
 
 export function History({ guesses }: Props) {
@@ -20,15 +23,26 @@ export function History({ guesses }: Props) {
 
   return (
     <ol className="history">
-      {guesses.map((g, i) => (
-        <li key={i} className="history-row">
-          <span className="history-index">{i + 1}</span>
-          <span className="history-guess">{g.guess}</span>
-          <span className={`history-result${g.judgement.isOut ? ' is-out' : ''}`}>
-            {label(g.judgement)}
-          </span>
-        </li>
-      ))}
+      {guesses.map((g, i) => {
+        const c = counts(g.judgement);
+        return (
+          <li key={i} className="history-row">
+            <span className="history-index">{i + 1}</span>
+            <span className="history-guess">{g.guess}</span>
+            <span className="sbo">
+              {CELLS.map(({ key, letter }) => (
+                <span
+                  key={key}
+                  className={`sbo-cell sbo-${key}${c[key] === 0 ? ' zero' : ''}`}
+                >
+                  <span className="sbo-letter">{letter}</span>
+                  <span className="sbo-count">{c[key]}</span>
+                </span>
+              ))}
+            </span>
+          </li>
+        );
+      })}
     </ol>
   );
 }

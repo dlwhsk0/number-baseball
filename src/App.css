@@ -258,12 +258,45 @@
   font-weight: 700;
   letter-spacing: 0.15em;
 }
-.history-result {
+/* S/B/O 고정 3칸 — 색상으로 구분 */
+.sbo {
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  gap: 6px;
+}
+.sbo-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.12);
+  line-height: 1;
+}
+.sbo-letter {
+  font-size: 0.62rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+.sbo-count {
+  font-size: 1rem;
+  font-weight: 800;
+}
+.sbo-strike {
   color: var(--strike);
 }
-.history-result.is-out {
+.sbo-ball {
+  color: var(--ball);
+}
+.sbo-out {
+  color: var(--out);
+}
+/* 0인 칸은 흐리게 해서 값이 있는 칸이 도드라지게 */
+.sbo-cell.zero {
   color: var(--muted);
+  opacity: 0.4;
 }
 
 .result {
