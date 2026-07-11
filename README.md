@@ -1,32 +1,32 @@
-# React + TypeScript + Vite
+# 숫자 야구 ⚾
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+서로 다른 세 자리 숫자를 맞히는 숫자 야구 게임 모바일 웹앱.
 
-Currently, two official plugins are available:
+**▶ 라이브: https://number-baseball-nc3yma6qz-hanas-projects-efc20dee.vercel.app**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 규칙
+- 컴퓨터가 서로 다른 세 자리 숫자(0~9, 중복 없음, 맨 앞자리 0 제외)를 정합니다.
+- 추측을 입력하면 판정합니다:
+  - **스트라이크(S)**: 숫자와 위치가 모두 일치
+  - **볼(B)**: 숫자는 있으나 위치가 다름
+  - **아웃**: 하나도 없음
+- 3 스트라이크면 승리. 시도 10회 제한.
 
-## React Compiler
+## 스택
+- Vite + React + TypeScript
+- PWA (홈 화면 추가 + 오프라인)
+- 패키지 매니저: **pnpm** (Vite 8의 rolldown 네이티브 바이너리 이슈로 npm 대신 사용)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## 개발
+```bash
+pnpm install
+pnpm dev       # 개발 서버
+pnpm test      # 단위 테스트 (게임 로직)
+pnpm build     # 프로덕션 빌드
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## 구조
+- `src/game/logic.ts` — 정답 생성·판정(순수 함수) + 테스트
+- `src/game/useGame.ts` — 상태 관리 reducer/훅 + 테스트
+- `src/components/` — Keypad · History · ResultBanner
+- `scripts/gen-icons.mjs` — PWA 아이콘 생성기
