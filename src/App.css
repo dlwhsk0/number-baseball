@@ -19,6 +19,22 @@
 
 .app-header {
   text-align: center;
+  position: relative;
+}
+.new-game {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 1px solid var(--panel-2);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.new-game:active {
+  transform: scale(0.96);
 }
 .app-header h1 {
   margin: 0;
@@ -158,4 +174,45 @@
 }
 .history-result.is-out {
   color: var(--muted);
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 16px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-2);
+}
+.result.won {
+  border-color: var(--strike);
+}
+.result.lost {
+  border-color: var(--out);
+}
+.result-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.result.won .result-title {
+  color: var(--strike);
+}
+.result.lost .result-title {
+  color: var(--out);
+}
+.result-detail {
+  margin: 0;
+  color: var(--muted);
+}
+.result-detail strong {
+  color: var(--text);
+  letter-spacing: 0.15em;
+}
+.result-restart {
+  margin-top: 8px;
+  width: 100%;
+  padding: 14px 0;
 }
