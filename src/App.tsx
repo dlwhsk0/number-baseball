@@ -1,12 +1,13 @@
 import { useGame } from './game/useGame';
 import { DIGITS } from './game/logic';
 import { Keypad } from './components/Keypad';
+import { MemoBoard } from './components/MemoBoard';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
 import './App.css';
 
 export default function App() {
-  const { state, pushDigit, popDigit, submit, reset } = useGame();
+  const { state, pushDigit, popDigit, submit, cycleMemo, reset } = useGame();
   const finished = state.status !== 'playing';
   const slots = Array.from({ length: DIGITS }, (_, i) => state.input[i] ?? '');
 
@@ -46,6 +47,8 @@ export default function App() {
           />
         )}
       </section>
+
+      <MemoBoard memo={state.memo} disabled={finished} onCycle={cycleMemo} />
 
       <section className="history-section">
         <div className="history-head">

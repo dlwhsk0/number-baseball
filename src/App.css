@@ -112,6 +112,73 @@
   color: #0b1220;
 }
 
+.memo {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 14px;
+}
+.memo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.memo-hint {
+  font-size: 0.72rem;
+}
+.memo-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.memo-chip {
+  position: relative;
+  border: 1px solid var(--panel-2);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.05s ease, opacity 0.15s ease;
+}
+.memo-chip:active {
+  transform: scale(0.94);
+}
+.memo-chip:disabled {
+  cursor: default;
+}
+/* 아웃: 흐릿하게 + 취소선 */
+.memo-chip.mark-out {
+  opacity: 0.4;
+}
+.memo-chip.mark-out .memo-digit {
+  text-decoration: line-through;
+  text-decoration-color: var(--out);
+  text-decoration-thickness: 2px;
+}
+/* 있음: 강조 테두리 */
+.memo-chip.mark-in {
+  border-color: var(--strike);
+  color: var(--strike);
+}
+.memo-badge {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.memo-chip.mark-out .memo-badge {
+  color: var(--out);
+}
+.memo-chip.mark-in .memo-badge {
+  color: var(--strike);
+}
+
 .history-section {
   background: var(--panel);
   border-radius: 14px;

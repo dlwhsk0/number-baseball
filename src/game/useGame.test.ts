@@ -78,3 +78,35 @@ describe('gameReducer — reset', () => {
     expect(s.status).toBe('playing');
   });
 });
+
+describe('gameReducer — 메모', () => {
+  it('메모는 기본→아웃→있음→기본 순으로 순환한다', () => {
+    let s = start('123');
+    expect(s.memo['7']).toBeUndefined();
+    s = gameReducer(s, { type: 'memo', digit: '7' });
+    expect(s.memo['7']).toBe('out');
+    s = gameReducer(s, { type: 'memo', digit: '7' });
+    expect(s.memo['7']).toBe('in');
+    s = gameReducer(s, { type: 'memo', digit: '7' });
+    expect(s.memo['7']).toBeUndefined();
+  });
+
+  it('숫자별로 독립적으로 표시된다', () => {
+    let s = gameReducer(start('123'), { type: 'memo', digit: '0' });
+    s = gameReducer(s, { type: 'memo', digit: '9' });
+    s = gameReducer(s, { type: 'memo', digit: '9' });
+    expect(s.memo).toEqual({ '0': 'out', '9': 'in' });
+  });
+
+  it('reset(새 게임)하면 메모가 초기화된다', () => {
+    let s = gameReducer(start('123'), { type: 'memo', digit: '4' });
+    s = gameReducer(s, { type: 'reset', secret: '567', maxAttempts: 10 });
+    expect(s.memo).toEqual({});
+  });
+
+  it('게임이 끝나면 메모를 바꿀 수 없다', () => {
+    let s = gameReducer(type(start('123'), '123'), { type: 'submit' }); // won
+    s = gameReducer(s, { type: 'memo', digit: '5' });
+    expect(s.memo['5']).toBeUndefined();
+  });
+});
