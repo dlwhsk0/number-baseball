@@ -2,10 +2,11 @@ import { useGame } from './game/useGame';
 import { DIGITS } from './game/logic';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
+import { ResultBanner } from './components/ResultBanner';
 import './App.css';
 
 export default function App() {
-  const { state, pushDigit, popDigit, submit } = useGame();
+  const { state, pushDigit, popDigit, submit, reset } = useGame();
   const finished = state.status !== 'playing';
   const slots = Array.from({ length: DIGITS }, (_, i) => state.input[i] ?? '');
 
@@ -14,6 +15,9 @@ export default function App() {
       <header className="app-header">
         <h1>숫자 야구</h1>
         <p className="subtitle">서로 다른 세 자리 숫자를 맞혀보세요</p>
+        <button type="button" className="new-game" onClick={reset}>
+          새 게임
+        </button>
       </header>
 
       <section className="board">
@@ -25,18 +29,22 @@ export default function App() {
           ))}
         </div>
 
-        {state.status === 'won' && <p className="status status-won">정답! 🎉</p>}
-        {state.status === 'lost' && (
-          <p className="status status-lost">아쉬워요. 정답은 {state.secret} 였어요.</p>
+        {finished ? (
+          <ResultBanner
+            status={state.status}
+            secret={state.secret}
+            attempts={state.guesses.length}
+            onRestart={reset}
+          />
+        ) : (
+          <Keypad
+            input={state.input}
+            disabled={finished}
+            onDigit={pushDigit}
+            onDelete={popDigit}
+            onSubmit={submit}
+          />
         )}
-
-        <Keypad
-          input={state.input}
-          disabled={finished}
-          onDigit={pushDigit}
-          onDelete={popDigit}
-          onSubmit={submit}
-        />
       </section>
 
       <section className="history-section">
