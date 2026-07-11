@@ -1,8 +1,8 @@
 import type { MemoMark } from '../game/useGame';
 
 interface Props {
-  /** 현재 입력(0~3자리). */
-  input: string;
+  /** 입력 칸(길이 3, 빈 칸은 ''). */
+  slots: string[];
   /** 숫자별 메모 표시. */
   memo: Record<string, MemoMark>;
   /** 'input'=숫자 입력, 'memo'=탭하면 메모 표시 순환. */
@@ -20,7 +20,7 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 const BADGE: Record<MemoMark, string> = { strike: '○', ball: '△', out: '✗' };
 
 export function Keypad({
-  input,
+  slots,
   memo,
   mode,
   disabled,
@@ -30,11 +30,17 @@ export function Keypad({
   onSubmit,
 }: Props) {
   const isMemo = mode === 'memo';
-  const canSubmit = !disabled && input.length === 3;
+  const firstEmpty = slots.indexOf('');
+  const isFull = firstEmpty === -1;
+  const canSubmit = !disabled && isFull;
+  const hasInput = slots.some((s) => s !== '');
 
-  /** 입력 모드에서만: 이미 쓴 숫자거나 맨 앞 0이면 비활성화. 메모 모드에선 모두 누를 수 있다. */
-  const digitDisabled = (d: string) =>
-    disabled || (!isMemo && (input.includes(d) || (input.length === 0 && d === '0')));
+  /** 입력 모드에서만: 이미 쓴 숫자·꽉 참·맨 앞 0이면 비활성화. 메모 모드에선 모두 누를 수 있다. */
+  const digitDisabled = (d: string) => {
+    if (disabled) return true;
+    if (isMemo) return false;
+    return slots.includes(d) || isFull || (firstEmpty === 0 && d === '0');
+  };
 
   return (
     <div className={`keypad${isMemo ? ' is-memo' : ''}`}>
@@ -63,7 +69,7 @@ export function Keypad({
           <button
             type="button"
             className="key key-delete"
-            disabled={disabled || input.length === 0}
+            disabled={disabled || !hasInput}
             onClick={onDelete}
           >
             ⌫ 지우기
