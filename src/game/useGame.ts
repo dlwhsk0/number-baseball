@@ -5,8 +5,8 @@ import { DIGITS, generateSecret, judge, isWin, type Judgement } from './logic';
 
 export type GameStatus = 'playing' | 'won' | 'lost';
 
-/** 메모판에서 각 숫자에 매기는 표시. 없으면 기본(무표시). */
-export type MemoMark = 'out' | 'in';
+/** 키패드 메모 표시. 판정과 대응: ○스트라이크 · △볼 · ✗아웃. 없으면 무표시. */
+export type MemoMark = 'strike' | 'ball' | 'out';
 
 export interface GuessRecord {
   guess: string;
@@ -34,10 +34,11 @@ export function initGame(secret: string, maxAttempts: number): GameState {
   return { secret, input: '', guesses: [], status: 'playing', maxAttempts, memo: {} };
 }
 
-/** 메모 표시 순환: 기본 → 아웃(✗) → 있음(○) → 기본. */
+/** 메모 표시 순환: 기본 → ○스트라이크 → △볼 → ✗아웃 → 기본. */
 function nextMark(cur: MemoMark | undefined): MemoMark | undefined {
-  if (cur === undefined) return 'out';
-  if (cur === 'out') return 'in';
+  if (cur === undefined) return 'strike';
+  if (cur === 'strike') return 'ball';
+  if (cur === 'ball') return 'out';
   return undefined;
 }
 
