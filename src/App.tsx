@@ -9,6 +9,7 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SpeedVersus } from './versus/SpeedVersus';
+import { DuelVersus } from './versus/DuelVersus';
 import './App.css';
 
 type Mode = 'solo' | 'speed' | 'duel';
@@ -150,10 +151,7 @@ export default function App() {
       {mode === 'speed' ? (
         <SpeedVersus onExit={() => setMode('solo')} />
       ) : mode === 'duel' ? (
-        <div className="versus versus-center">
-          <h2 className="versus-title">턴제 대결 🔁</h2>
-          <p className="versus-desc">서로 숫자를 정해 번갈아 맞히는 모드예요. 곧 추가됩니다!</p>
-        </div>
+        <DuelVersus onExit={() => setMode('solo')} />
       ) : (
         <>
       <div className="level-bar">

@@ -12,7 +12,11 @@ interface Props {
   onMemo: (digit: string) => void;
   onDelete: () => void;
   onSubmit: () => void;
-  onToggleMemo: () => void;
+  onToggleMemo?: () => void;
+  /** 메모 버튼 노출 여부. 대결의 숫자 입력에선 끈다. 기본 true. */
+  showMemo?: boolean;
+  /** 확인 버튼 라벨(기본 '확인'). */
+  submitLabel?: string;
 }
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
@@ -30,6 +34,8 @@ export function Keypad({
   onDelete,
   onSubmit,
   onToggleMemo,
+  showMemo = true,
+  submitLabel = '확인',
 }: Props) {
   const isMemo = mode === 'memo';
   const firstEmpty = slots.indexOf('');
@@ -64,25 +70,27 @@ export function Keypad({
         })}
       </div>
 
-      <div className="keypad-actions">
-        <button
-          type="button"
-          className={`key key-icon key-memo${isMemo ? ' active' : ''}`}
-          aria-pressed={isMemo}
-          aria-label="메모 모드"
-          title="메모 모드"
-          disabled={disabled}
-          onClick={onToggleMemo}
-        >
-          ✎
-        </button>
+      <div className={`keypad-actions${showMemo ? '' : ' no-memo'}`}>
+        {showMemo && (
+          <button
+            type="button"
+            className={`key key-icon key-memo${isMemo ? ' active' : ''}`}
+            aria-pressed={isMemo}
+            aria-label="메모 모드"
+            title="메모 모드"
+            disabled={disabled}
+            onClick={onToggleMemo}
+          >
+            ✎
+          </button>
+        )}
         <button
           type="button"
           className="key key-submit"
           disabled={!canSubmit}
           onClick={onSubmit}
         >
-          확인
+          {submitLabel}
         </button>
         <button
           type="button"
