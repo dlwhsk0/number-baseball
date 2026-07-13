@@ -35,6 +35,8 @@
   `data-theme` 속성으로 전환. 수동 선택은 `localStorage.theme`에 저장, 없으면 시스템을 실시간 추종.
   `index.html`의 인라인 스크립트가 마운트 전에 테마를 확정(FOUC 방지). accent 위 글자는 `--on-accent`.
 - **푸터**: GitHub 프로필 링크 아이콘(`github.com/dlwhsk0`).
+- **게임 방법 모달**: 타이틀 아래 "게임 방법 보기"를 누르면 거의 전체 화면 모달(`src/components/RulesModal.tsx`)
+  이 열려 규칙·판정·메모 모드를 설명. 좌상단 ✕/ESC/배경 탭으로 닫고, 열려 있는 동안 배경 스크롤 잠금.
 
 ## 빌드 단계 (체크리스트)
 - [x] 단계 0: 스캐폴딩 + CLAUDE.md
