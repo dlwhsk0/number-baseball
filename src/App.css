@@ -190,17 +190,25 @@
   font-size: 0.82rem;
 }
 
-/* 키패드 숫자 위 메모 배지 */
+/* 키패드 메모 표시 — 키 전체를 덮는 큰 도형(숫자 뒤 워터마크) */
 .key-digit {
   position: relative;
 }
+.key-digit-num {
+  position: relative;
+  z-index: 1;
+}
 .key-badge {
   position: absolute;
-  top: 3px;
-  right: 6px;
-  font-size: 0.85rem;
-  font-weight: 800;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 0;
+  font-size: 2rem;
+  font-weight: 700;
   line-height: 1;
+  opacity: 0.45;
+  pointer-events: none;
 }
 .key-digit.mark-strike {
   box-shadow: inset 0 0 0 2px var(--strike);
@@ -216,16 +224,9 @@
 }
 .key-digit.mark-out {
   box-shadow: inset 0 0 0 2px var(--out);
-  opacity: 0.6;
 }
 .key-digit.mark-out .key-badge {
   color: var(--out);
-}
-/* 입력용으로 비활성화돼도 메모 배지는 흐려지지 않게 */
-.key-digit:disabled.mark-strike,
-.key-digit:disabled.mark-ball,
-.key-digit:disabled.mark-out {
-  opacity: 0.5;
 }
 
 .history-section {

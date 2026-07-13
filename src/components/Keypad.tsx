@@ -17,8 +17,8 @@ interface Props {
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
-/** 메모 표시 배지 기호. */
-const BADGE: Record<MemoMark, string> = { strike: '○', ball: '△', out: '✗' };
+/** 메모 표시 기호(키 전체에 크게 겹쳐 보인다). */
+const BADGE: Record<MemoMark, string> = { strike: '○', ball: '△', out: '✕' };
 
 export function Keypad({
   slots,
@@ -57,7 +57,7 @@ export function Keypad({
               disabled={digitDisabled(d)}
               onClick={() => (isMemo ? onMemo(d) : onDigit(d))}
             >
-              {d}
+              <span className="key-digit-num">{d}</span>
               {mark && <span className="key-badge">{BADGE[mark]}</span>}
             </button>
           );
@@ -97,7 +97,7 @@ export function Keypad({
       </div>
 
       {isMemo && (
-        <p className="keypad-hint">숫자를 눌러 ○스트라이크 · △볼 · ✗아웃 표시</p>
+        <p className="keypad-hint">숫자를 눌러 ○스트라이크 · △볼 · ✕아웃 표시</p>
       )}
     </div>
   );
