@@ -1,9 +1,53 @@
 :root {
   font-family: system-ui, 'Segoe UI', Roboto, -apple-system, sans-serif;
   line-height: 1.45;
-  color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* 라이트 테마(기본값). data-theme 속성으로 덮어쓴다. */
+  color-scheme: light;
+  --bg: #eef2f7;
+  --panel: #ffffff;
+  --panel-2: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #0ea5e9;
+  --on-accent: #06263a;
+  /* 야구 전광판 관례: 스트라이크=주황 · 볼=초록 · 아웃=빨강 (라이트에선 진한 톤) */
+  --strike: #d97706;
+  --ball: #16a34a;
+  --out: #dc2626;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --panel-2: #334155;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --on-accent: #0b1220;
+  --strike: #f59e0b;
+  --ball: #22c55e;
+  --out: #ef4444;
+}
+
+/* JS가 꺼져 data-theme이 없을 때의 시스템 폴백 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --on-accent: #0b1220;
+    --strike: #f59e0b;
+    --ball: #22c55e;
+    --out: #ef4444;
+  }
 }
 
 * {
@@ -12,8 +56,9 @@
 
 body {
   margin: 0;
-  background: #0f172a;
+  background: var(--bg);
   min-height: 100dvh;
+  transition: background 0.2s ease;
 }
 
 #root {

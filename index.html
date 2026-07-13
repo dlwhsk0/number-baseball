@@ -11,6 +11,22 @@
     <meta name="apple-mobile-web-app-title" content="숫자야구" />
     <meta name="description" content="서로 다른 세 자리 숫자를 맞히는 숫자 야구 게임" />
     <title>숫자 야구</title>
+    <script>
+      // 마운트 전에 테마를 확정해 화면 깜빡임(FOUC)을 막는다.
+      // 저장된 선택이 있으면 그걸, 없으면 시스템 설정을 따른다.
+      (function () {
+        try {
+          var s = localStorage.getItem('theme');
+          var t =
+            s === 'light' || s === 'dark'
+              ? s
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

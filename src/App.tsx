@@ -5,6 +5,7 @@ import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { ThemeToggle } from './components/ThemeToggle';
 import './App.css';
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
         onDismiss={() => setNeedRefresh(false)}
       />
       <header className="app-header">
+        <ThemeToggle />
         <h1>숫자 야구</h1>
         <p className="subtitle">서로 다른 세 자리 숫자를 맞혀보세요</p>
         <button type="button" className="new-game" onClick={newGame}>
