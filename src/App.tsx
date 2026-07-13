@@ -12,9 +12,13 @@ import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import './App.css';
 
-type Mode = 'solo' | 'speed' | 'duel';
-const MODE_TABS: { key: Mode; label: string }[] = [
+type Section = 'solo' | 'multi';
+type MultiMode = 'speed' | 'duel';
+const SECTION_TABS: { key: Section; label: string }[] = [
   { key: 'solo', label: '혼자' },
+  { key: 'multi', label: '멀티' },
+];
+const MULTI_TABS: { key: MultiMode; label: string }[] = [
   { key: 'speed', label: '스피드 대결' },
   { key: 'duel', label: '턴제 대결' },
 ];
@@ -34,7 +38,8 @@ function getInitialLevel(): Level {
 export default function App() {
   const [level, setLevel] = useState<Level>(getInitialLevel);
   const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame(level);
-  const [mode, setMode] = useState<Mode>('solo');
+  const [section, setSection] = useState<Section>('solo');
+  const [multiMode, setMultiMode] = useState<MultiMode>('speed');
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
@@ -65,7 +70,7 @@ export default function App() {
     state.guesses.length === 0 &&
     state.slots.every((s) => s === '') &&
     Object.keys(state.memo).length === 0;
-  const canAutoReload = pristine && mode === 'solo';
+  const canAutoReload = pristine && section === 'solo';
   useEffect(() => {
     if (needRefresh && canAutoReload) updateServiceWorker(true);
   }, [needRefresh, canAutoReload, updateServiceWorker]);
@@ -119,7 +124,7 @@ export default function App() {
       <header className="app-header">
         <ThemeToggle />
         <h1>숫자 야구 ⚾</h1>
-        {mode === 'solo' && (
+        {section === 'solo' && (
           <p className="subtitle">
             서로 다른 {state.digits === 4 ? '네' : '세'} 자리 숫자를 맞혀보세요
           </p>
@@ -127,32 +132,45 @@ export default function App() {
         <button type="button" className="rules-link" onClick={() => setShowRules(true)}>
           게임 방법 보기
         </button>
-        {mode === 'solo' && (
+        {section === 'solo' && (
           <button type="button" className="new-game" onClick={newGame}>
             새 게임
           </button>
         )}
       </header>
 
-      <div className="mode-tabs" role="group" aria-label="모드 선택">
-        {MODE_TABS.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            className={`mode-tab${mode === m.key ? ' active' : ''}`}
-            aria-pressed={mode === m.key}
-            onClick={() => setMode(m.key)}
-          >
-            {m.label}
-          </button>
-        ))}
+      <div className="nav">
+        <div className="mode-tabs" role="group" aria-label="모드 선택">
+          {SECTION_TABS.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              className={`mode-tab${section === m.key ? ' active' : ''}`}
+              aria-pressed={section === m.key}
+              onClick={() => setSection(m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        {section === 'multi' && (
+          <div className="mode-tabs" role="group" aria-label="대결 선택">
+            {MULTI_TABS.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                className={`mode-tab${multiMode === m.key ? ' active' : ''}`}
+                aria-pressed={multiMode === m.key}
+                onClick={() => setMultiMode(m.key)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {mode === 'speed' ? (
-        <SpeedVersus onExit={() => setMode('solo')} />
-      ) : mode === 'duel' ? (
-        <DuelVersus onExit={() => setMode('solo')} />
-      ) : (
+      {section === 'solo' ? (
         <>
       <div className="level-bar">
         <div className="level-select" role="group" aria-label="난이도 선택">
@@ -226,6 +244,10 @@ export default function App() {
         <History guesses={state.guesses} />
       </section>
         </>
+      ) : multiMode === 'speed' ? (
+        <SpeedVersus onExit={() => setSection('solo')} />
+      ) : (
+        <DuelVersus onExit={() => setSection('solo')} />
       )}
 
       <footer className="app-footer">

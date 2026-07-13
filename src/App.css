@@ -652,9 +652,15 @@
 }
 
 /* ===== 모드 탭 ===== */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 4px;
   padding: 4px;
   background: var(--panel);
