@@ -21,7 +21,7 @@ export function UpdatePrompt() {
 
   return (
     <div className="update-toast" role="status" aria-live="polite">
-      <span className="update-toast-text">새 버전이 있어요.</span>
+      <span className="update-toast-text">업데이트가 있어요.</span>
       <div className="update-toast-actions">
         <button
           type="button"
