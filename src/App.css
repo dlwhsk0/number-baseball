@@ -62,18 +62,26 @@
   font-size: 0.9rem;
 }
 .rules-link {
-  margin-top: 6px;
+  /* 헤더 상단 중앙 — 좌측 테마 토글과 우측 새 게임 버튼 사이 */
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 34px;
+  display: flex;
+  align-items: center;
   background: transparent;
   border: none;
-  color: var(--accent);
-  font-size: 0.85rem;
-  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
+  white-space: nowrap;
   cursor: pointer;
 }
 .rules-link:active {
-  opacity: 0.7;
+  opacity: 0.6;
 }
 
 .board {
