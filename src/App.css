@@ -646,3 +646,191 @@
 .mark-o {
   color: var(--out);
 }
+
+/* ===== 모드 탭 ===== */
+.mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.mode-tab {
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 999px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+.mode-tab:active {
+  transform: scale(0.97);
+}
+.mode-tab.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ===== 대결 화면 공통 ===== */
+.versus {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.versus-center {
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 24px 8px;
+}
+.versus-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  text-align: center;
+}
+.versus-desc {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+  text-align: center;
+  font-size: 0.9rem;
+}
+.versus-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.versus-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.seg {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 3px;
+  padding: 3px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.seg-btn {
+  padding: 6px 16px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 999px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.seg-btn.active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.versus-primary,
+.versus-secondary {
+  padding: 14px 0;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.versus-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.versus-primary:active,
+.versus-secondary:active {
+  transform: scale(0.98);
+}
+.versus-secondary {
+  background: transparent;
+  color: var(--text);
+}
+.versus-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* 핸드오프(차례 넘기기) */
+.handoff-title {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+.handoff-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* 플레이 중 상단 바(누구 차례 + 타이머) */
+.turn-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.turn-who {
+  font-weight: 800;
+}
+.turn-timer {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+/* 결과 점수판 */
+.score-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.score-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--panel-2);
+  border-radius: 12px;
+  border: 1px solid transparent;
+}
+.score-row.win {
+  border-color: var(--accent);
+}
+.score-rank {
+  font-weight: 800;
+  color: var(--muted);
+}
+.score-name {
+  font-weight: 700;
+}
+.score-stat {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.9rem;
+  min-width: 44px;
+  text-align: right;
+}
