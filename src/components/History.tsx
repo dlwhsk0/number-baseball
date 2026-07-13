@@ -1,19 +1,18 @@
-import { DIGITS } from '../game/logic';
 import type { GuessRecord } from '../game/useGame';
 
 interface Props {
   guesses: GuessRecord[];
 }
 
-/** 각 추측은 세 자리라 S+B+O = DIGITS. O(아웃)은 정답에 없는 자리 수. */
+/** S+B+O = 자릿수. O(아웃)은 정답에 없는 자리 수(자릿수 - S - B). */
 const CELLS = [
   { key: 'strike', letter: 'S' },
   { key: 'ball', letter: 'B' },
   { key: 'out', letter: 'O' },
 ] as const;
 
-function counts({ strikes, balls }: GuessRecord['judgement']) {
-  return { strike: strikes, ball: balls, out: DIGITS - strikes - balls };
+function counts({ strikes, balls }: GuessRecord['judgement'], digits: number) {
+  return { strike: strikes, ball: balls, out: digits - strikes - balls };
 }
 
 export function History({ guesses }: Props) {
@@ -24,7 +23,7 @@ export function History({ guesses }: Props) {
   return (
     <ol className="history">
       {guesses.map((g, i) => {
-        const c = counts(g.judgement);
+        const c = counts(g.judgement, g.guess.length);
         return (
           <li key={i} className="history-row">
             <span className="history-index">{i + 1}</span>

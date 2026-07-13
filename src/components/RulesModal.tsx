@@ -64,8 +64,15 @@ export function RulesModal({ onClose }: Props) {
 
           <h3>승리 / 기회</h3>
           <ul>
-            <li><strong>3 스트라이크</strong>면 승리 🎉</li>
+            <li>자리 수가 <strong>모두 스트라이크</strong>면 승리 🎉</li>
             <li>기회는 <strong>10번</strong>이에요.</li>
+          </ul>
+
+          <h3>난이도</h3>
+          <ul>
+            <li><strong>초보자</strong> — 3자리. <b>자동 힌트</b>: 추측이 전부 아웃이면 그 숫자들을 자동으로 ✕ 표시.</li>
+            <li><strong>중급</strong> — 3자리, 힌트 없음.</li>
+            <li><strong>고급</strong> — 4자리.</li>
           </ul>
 
           <h3>메모 모드 ✎</h3>
@@ -75,7 +82,7 @@ export function RulesModal({ onClose }: Props) {
               <strong>메모 모드</strong>를 켜고 숫자를 누르면 표시가 순환해요:
               <br />
               없음 → <span className="mark-s">○ 스트라이크</span> →{' '}
-              <span className="mark-b">△ 볼</span> → <span className="mark-o">✗ 아웃</span> → 없음
+              <span className="mark-b">△ 볼</span> → <span className="mark-o">✕ 아웃</span> → 없음
             </li>
             <li>표시는 <strong>참고용</strong>이라 실제 입력을 막지 않아요.</li>
             <li>새 게임을 시작하면 메모는 초기화돼요.</li>

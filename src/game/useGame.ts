@@ -5,8 +5,18 @@ import { DIGITS, generateSecret, judge, isWin, type Judgement } from './logic';
 
 export type GameStatus = 'playing' | 'won' | 'lost';
 
-/** 키패드 메모 표시. 판정과 대응: ○스트라이크 · △볼 · ✗아웃. 없으면 무표시. */
+/** 키패드 메모 표시. 판정과 대응: ○스트라이크 · △볼 · ✕아웃. 없으면 무표시. */
 export type MemoMark = 'strike' | 'ball' | 'out';
+
+/** 난이도. */
+export type Level = 'beginner' | 'intermediate' | 'advanced';
+
+/** 난이도별 설정: 자릿수 + 자동 힌트 여부. */
+export const LEVELS: Record<Level, { digits: number; beginner: boolean; label: string }> = {
+  beginner: { digits: 3, beginner: true, label: '초보자' },
+  intermediate: { digits: 3, beginner: false, label: '중급' },
+  advanced: { digits: 4, beginner: false, label: '고급' },
+};
 
 export interface GuessRecord {
   guess: string;
@@ -15,7 +25,11 @@ export interface GuessRecord {
 
 export interface GameState {
   secret: string;
-  /** 입력 칸. 길이 DIGITS, 빈 칸은 ''. 칸마다 독립적으로 지울 수 있다. */
+  /** 자릿수(3 또는 4). */
+  digits: number;
+  /** 초보자 자동 힌트(3아웃이면 그 숫자들을 자동으로 아웃 표시). */
+  beginner: boolean;
+  /** 입력 칸. 길이 digits, 빈 칸은 ''. 칸마다 독립적으로 지울 수 있다. */
   slots: string[];
   guesses: GuessRecord[];
   status: GameStatus;
@@ -30,10 +44,10 @@ export type GameAction =
   | { type: 'clearSlot'; index: number }
   | { type: 'submit' }
   | { type: 'memo'; digit: string }
-  | { type: 'reset'; secret: string; maxAttempts: number };
+  | { type: 'reset'; secret: string; maxAttempts: number; digits?: number; beginner?: boolean };
 
-function emptySlots(): string[] {
-  return Array<string>(DIGITS).fill('');
+function emptySlots(digits: number): string[] {
+  return Array<string>(digits).fill('');
 }
 
 /** 가장 왼쪽 빈 칸 index. 없으면 -1. */
@@ -47,10 +61,17 @@ function lastFilled(slots: string[]): number {
   return -1;
 }
 
-export function initGame(secret: string, maxAttempts: number): GameState {
+export function initGame(
+  secret: string,
+  maxAttempts: number,
+  digits: number = DIGITS,
+  beginner = false,
+): GameState {
   return {
     secret,
-    slots: emptySlots(),
+    digits,
+    beginner,
+    slots: emptySlots(digits),
     guesses: [],
     status: 'playing',
     maxAttempts,
@@ -58,7 +79,7 @@ export function initGame(secret: string, maxAttempts: number): GameState {
   };
 }
 
-/** 메모 표시 순환: 기본 → ○스트라이크 → △볼 → ✗아웃 → 기본. */
+/** 메모 표시 순환: 기본 → ○스트라이크 → △볼 → ✕아웃 → 기본. */
 function nextMark(cur: MemoMark | undefined): MemoMark | undefined {
   if (cur === undefined) return 'strike';
   if (cur === 'strike') return 'ball';
@@ -100,9 +121,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const judgement = judge(state.secret, guess);
       const guesses = [...state.guesses, { guess, judgement }];
       let status: GameStatus = 'playing';
-      if (isWin(judgement)) status = 'won';
+      if (isWin(judgement, state.digits)) status = 'won';
       else if (guesses.length >= state.maxAttempts) status = 'lost';
-      return { ...state, guesses, slots: emptySlots(), status };
+
+      // 초보자 자동 힌트: 3아웃(전부 없음)이면 그 숫자들을 아웃으로 표시.
+      let memo = state.memo;
+      if (state.beginner && judgement.isOut) {
+        memo = { ...state.memo };
+        for (const d of guess) memo[d] = 'out';
+      }
+
+      return { ...state, guesses, slots: emptySlots(state.digits), status, memo };
     }
     case 'memo': {
       if (state.status !== 'playing') return state;
@@ -113,16 +142,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, memo };
     }
     case 'reset':
-      return initGame(action.secret, action.maxAttempts);
+      return initGame(
+        action.secret,
+        action.maxAttempts,
+        action.digits ?? DIGITS,
+        action.beginner ?? false,
+      );
     default:
       return state;
   }
 }
 
-export function useGame(maxAttempts = 10) {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () =>
-    initGame(generateSecret(), maxAttempts),
-  );
+export function useGame(initialLevel: Level = 'intermediate', maxAttempts = 10) {
+  const [state, dispatch] = useReducer(gameReducer, undefined, () => {
+    const { digits, beginner } = LEVELS[initialLevel];
+    return initGame(generateSecret(digits), maxAttempts, digits, beginner);
+  });
 
   return {
     state,
@@ -131,6 +166,10 @@ export function useGame(maxAttempts = 10) {
     clearSlot: (index: number) => dispatch({ type: 'clearSlot', index }),
     submit: () => dispatch({ type: 'submit' }),
     cycleMemo: (digit: string) => dispatch({ type: 'memo', digit }),
-    reset: () => dispatch({ type: 'reset', secret: generateSecret(), maxAttempts }),
+    /** 지정 난이도로 새 게임. */
+    reset: (level: Level) => {
+      const { digits, beginner } = LEVELS[level];
+      dispatch({ type: 'reset', secret: generateSecret(digits), maxAttempts, digits, beginner });
+    },
   };
 }
