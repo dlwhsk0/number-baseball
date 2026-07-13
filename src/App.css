@@ -1,8 +1,8 @@
 /* 색 팔레트(라이트/다크)는 index.css의 :root에 정의됨 */
 .app {
-  max-width: 380px;
+  max-width: 420px;
   margin: 0 auto;
-  padding: max(20px, env(safe-area-inset-top)) 20px
+  padding: max(20px, env(safe-area-inset-top)) 16px
     calc(40px + env(safe-area-inset-bottom));
   min-height: 100dvh;
   display: flex;
