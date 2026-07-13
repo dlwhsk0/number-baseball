@@ -312,6 +312,25 @@
   opacity: 0.4;
 }
 
+/* 푸터 — GitHub 프로필 링크 */
+.app-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+}
+.footer-link {
+  color: var(--muted);
+  display: inline-flex;
+  transition: color 0.15s ease, transform 0.05s ease;
+}
+.footer-link:hover {
+  color: var(--text);
+}
+.footer-link:active {
+  transform: scale(0.92);
+}
+
 /* 새 버전 알림 토스트 — 하단 고정, 게임을 가리지 않음. 눌러야만 새로고침. */
 .update-toast {
   position: fixed;
