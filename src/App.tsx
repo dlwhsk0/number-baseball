@@ -61,7 +61,7 @@ export default function App() {
       />
       <header className="app-header">
         <ThemeToggle />
-        <h1>숫자 야구</h1>
+        <h1>숫자 야구 ⚾</h1>
         <p className="subtitle">서로 다른 세 자리 숫자를 맞혀보세요</p>
         <button type="button" className="new-game" onClick={newGame}>
           새 게임
