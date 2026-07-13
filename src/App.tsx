@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useGame } from './game/useGame';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
@@ -11,14 +12,36 @@ export default function App() {
   const [memoMode, setMemoMode] = useState(false);
   const finished = state.status !== 'playing';
 
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    // 앱을 오래 켜둬도 주기적으로 새 버전을 확인(1시간마다).
+    onRegisteredSW(_swUrl, registration) {
+      if (registration) {
+        setInterval(() => registration.update(), 60 * 60 * 1000);
+      }
+    },
+  });
+
   const newGame = () => {
+    // 대기 중인 업데이트가 있으면, 새 판을 시작하는 이 시점에 적용한다(새로고침).
+    // 어차피 새 판이라 잃는 게 없다 → "게임 끝나고 다시 시작하면 자동 업데이트".
+    if (needRefresh) {
+      updateServiceWorker(true);
+      return;
+    }
     setMemoMode(false);
     reset();
   };
 
   return (
     <main className="app">
-      <UpdatePrompt />
+      <UpdatePrompt
+        show={needRefresh}
+        onRefresh={() => updateServiceWorker(true)}
+        onDismiss={() => setNeedRefresh(false)}
+      />
       <header className="app-header">
         <h1>숫자 야구</h1>
         <p className="subtitle">서로 다른 세 자리 숫자를 맞혀보세요</p>

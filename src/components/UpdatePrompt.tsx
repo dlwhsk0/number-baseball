@@ -1,41 +1,31 @@
-import { useRegisterSW } from 'virtual:pwa-register/react';
+interface Props {
+  show: boolean;
+  onRefresh: () => void;
+  onDismiss: () => void;
+}
 
 /**
- * 새 버전이 배포되면 배너를 띄운다. prompt 방식이라 자동 새로고침은 절대 하지 않고,
- * 사용자가 "새로고침"을 눌러야만 갱신된다 → 게임 중에는 무시하고 계속 플레이 가능(초기화 안 됨).
+ * 새 버전이 배포되면 하단에 배너를 띄운다. 자동 새로고침은 하지 않는다.
+ * - "지금 새로고침"을 눌러야만 갱신 → 게임 중에는 무시하고 계속 플레이(초기화 안 됨).
+ * - 어차피 "새 게임"/"다시하기"를 누르면 그 시점에 자동 적용된다(App.newGame 참고).
  */
-export function UpdatePrompt() {
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    // 앱을 오래 켜둬도 주기적으로 새 버전을 확인(1시간마다).
-    onRegisteredSW(_swUrl, registration) {
-      if (registration) {
-        setInterval(() => registration.update(), 60 * 60 * 1000);
-      }
-    },
-  });
-
-  if (!needRefresh) return null;
+export function UpdatePrompt({ show, onRefresh, onDismiss }: Props) {
+  if (!show) return null;
 
   return (
     <div className="update-toast" role="status" aria-live="polite">
-      <span className="update-toast-text">업데이트가 있어요.</span>
+      <div className="update-toast-body">
+        <span className="update-toast-text">업데이트가 있어요.</span>
+        <span className="update-toast-hint">
+          게임 중이면 나중에 해도 돼요. 게임을 마치고 새 게임을 시작하면 자동 적용돼요.
+        </span>
+      </div>
       <div className="update-toast-actions">
-        <button
-          type="button"
-          className="update-later"
-          onClick={() => setNeedRefresh(false)}
-        >
+        <button type="button" className="update-later" onClick={onDismiss}>
           나중에
         </button>
-        <button
-          type="button"
-          className="update-refresh"
-          onClick={() => updateServiceWorker(true)}
-        >
-          새로고침
+        <button type="button" className="update-refresh" onClick={onRefresh}>
+          지금 새로고침
         </button>
       </div>
     </div>
