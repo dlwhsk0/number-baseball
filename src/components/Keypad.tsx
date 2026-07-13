@@ -12,6 +12,7 @@ interface Props {
   onMemo: (digit: string) => void;
   onDelete: () => void;
   onSubmit: () => void;
+  onToggleMemo: () => void;
 }
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
@@ -28,6 +29,7 @@ export function Keypad({
   onMemo,
   onDelete,
   onSubmit,
+  onToggleMemo,
 }: Props) {
   const isMemo = mode === 'memo';
   const firstEmpty = slots.indexOf('');
@@ -62,27 +64,40 @@ export function Keypad({
         })}
       </div>
 
-      {isMemo ? (
+      <div className="keypad-actions">
+        <button
+          type="button"
+          className={`key key-icon key-memo${isMemo ? ' active' : ''}`}
+          aria-pressed={isMemo}
+          aria-label="메모 모드"
+          title="메모 모드"
+          disabled={disabled}
+          onClick={onToggleMemo}
+        >
+          ✎
+        </button>
+        <button
+          type="button"
+          className="key key-submit"
+          disabled={!canSubmit}
+          onClick={onSubmit}
+        >
+          확인
+        </button>
+        <button
+          type="button"
+          className="key key-icon key-delete"
+          aria-label="지우기"
+          title="지우기"
+          disabled={disabled || !hasInput}
+          onClick={onDelete}
+        >
+          ⌫
+        </button>
+      </div>
+
+      {isMemo && (
         <p className="keypad-hint">숫자를 눌러 ○스트라이크 · △볼 · ✗아웃 표시</p>
-      ) : (
-        <div className="keypad-actions">
-          <button
-            type="button"
-            className="key key-delete"
-            disabled={disabled || !hasInput}
-            onClick={onDelete}
-          >
-            ⌫ 지우기
-          </button>
-          <button
-            type="button"
-            className="key key-submit"
-            disabled={!canSubmit}
-            onClick={onSubmit}
-          >
-            확인
-          </button>
-        </div>
       )}
     </div>
   );

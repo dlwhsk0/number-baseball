@@ -97,28 +97,17 @@ export default function App() {
             onRestart={newGame}
           />
         ) : (
-          <>
-            <div className="mode-bar">
-              <button
-                type="button"
-                className={`memo-toggle${memoMode ? ' active' : ''}`}
-                aria-pressed={memoMode}
-                onClick={() => setMemoMode((v) => !v)}
-              >
-                ✎ 메모 모드 {memoMode ? 'ON' : 'OFF'}
-              </button>
-            </div>
-            <Keypad
-              slots={state.slots}
-              memo={state.memo}
-              mode={memoMode ? 'memo' : 'input'}
-              disabled={finished}
-              onDigit={pushDigit}
-              onMemo={cycleMemo}
-              onDelete={popDigit}
-              onSubmit={submit}
-            />
-          </>
+          <Keypad
+            slots={state.slots}
+            memo={state.memo}
+            mode={memoMode ? 'memo' : 'input'}
+            disabled={finished}
+            onDigit={pushDigit}
+            onMemo={cycleMemo}
+            onDelete={popDigit}
+            onSubmit={submit}
+            onToggleMemo={() => setMemoMode((v) => !v)}
+          />
         )}
       </section>
 
