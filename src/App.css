@@ -491,6 +491,49 @@
   padding: 14px 0;
 }
 
+/* 확인 대화상자 (진행 중 난이도 변경 등) */
+.confirm {
+  width: min(90%, 340px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px var(--shadow);
+  padding: 22px 20px 16px;
+  animation: row-in 0.15s ease-out;
+}
+.confirm-msg {
+  margin: 0 0 16px;
+  color: var(--text);
+  line-height: 1.55;
+  text-align: center;
+}
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.confirm-actions button {
+  padding: 12px 0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.confirm-actions button:active {
+  transform: scale(0.97);
+}
+.confirm-cancel {
+  background: transparent;
+  color: var(--muted);
+}
+.confirm-ok {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
 /* 게임 방법 모달 — 거의 전체 화면 */
 .modal-backdrop {
   position: fixed;
