@@ -4,8 +4,9 @@
   --text: #f1f5f9;
   --muted: #94a3b8;
   --accent: #38bdf8;
-  --strike: #22c55e;
-  --ball: #f59e0b;
+  /* 야구 전광판 관례: 스트라이크=주황(노랑) · 볼=초록 · 아웃=빨강 */
+  --strike: #f59e0b;
+  --ball: #22c55e;
   --out: #ef4444;
 
   max-width: 420px;
