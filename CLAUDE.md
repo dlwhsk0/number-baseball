@@ -40,7 +40,12 @@
 - [x] 메모 기능: 키패드 통합 메모 모드(○S·△B·✗O)
 
 ## PWA / 아이콘
-- `vite-plugin-pwa`로 매니페스트·서비스워커 자동 생성(`registerType: autoUpdate`).
+- `vite-plugin-pwa`로 매니페스트·서비스워커 자동 생성(`registerType: 'prompt'`).
+- **업데이트 방식**: 자동 새로고침 안 함. 새 버전 배포 시 하단에 "새 버전이 있어요" 토스트
+  (`src/components/UpdatePrompt.tsx`, `virtual:pwa-register/react`의 `useRegisterSW`)를 띄우고,
+  **사용자가 "새로고침"을 눌러야만** 갱신 → 게임 중 초기화 방지. 1시간마다 `registration.update()`로
+  새 버전 확인. 오프라인이면 마지막 캐시 버전으로 동작하고, 온라인 복귀 후 열면 그때 알림.
+  React 훅이 `workbox-window`(peer dep)를 요구해서 devDependencies에 명시(pnpm은 peer 자동설치 안 함).
 - 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. 재생성하려면 `npm i -D sharp` 후 `node scripts/gen-icons.mjs`.
 
 ## 컨벤션
