@@ -7,6 +7,7 @@ import { ResultBanner } from './components/ResultBanner';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { ThemeToggle } from './components/ThemeToggle';
 import { RulesModal } from './components/RulesModal';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import './App.css';
 
 const LEVEL_ORDER: Level[] = ['beginner', 'intermediate', 'advanced'];
@@ -26,6 +27,7 @@ export default function App() {
   const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame(level);
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
   const finished = state.status !== 'playing';
 
   const {
@@ -71,9 +73,8 @@ export default function App() {
     reset(level);
   };
 
-  // 난이도 선택 = 그 난이도로 새 판 시작. 같은 난이도면 아무것도 안 한다.
-  const changeLevel = (lv: Level) => {
-    if (lv === level) return;
+  // 실제로 난이도를 바꾸고 새 판을 시작한다.
+  const doChangeLevel = (lv: Level) => {
     setLevel(lv);
     try {
       localStorage.setItem('level', lv);
@@ -83,6 +84,17 @@ export default function App() {
     if (applyUpdateIfPending()) return;
     setMemoMode(false);
     reset(lv);
+  };
+
+  // 진행 중인 판(입력·추측·메모가 있는 상태)이면 확인창을 띄우고, 아니면 바로 바꾼다.
+  const gameInProgress = state.status === 'playing' && !pristine;
+  const changeLevel = (lv: Level) => {
+    if (lv === level) return;
+    if (gameInProgress) {
+      setPendingLevel(lv);
+      return;
+    }
+    doChangeLevel(lv);
   };
 
   return (
@@ -188,6 +200,20 @@ export default function App() {
       </footer>
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+
+      {pendingLevel && (
+        <ConfirmDialog
+          message={`진행 중인 게임이 있어요. '${LEVELS[pendingLevel].label}'(으)로 바꾸면 지금 판은 사라져요. 바꿀까요?`}
+          confirmLabel="바꾸기"
+          cancelLabel="취소"
+          onConfirm={() => {
+            const lv = pendingLevel;
+            setPendingLevel(null);
+            doChangeLevel(lv);
+          }}
+          onCancel={() => setPendingLevel(null)}
+        />
+      )}
     </main>
   );
 }
