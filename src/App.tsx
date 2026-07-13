@@ -139,7 +139,11 @@ export default function App() {
       </div>
 
       <section className="board">
-        <div className="input-display" aria-label="현재 입력">
+        <div
+          className="input-display"
+          aria-label="현재 입력"
+          style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
+        >
           {state.slots.map((d, i) => (
             <button
               key={i}
