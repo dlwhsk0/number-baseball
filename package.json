@@ -15,6 +15,8 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@oxlint/binding-darwin-arm64": "^1.73.0",
+    "@oxlint/binding-linux-x64-gnu": "^1.73.0",
     "@rolldown/binding-darwin-arm64": "1.1.5",
     "@rolldown/binding-linux-x64-gnu": "1.1.5",
     "@types/node": "^24.13.2",

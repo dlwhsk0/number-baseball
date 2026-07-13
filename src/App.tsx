@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { useGame } from './game/useGame';
+import { useGame, LEVELS, type Level } from './game/useGame';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
@@ -9,8 +9,21 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { RulesModal } from './components/RulesModal';
 import './App.css';
 
+const LEVEL_ORDER: Level[] = ['beginner', 'intermediate', 'advanced'];
+
+function getInitialLevel(): Level {
+  try {
+    const saved = localStorage.getItem('level');
+    if (saved === 'beginner' || saved === 'intermediate' || saved === 'advanced') return saved;
+  } catch {
+    /* 저장 불가 환경 무시 */
+  }
+  return 'intermediate';
+}
+
 export default function App() {
-  const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame();
+  const [level, setLevel] = useState<Level>(getInitialLevel);
+  const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame(level);
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const finished = state.status !== 'playing';
@@ -43,15 +56,33 @@ export default function App() {
     if (needRefresh && pristine) updateServiceWorker(true);
   }, [needRefresh, pristine, updateServiceWorker]);
 
-  const newGame = () => {
-    // 대기 중인 업데이트가 있으면, 새 판을 시작하는 이 시점에 적용한다(새로고침).
-    // 어차피 새 판이라 잃는 게 없다 → "게임 끝나고 다시 시작하면 자동 업데이트".
+  // 대기 중 업데이트가 있으면 새 판을 시작하는 이 시점에 적용(새로고침)하고 끝낸다.
+  const applyUpdateIfPending = () => {
     if (needRefresh) {
       updateServiceWorker(true);
-      return;
+      return true;
     }
+    return false;
+  };
+
+  const newGame = () => {
+    if (applyUpdateIfPending()) return;
     setMemoMode(false);
-    reset();
+    reset(level);
+  };
+
+  // 난이도 선택 = 그 난이도로 새 판 시작. 같은 난이도면 아무것도 안 한다.
+  const changeLevel = (lv: Level) => {
+    if (lv === level) return;
+    setLevel(lv);
+    try {
+      localStorage.setItem('level', lv);
+    } catch {
+      /* 저장 불가 환경 무시 */
+    }
+    if (applyUpdateIfPending()) return;
+    setMemoMode(false);
+    reset(lv);
   };
 
   return (
@@ -64,7 +95,9 @@ export default function App() {
       <header className="app-header">
         <ThemeToggle />
         <h1>숫자 야구 ⚾</h1>
-        <p className="subtitle">서로 다른 세 자리 숫자를 맞혀보세요</p>
+        <p className="subtitle">
+          서로 다른 {state.digits === 4 ? '네' : '세'} 자리 숫자를 맞혀보세요
+        </p>
         <button type="button" className="rules-link" onClick={() => setShowRules(true)}>
           게임 방법 보기
         </button>
@@ -72,6 +105,26 @@ export default function App() {
           새 게임
         </button>
       </header>
+
+      <div className="level-bar">
+        <div className="level-select" role="group" aria-label="난이도 선택">
+          {LEVEL_ORDER.map((lv) => (
+            <button
+              key={lv}
+              type="button"
+              className={`level-btn${lv === level ? ' active' : ''}`}
+              aria-pressed={lv === level}
+              onClick={() => changeLevel(lv)}
+            >
+              {LEVELS[lv].label}
+            </button>
+          ))}
+        </div>
+        <p className="level-caption">
+          {level === 'advanced' ? '4자리' : '3자리'}
+          {LEVELS[level].beginner ? ' · 자동 힌트(3아웃이면 ✕ 표시)' : ''}
+        </p>
+      </div>
 
       <section className="board">
         <div className="input-display" aria-label="현재 입력">

@@ -143,3 +143,31 @@ describe('gameReducer — 메모', () => {
     expect(s.memo['5']).toBeUndefined();
   });
 });
+
+describe('gameReducer — 난이도', () => {
+  it('고급은 4자리까지 입력되고 4스트라이크면 승리', () => {
+    let s = initGame('1234', 10, 4, false);
+    s = type(s, '12345'); // 4칸까지만 채워짐
+    expect(s.slots).toEqual(['1', '2', '3', '4']);
+    s = gameReducer(s, { type: 'submit' });
+    expect(s.status).toBe('won');
+  });
+
+  it('초보자: 3아웃이면 그 숫자들이 자동으로 아웃 표시된다', () => {
+    let s = initGame('123', 10, 3, true);
+    s = gameReducer(type(s, '456'), { type: 'submit' });
+    expect(s.memo).toEqual({ '4': 'out', '5': 'out', '6': 'out' });
+  });
+
+  it('초보자라도 전부 아웃이 아니면 자동 표시 없음', () => {
+    let s = initGame('123', 10, 3, true);
+    s = gameReducer(type(s, '145'), { type: 'submit' }); // 1:스트라이크 → isOut 아님
+    expect(s.memo).toEqual({});
+  });
+
+  it('중급은 3아웃이어도 자동 표시 없음', () => {
+    let s = initGame('123', 10, 3, false);
+    s = gameReducer(type(s, '456'), { type: 'submit' });
+    expect(s.memo).toEqual({});
+  });
+});
