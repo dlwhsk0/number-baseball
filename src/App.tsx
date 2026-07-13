@@ -8,7 +8,15 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { ThemeToggle } from './components/ThemeToggle';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { SpeedVersus } from './versus/SpeedVersus';
 import './App.css';
+
+type Mode = 'solo' | 'speed' | 'duel';
+const MODE_TABS: { key: Mode; label: string }[] = [
+  { key: 'solo', label: '혼자' },
+  { key: 'speed', label: '스피드 대결' },
+  { key: 'duel', label: '턴제 대결' },
+];
 
 const LEVEL_ORDER: Level[] = ['beginner', 'intermediate', 'advanced'];
 
@@ -25,6 +33,7 @@ function getInitialLevel(): Level {
 export default function App() {
   const [level, setLevel] = useState<Level>(getInitialLevel);
   const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame(level);
+  const [mode, setMode] = useState<Mode>('solo');
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
@@ -49,14 +58,16 @@ export default function App() {
 
   // 빈 판(게임 시작 전)에서 업데이트가 잡히면 조용히 즉시 적용한다.
   // 게임 중이면 건드리지 않고 배너만 보여준다(진행 중 초기화 방지).
+  // 혼자 모드의 빈 판에서만 조용히 자동 적용(대결 진행 중에 리로드되면 안 됨).
   const pristine =
     state.status === 'playing' &&
     state.guesses.length === 0 &&
     state.slots.every((s) => s === '') &&
     Object.keys(state.memo).length === 0;
+  const canAutoReload = pristine && mode === 'solo';
   useEffect(() => {
-    if (needRefresh && pristine) updateServiceWorker(true);
-  }, [needRefresh, pristine, updateServiceWorker]);
+    if (needRefresh && canAutoReload) updateServiceWorker(true);
+  }, [needRefresh, canAutoReload, updateServiceWorker]);
 
   // 대기 중 업데이트가 있으면 새 판을 시작하는 이 시점에 적용(새로고침)하고 끝낸다.
   const applyUpdateIfPending = () => {
@@ -107,17 +118,44 @@ export default function App() {
       <header className="app-header">
         <ThemeToggle />
         <h1>숫자 야구 ⚾</h1>
-        <p className="subtitle">
-          서로 다른 {state.digits === 4 ? '네' : '세'} 자리 숫자를 맞혀보세요
-        </p>
+        {mode === 'solo' && (
+          <p className="subtitle">
+            서로 다른 {state.digits === 4 ? '네' : '세'} 자리 숫자를 맞혀보세요
+          </p>
+        )}
         <button type="button" className="rules-link" onClick={() => setShowRules(true)}>
           게임 방법 보기
         </button>
-        <button type="button" className="new-game" onClick={newGame}>
-          새 게임
-        </button>
+        {mode === 'solo' && (
+          <button type="button" className="new-game" onClick={newGame}>
+            새 게임
+          </button>
+        )}
       </header>
 
+      <div className="mode-tabs" role="group" aria-label="모드 선택">
+        {MODE_TABS.map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            className={`mode-tab${mode === m.key ? ' active' : ''}`}
+            aria-pressed={mode === m.key}
+            onClick={() => setMode(m.key)}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'speed' ? (
+        <SpeedVersus onExit={() => setMode('solo')} />
+      ) : mode === 'duel' ? (
+        <div className="versus versus-center">
+          <h2 className="versus-title">턴제 대결 🔁</h2>
+          <p className="versus-desc">서로 숫자를 정해 번갈아 맞히는 모드예요. 곧 추가됩니다!</p>
+        </div>
+      ) : (
+        <>
       <div className="level-bar">
         <div className="level-select" role="group" aria-label="난이도 선택">
           {LEVEL_ORDER.map((lv) => (
@@ -189,6 +227,8 @@ export default function App() {
         </div>
         <History guesses={state.guesses} />
       </section>
+        </>
+      )}
 
       <footer className="app-footer">
         <a
