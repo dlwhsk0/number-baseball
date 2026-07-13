@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useGame } from './game/useGame';
 import { Keypad } from './components/Keypad';
@@ -17,13 +17,29 @@ export default function App() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    // 앱을 오래 켜둬도 주기적으로 새 버전을 확인(1시간마다).
     onRegisteredSW(_swUrl, registration) {
-      if (registration) {
-        setInterval(() => registration.update(), 60 * 60 * 1000);
-      }
+      if (!registration) return;
+      // 새 버전 확인 시점을 늘린다. 모바일/설치앱은 앱을 껐다 켜도 메모리에서
+      // '재개(resume)'만 되어 자동 확인이 안 돌기 때문에, 앱이 보일 때마다 확인한다.
+      const check = () => {
+        if (document.visibilityState === 'visible') registration.update();
+      };
+      check();
+      document.addEventListener('visibilitychange', check);
+      setInterval(check, 30 * 60 * 1000);
     },
   });
+
+  // 빈 판(게임 시작 전)에서 업데이트가 잡히면 조용히 즉시 적용한다.
+  // 게임 중이면 건드리지 않고 배너만 보여준다(진행 중 초기화 방지).
+  const pristine =
+    state.status === 'playing' &&
+    state.guesses.length === 0 &&
+    state.slots.every((s) => s === '') &&
+    Object.keys(state.memo).length === 0;
+  useEffect(() => {
+    if (needRefresh && pristine) updateServiceWorker(true);
+  }, [needRefresh, pristine, updateServiceWorker]);
 
   const newGame = () => {
     // 대기 중인 업데이트가 있으면, 새 판을 시작하는 이 시점에 적용한다(새로고침).
