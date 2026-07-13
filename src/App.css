@@ -61,6 +61,20 @@
   color: var(--muted);
   font-size: 0.9rem;
 }
+.rules-link {
+  margin-top: 6px;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rules-link:active {
+  opacity: 0.7;
+}
 
 .board {
   display: flex;
@@ -435,4 +449,119 @@
   margin-top: 8px;
   width: 100%;
   padding: 14px 0;
+}
+
+/* 게임 방법 모달 — 거의 전체 화면 */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(2, 6, 23, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-top)) 12px
+    max(12px, env(safe-area-inset-bottom));
+  animation: row-in 0.15s ease-out;
+}
+.modal {
+  position: relative;
+  width: min(100%, 480px);
+  height: 92dvh;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px var(--shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal-close {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: var(--key);
+  color: var(--text);
+  border-radius: 999px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.modal-close:active {
+  transform: scale(0.92);
+}
+.modal-content {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 60px 20px 28px;
+  color: var(--text);
+}
+.modal-content h3 {
+  margin: 22px 0 8px;
+  font-size: 1.05rem;
+}
+.modal-content p {
+  margin: 8px 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.modal-content ul {
+  margin: 8px 0;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+.modal-content strong,
+.modal-content b {
+  color: var(--text);
+}
+.modal-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.rule-judge {
+  list-style: none;
+  padding-left: 0;
+}
+.rule-judge li {
+  margin-bottom: 6px;
+  color: var(--muted);
+}
+.tag {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 2px 9px;
+  border-radius: 999px;
+  margin-right: 6px;
+}
+.tag-strike {
+  color: var(--strike);
+  background: color-mix(in srgb, var(--strike) 16%, transparent);
+}
+.tag-ball {
+  color: var(--ball);
+  background: color-mix(in srgb, var(--ball) 16%, transparent);
+}
+.tag-out {
+  color: var(--out);
+  background: color-mix(in srgb, var(--out) 16%, transparent);
+}
+.rule-eg {
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border-radius: 10px;
+}
+.mark-s {
+  color: var(--strike);
+}
+.mark-b {
+  color: var(--ball);
+}
+.mark-o {
+  color: var(--out);
 }

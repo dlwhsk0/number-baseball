@@ -6,11 +6,13 @@ import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { ThemeToggle } from './components/ThemeToggle';
+import { RulesModal } from './components/RulesModal';
 import './App.css';
 
 export default function App() {
   const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame();
   const [memoMode, setMemoMode] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const finished = state.status !== 'playing';
 
   const {
@@ -63,6 +65,9 @@ export default function App() {
         <ThemeToggle />
         <h1>숫자 야구 ⚾</h1>
         <p className="subtitle">서로 다른 세 자리 숫자를 맞혀보세요</p>
+        <button type="button" className="rules-link" onClick={() => setShowRules(true)}>
+          게임 방법 보기
+        </button>
         <button type="button" className="new-game" onClick={newGame}>
           새 게임
         </button>
@@ -139,6 +144,8 @@ export default function App() {
           <GitHubIcon />
         </a>
       </footer>
+
+      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     </main>
   );
 }
