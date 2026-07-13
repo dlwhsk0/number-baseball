@@ -75,6 +75,13 @@ export function RulesModal({ onClose }: Props) {
             <li><strong>고급</strong> — 4자리.</li>
           </ul>
 
+          <h3>친구와 대결 🆚</h3>
+          <p>한 기기를 주고받으며(패스앤플레이) 즐겨요.</p>
+          <ul>
+            <li><strong>스피드 대결</strong> — 공통 숫자를 번갈아 풀고, 적은 횟수(동점이면 빠른 시간)로 승부.</li>
+            <li><strong>턴제 대결</strong> — 서로 숫자를 정해 번갈아 한 번씩 상대 숫자를 맞히는 일대일.</li>
+          </ul>
+
           <h3>메모 모드 ✎</h3>
           <p>추리한 내용을 키패드 위에 표시해두는 기능이에요.</p>
           <ul>
