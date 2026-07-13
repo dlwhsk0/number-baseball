@@ -30,6 +30,11 @@
 - **메모**: 입력 키패드에 통합. "메모 모드" 토글을 켜면 숫자 탭이 입력 대신 메모 표시를
   순환한다: 기본 → ○스트라이크 → △볼 → ✗아웃 → 기본. 배지는 판정 색과 대응(주황/초록/빨강).
   라운드마다 초기화. 메모는 표시 전용이라 입력을 막지 않음. 상태는 `GameState.memo`(`MemoMark`).
+- **테마**: 시스템 다크/라이트 자동 감지 + 좌상단 해/달 토글(`src/components/ThemeToggle.tsx`).
+  색 팔레트는 `src/index.css`의 `:root`(라이트 기본) / `:root[data-theme='dark']`로 정의하고
+  `data-theme` 속성으로 전환. 수동 선택은 `localStorage.theme`에 저장, 없으면 시스템을 실시간 추종.
+  `index.html`의 인라인 스크립트가 마운트 전에 테마를 확정(FOUC 방지). accent 위 글자는 `--on-accent`.
+- **푸터**: GitHub 프로필 링크 아이콘(`github.com/dlwhsk0`).
 
 ## 빌드 단계 (체크리스트)
 - [x] 단계 0: 스캐폴딩 + CLAUDE.md
