@@ -46,11 +46,15 @@
 
 ## PWA / 아이콘
 - `vite-plugin-pwa`로 매니페스트·서비스워커 자동 생성(`registerType: 'prompt'`).
-- **업데이트 방식**: 자동 새로고침 안 함. 새 버전 배포 시 하단에 "새 버전이 있어요" 토스트
-  (`src/components/UpdatePrompt.tsx`, `virtual:pwa-register/react`의 `useRegisterSW`)를 띄우고,
-  **사용자가 "새로고침"을 눌러야만** 갱신 → 게임 중 초기화 방지. 1시간마다 `registration.update()`로
-  새 버전 확인. 오프라인이면 마지막 캐시 버전으로 동작하고, 온라인 복귀 후 열면 그때 알림.
-  React 훅이 `workbox-window`(peer dep)를 요구해서 devDependencies에 명시(pnpm은 peer 자동설치 안 함).
+- **업데이트 방식**(`src/App.tsx`의 `useRegisterSW` + `src/components/UpdatePrompt.tsx`):
+  - **확인**: 앱이 보일 때마다(`visibilitychange`) + 30분마다 `registration.update()`. 모바일/설치앱은
+    껐다 켜도 '재개'만 되어 자동 확인이 안 돌기 때문에 visibility 기반으로 강제 확인한다.
+  - **적용**: 빈 판(게임 시작 전: guesses 0·slots 빈칸·memo 없음)에서 업데이트가 잡히면 **조용히 즉시 적용**
+    (`updateServiceWorker(true)`). 게임 중이면 하단 배너만 띄우고, "지금 새로고침" 또는 "새 게임/다시하기"를
+    누를 때 적용 → 진행 중 초기화 방지.
+  - 오프라인이면 마지막 캐시 버전으로 동작하고, 온라인 복귀 후 열면 확인·적용된다.
+  - React 훅이 `workbox-window`(peer dep)를 요구해서 devDependencies에 명시(pnpm은 peer 자동설치 안 함).
+  - 주의: SW 교체는 한 텀 늦다 — 새 로직은 사용자가 그 버전에 올라온 *다음* 배포부터 적용된다.
 - 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. 재생성하려면 `npm i -D sharp` 후 `node scripts/gen-icons.mjs`.
 
 ## 컨벤션
