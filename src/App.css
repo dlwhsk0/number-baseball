@@ -155,34 +155,103 @@
   display: grid;
   gap: 10px;
 }
-.slot {
-  width: 100%;
-  height: 88px;
+
+/* 숫자 블럭 셀 — 슬롯·키패드·기록 공용(검정 셀 + 안쪽 그림자) */
+.cell {
+  background: var(--cell);
+  border: 1px solid color-mix(in srgb, var(--led) 20%, #16171b);
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
-  font-size: 2.6rem;
-  font-weight: 700;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--muted);
-  font-family: inherit;
-  transition: transform 0.05s ease, border-color 0.15s ease;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+
+/* 입력(정답) 칸 — 큰 셀 + 그린 세그먼트/발광 */
+/* 정답존 — 네모 프레임 없이 큰 그린 세그먼트만(칸은 세그먼트가 채운다) */
+.slot {
+  width: 100%;
+  aspect-ratio: 1 / 1.05;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  transition: transform 0.08s ease;
+}
+.slot .seg7 {
+  font-size: clamp(64px, 24vw, 104px);
+  --led: var(--accent);
+  filter: drop-shadow(0 0 0.06em var(--accent-glow));
 }
 .slot.filled {
-  color: var(--text);
-  background: var(--panel-2);
   cursor: pointer;
+  animation: slot-pop 0.16s ease-out;
 }
-/* 채워진 칸은 눌러서 지울 수 있음을 표시 */
-.slot.filled:not(:disabled):hover {
-  border-color: var(--out);
+@keyframes slot-pop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 .slot.filled:not(:disabled):active {
-  transform: scale(0.94);
+  transform: scale(0.95);
 }
 .slot:disabled {
   cursor: default;
+}
+
+/* B·S·O 카운트 전구 뱅크 — 직전 판정 점등 */
+.lampbank {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.lamp {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 6px;
+  text-align: center;
+}
+.lamp-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.lamp-strike .lamp-label {
+  color: var(--strike);
+}
+.lamp-ball .lamp-label {
+  color: var(--ball);
+}
+.lamp-out .lamp-label {
+  color: var(--out);
+}
+.bulbs {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+.bulb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--bulb-off);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.lamp-strike .bulb.on {
+  background: var(--strike);
+  box-shadow: 0 0 9px var(--strike), inset 0 0 2px rgba(255, 255, 255, 0.7);
+}
+.lamp-ball .bulb.on {
+  background: var(--ball);
+  box-shadow: 0 0 9px var(--ball), inset 0 0 2px rgba(255, 255, 255, 0.7);
+}
+.lamp-out .bulb.on {
+  background: var(--out);
+  box-shadow: 0 0 9px var(--out), inset 0 0 2px rgba(255, 255, 255, 0.7);
 }
 
 .keypad {
@@ -257,6 +326,12 @@
 /* 키패드 메모 표시 — 키 전체를 덮는 큰 도형(숫자 뒤 워터마크) */
 .key-digit {
   position: relative;
+  padding: 0;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-md);
+}
+.key-digit .seg7 {
+  font-size: 26px;
 }
 .key-digit-num {
   position: relative;
@@ -301,9 +376,19 @@
 .history-head {
   display: flex;
   justify-content: space-between;
-  font-size: 0.85rem;
+  align-items: center;
+  font-size: 0.8rem;
   color: var(--muted);
+  letter-spacing: 0.06em;
   margin-bottom: 8px;
+}
+/* 시도 카운트 = 전광판 판독값 */
+.attempts {
+  font-family: var(--font-digit);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: var(--glow-text);
 }
 .history-empty {
   color: var(--muted);
@@ -344,9 +429,16 @@
   font-size: 0.8rem;
 }
 .history-guess {
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
+  display: flex;
+  gap: 4px;
+}
+.hcell {
+  width: 23px;
+  height: 31px;
+  border-radius: var(--r-sm);
+}
+.hcell .seg7 {
+  font-size: 20px;
 }
 /* S/B/O 고정 3칸 — 색상으로 구분 */
 .sbo {
@@ -370,8 +462,14 @@
   opacity: 0.9;
 }
 .sbo-count {
+  font-family: var(--font-digit);
   font-size: 1rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+/* 값이 있는 칸 = 점등한 램프(해당 색 링) */
+.sbo-cell:not(.zero) {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 50%, transparent);
 }
 /* 각 칸은 해당 색의 옅은 배경 + 진한 글자로 구분(라이트/다크 모두 또렷) */
 .sbo-strike {
@@ -483,6 +581,17 @@
 }
 .result.won {
   border-color: var(--strike);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--strike) 28%, transparent);
+  animation: win-pulse 1.5s ease-in-out 2;
+}
+@keyframes win-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 18px color-mix(in srgb, var(--strike) 20%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 34px color-mix(in srgb, var(--strike) 46%, transparent);
+  }
 }
 .result.lost {
   border-color: var(--out);
@@ -494,6 +603,7 @@
 }
 .result.won .result-title {
   color: var(--strike);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--strike) 45%, transparent);
 }
 .result.lost .result-title {
   color: var(--out);
@@ -768,6 +878,7 @@
 }
 .versus-primary,
 .versus-secondary {
+  width: 100%;
   padding: 14px 0;
   border-radius: 12px;
   font-size: 1rem;
@@ -821,10 +932,12 @@
   font-weight: 800;
 }
 .turn-timer {
+  font-family: var(--font-digit);
   font-variant-numeric: tabular-nums;
   color: var(--accent);
   font-weight: 800;
   font-size: 1.1rem;
+  text-shadow: var(--glow-text);
 }
 .turn-hint {
   color: var(--muted);
@@ -878,6 +991,7 @@
   border-color: var(--accent);
 }
 .score-rank {
+  font-family: var(--font-digit);
   font-weight: 800;
   color: var(--muted);
 }
@@ -885,9 +999,41 @@
   font-weight: 700;
 }
 .score-stat {
+  font-family: var(--font-digit);
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   font-size: 0.9rem;
   min-width: 44px;
   text-align: right;
+}
+
+/* ===== 전광판 마감(발광·타이포) ===== */
+/* 포인트색으로 채워진 CTA·활성 컨트롤은 시안 글로우를 두른다 */
+.key-submit,
+.corner-btn-accent,
+.versus-primary,
+.mode-tab.active,
+.level-btn.active,
+.seg-btn.active,
+.confirm-ok,
+.update-refresh {
+  box-shadow: var(--glow-accent);
+}
+
+/* 타이틀 — 전광판 헤드라인 자간 + ⚾ 살짝 발광 */
+.app-header h1 {
+  letter-spacing: 0.01em;
+  text-shadow: var(--glow-text);
+}
+
+/* 턴제 결과 '정답!' 발광 */
+.duel-result.win {
+  text-shadow: 0 0 14px color-mix(in srgb, var(--strike) 45%, transparent);
+}
+
+/* 정답 노출 숫자도 세그먼트 폰트로 */
+.result-detail strong,
+.versus-desc strong {
+  font-family: var(--font-digit);
+  font-variant-numeric: tabular-nums;
 }

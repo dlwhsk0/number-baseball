@@ -5,7 +5,8 @@ import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
 import { UpdatePrompt } from './components/UpdatePrompt';
-import { ThemeToggle } from './components/ThemeToggle';
+import { Seg7 } from './components/Seg7';
+import { LampBank } from './components/LampBank';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SpeedVersus } from './versus/SpeedVersus';
@@ -40,6 +41,12 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
   const finished = state.status !== 'playing';
+
+  // 직전 추측의 판정 → B·S·O 램프 뱅크(없으면 모두 꺼짐).
+  const lastJudge = state.guesses[state.guesses.length - 1]?.judgement;
+  const lampStrikes = lastJudge?.strikes ?? 0;
+  const lampBalls = lastJudge?.balls ?? 0;
+  const lampOuts = lastJudge ? state.digits - lampStrikes - lampBalls : 0;
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -119,7 +126,6 @@ export default function App() {
       />
       <header className="app-header">
         <div className="corner corner-left">
-          <ThemeToggle />
           <button
             type="button"
             className="help-btn"
@@ -216,15 +222,22 @@ export default function App() {
             <button
               key={i}
               type="button"
-              className={`slot${d ? ' filled' : ''}`}
+              className={`slot cell${d ? ' filled' : ''}`}
               disabled={finished || !d}
               aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
               onClick={() => clearSlot(i)}
             >
-              {d || '·'}
+              <Seg7 char={d} />
             </button>
           ))}
         </div>
+
+        <LampBank
+          strikes={lampStrikes}
+          balls={lampBalls}
+          outs={lampOuts}
+          digits={state.digits}
+        />
 
         {finished ? (
           <ResultBanner
