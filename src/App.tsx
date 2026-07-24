@@ -14,10 +14,6 @@ import './App.css';
 
 type Section = 'solo' | 'multi';
 type MultiMode = 'speed' | 'duel';
-const SECTION_TABS: { key: Section; label: string }[] = [
-  { key: 'solo', label: '혼자' },
-  { key: 'multi', label: '멀티' },
-];
 const MULTI_TABS: { key: MultiMode; label: string }[] = [
   { key: 'speed', label: '스피드 대결' },
   { key: 'duel', label: '턴제 대결' },
@@ -122,38 +118,56 @@ export default function App() {
         onDismiss={() => setNeedRefresh(false)}
       />
       <header className="app-header">
-        <ThemeToggle />
-        <h1>숫자 야구 ⚾</h1>
-        {section === 'solo' && (
-          <p className="subtitle">
-            서로 다른 {state.digits === 4 ? '네' : '세'} 자리 숫자를 맞혀보세요
-          </p>
-        )}
-        <button type="button" className="rules-link" onClick={() => setShowRules(true)}>
-          게임 방법 보기
-        </button>
-        {section === 'solo' && (
-          <button type="button" className="new-game" onClick={newGame}>
-            새 게임
+        <div className="corner corner-left">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="help-btn"
+            onClick={() => setShowRules(true)}
+            aria-label="게임 방법"
+            title="게임 방법"
+          >
+            ?
           </button>
-        )}
+        </div>
+
+        <div className="header-title">
+          <h1>숫자 야구 ⚾</h1>
+          {section === 'solo' && (
+            <p className="subtitle">
+              서로 다른 {state.digits === 4 ? '네' : '세'} 자리 숫자를 맞혀보세요
+            </p>
+          )}
+        </div>
+
+        <div className="corner corner-right">
+          {section === 'solo' ? (
+            <>
+              <button type="button" className="corner-btn" onClick={newGame}>
+                새 게임
+              </button>
+              <button
+                type="button"
+                className="corner-btn corner-btn-accent"
+                onClick={() => setSection('multi')}
+              >
+                멀티 ▶
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="corner-btn"
+              onClick={() => setSection('solo')}
+            >
+              ◀ 혼자
+            </button>
+          )}
+        </div>
       </header>
 
-      <div className="nav">
-        <div className="mode-tabs" role="group" aria-label="모드 선택">
-          {SECTION_TABS.map((m) => (
-            <button
-              key={m.key}
-              type="button"
-              className={`mode-tab${section === m.key ? ' active' : ''}`}
-              aria-pressed={section === m.key}
-              onClick={() => setSection(m.key)}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-        {section === 'multi' && (
+      {section === 'multi' && (
+        <div className="nav">
           <div className="mode-tabs" role="group" aria-label="대결 선택">
             {MULTI_TABS.map((m) => (
               <button
@@ -167,8 +181,8 @@ export default function App() {
               </button>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {section === 'solo' ? (
         <>

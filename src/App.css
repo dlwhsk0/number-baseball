@@ -11,14 +11,36 @@
   color: var(--text);
 }
 
+/* 헤더: [밝기/? 세로] · [타이틀] · [새 게임/멀티 세로] */
 .app-header {
-  text-align: center;
-  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
 }
-.theme-toggle {
-  position: absolute;
-  top: 0;
-  left: 0;
+.corner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 66px;
+}
+.corner-left {
+  align-items: flex-start;
+}
+.corner-right {
+  align-items: flex-end;
+}
+.header-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  padding-top: 3px;
+}
+
+/* 좌상단 밝기 토글 + 그 아래 ? 버튼(같은 원형) */
+.theme-toggle,
+.help-btn {
   width: 34px;
   height: 34px;
   display: grid;
@@ -28,60 +50,57 @@
   color: var(--text);
   border-radius: 999px;
   cursor: pointer;
-  transition: transform 0.05s ease, border-color 0.15s ease;
+  transition: transform 0.05s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.theme-toggle:hover {
+.help-btn {
+  color: var(--muted);
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-family: inherit;
+  line-height: 1;
+}
+.theme-toggle:hover,
+.help-btn:hover {
   border-color: var(--accent);
+  color: var(--accent);
 }
-.theme-toggle:active {
+.theme-toggle:active,
+.help-btn:active {
   transform: scale(0.92);
 }
-.new-game {
-  position: absolute;
-  top: 0;
-  right: 0;
+
+/* 우상단 새 게임 + 그 아래 멀티 전환(포인트색 강조) */
+.corner-btn {
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--panel);
   color: var(--muted);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 7px 13px;
   font-size: 0.8rem;
-  cursor: pointer;
-}
-.new-game:active {
-  transform: scale(0.96);
-}
-.app-header h1 {
-  /* 타이틀·콘텐츠를 아래로. 코너 버튼(토글/새 게임)은 top:0 절대배치라 그대로. */
-  margin: 54px 0 0;
-  font-size: 1.8rem;
-}
-.subtitle {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-.rules-link {
-  /* 헤더 상단 중앙 — 좌측 테마 토글과 우측 새 게임 버튼 사이 */
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  height: 34px;
-  display: flex;
-  align-items: center;
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  font-weight: 700;
+  font-family: inherit;
   white-space: nowrap;
   cursor: pointer;
+  transition: transform 0.05s ease, border-color 0.15s ease;
 }
-.rules-link:active {
-  opacity: 0.6;
+.corner-btn:active {
+  transform: scale(0.96);
+}
+.corner-btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.7rem;
+  letter-spacing: -0.01em;
+}
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 /* 난이도 선택 (초보자/중급/고급) — 얇고 컴팩트한 세그먼트 */
