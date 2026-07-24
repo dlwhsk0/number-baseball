@@ -66,7 +66,7 @@ export function Keypad({
               onClick={() => (isMemo ? onMemo(d) : onDigit(d))}
             >
               <span className="key-digit-num">
-                <Seg7 char={d} />
+                <Seg7 char={d} off={mark === 'out'} />
               </span>
               {mark && <span className="key-badge">{BADGE[mark]}</span>}
             </button>

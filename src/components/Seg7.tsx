@@ -8,16 +8,19 @@ const SEGMENTS = ['sa', 'sb', 'sc', 'sd', 'se', 'sf', 'sg'] as const;
 interface Props {
   /** '0'~'9' 한 글자. 그 외(빈 문자열 등)는 모든 세그먼트가 꺼진 상태. */
   char?: string;
+  /** 강제 소등. 아웃 판명된 키패드 숫자처럼 "불이 꺼진" 표시(값은 스크린리더에 유지). */
+  off?: boolean;
 }
 
-export function Seg7({ char }: Props) {
-  const lit = char != null && char >= '0' && char <= '9';
+export function Seg7({ char, off }: Props) {
+  const isDigit = char != null && char >= '0' && char <= '9';
+  const lit = isDigit && !off;
   return (
     <span className={`seg7${lit ? ` d${char}` : ''}`}>
       {SEGMENTS.map((s) => (
         <i key={s} className={s} aria-hidden="true" />
       ))}
-      {lit && <span className="sr-only">{char}</span>}
+      {isDigit && <span className="sr-only">{char}</span>}
     </span>
   );
 }
