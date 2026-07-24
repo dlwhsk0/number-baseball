@@ -122,6 +122,15 @@ button {
 .d8 { --a: 1; --b: 1; --c: 1; --d: 1; --e: 1; --f: 1; --g: 1; }
 .d9 { --a: 1; --b: 1; --c: 1; --d: 1; --f: 1; --g: 1; }
 
+/* 아웃 판명 숫자 — 형태는 남기고 어둡게(발광 제거 + 딤). 어느 숫자가 꺼졌는지 보인다. */
+.seg7.is-off {
+  filter: none;
+  opacity: 0.42;
+}
+.seg7.is-off i {
+  background: var(--muted);
+}
+
 /* 모션 최소화 선호 존중 */
 @media (prefers-reduced-motion: reduce) {
   *,

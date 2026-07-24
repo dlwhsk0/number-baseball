@@ -14,9 +14,12 @@ interface Props {
 
 export function Seg7({ char, off }: Props) {
   const isDigit = char != null && char >= '0' && char <= '9';
-  const lit = isDigit && !off;
+  // 아웃 판명(off): 숫자 형태는 그대로 두되 어둡게(딤) 해서 "꺼졌지만 어느 숫자인지"는 보이게 한다.
+  const cls = ['seg7'];
+  if (isDigit) cls.push(`d${char}`);
+  if (off) cls.push('is-off');
   return (
-    <span className={`seg7${lit ? ` d${char}` : ''}`}>
+    <span className={cls.join(' ')}>
       {SEGMENTS.map((s) => (
         <i key={s} className={s} aria-hidden="true" />
       ))}
