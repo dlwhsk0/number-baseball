@@ -4,58 +4,87 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* 라이트 테마(기본값). data-theme 속성으로 덮어쓴다. */
+  /* ===== 디자인 토큰 ===== */
+  /* 숫자·데이터용 폰트(LED/세그먼트 전광판 대용). 오프라인 PWA라 시스템 모노스페이스 스택 */
+  --font-digit: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Roboto Mono', Menlo,
+    Consolas, monospace;
+  /* 라운드 스케일 — 전광판은 각지게 */
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+
+  /* ---- 라이트(주간 경기) : data-theme 속성으로 덮어씀 ---- */
   color-scheme: light;
-  --bg: #eef2f7;
+  --bg: #e7ecf3;
   --panel: #ffffff;
-  --panel-2: #e2e8f0;
-  --text: #0f172a;
-  --muted: #64748b;
-  --accent: #0ea5e9;
-  --on-accent: #06263a;
-  --key: #ffffff; /* 키패드·버튼 표면: 배경보다 밝게 해서 또렷하게 */
-  --border: #cbd5e1; /* 버튼 테두리(라이트에서 특히 중요) */
-  --shadow: rgba(15, 23, 42, 0.16); /* 떠 있는 요소 그림자 */
-  /* 야구 전광판 관례: 스트라이크=주황 · 볼=초록 · 아웃=빨강 (라이트에선 진한 톤) */
-  --strike: #d97706;
-  --ball: #16a34a;
-  --out: #dc2626;
+  --panel-2: #eef2f8;
+  --text: #0f1826;
+  --muted: #5a6a7e;
+  --accent: #0891b2; /* 시안(라이트에선 대비 위해 진하게) */
+  --on-accent: #ffffff;
+  --key: #ffffff;
+  --border: #cdd6e2;
+  --shadow: rgba(15, 23, 42, 0.14);
+  /* 전광판 램프색: 스트라이크=앰버 · 볼=초록 · 아웃=빨강 */
+  --strike: #c2760a;
+  --ball: #1f9d4d;
+  --out: #d63a33;
+  /* 발광 효과 — 라이트에선 끔 */
+  --glow-accent: none;
+  --glow-text: none;
+  --board-vignette: none;
 }
 
 :root[data-theme='dark'] {
+  /* ---- 다크(야간 전광판) : 히어로 ---- */
   color-scheme: dark;
-  --bg: #0f172a;
-  --panel: #1e293b;
-  --panel-2: #334155;
-  --text: #f1f5f9;
-  --muted: #94a3b8;
-  --accent: #38bdf8;
-  --on-accent: #0b1220;
-  --key: #334155;
-  --border: rgba(148, 163, 184, 0.16);
-  --shadow: rgba(0, 0, 0, 0.35);
-  --strike: #f59e0b;
-  --ball: #22c55e;
-  --out: #ef4444;
+  --bg: #080b11;
+  --panel: #0f1620;
+  --panel-2: #1a2431;
+  --text: #e9eef4;
+  --muted: #6f7e94;
+  --accent: #22d3ee; /* 일렉트릭 시안 LED */
+  --on-accent: #04161b;
+  --key: #172130;
+  --border: rgba(120, 160, 200, 0.14);
+  --shadow: rgba(0, 0, 0, 0.55);
+  --strike: #f5a524;
+  --ball: #2ec16b;
+  --out: #f4453e;
+  --glow-accent: 0 0 12px rgba(34, 211, 238, 0.5);
+  --glow-text: 0 0 10px rgba(34, 211, 238, 0.45);
+  /* 경기장 밤하늘 비네트 */
+  --board-vignette: radial-gradient(
+    120% 80% at 50% -10%,
+    rgba(34, 211, 238, 0.06),
+    transparent 60%
+  );
 }
 
 /* JS가 꺼져 data-theme이 없을 때의 시스템 폴백 */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --bg: #0f172a;
-    --panel: #1e293b;
-    --panel-2: #334155;
-    --text: #f1f5f9;
-    --muted: #94a3b8;
-    --accent: #38bdf8;
-    --on-accent: #0b1220;
-    --key: #334155;
-    --border: rgba(148, 163, 184, 0.16);
-    --shadow: rgba(0, 0, 0, 0.35);
-    --strike: #f59e0b;
-    --ball: #22c55e;
-    --out: #ef4444;
+    --bg: #080b11;
+    --panel: #0f1620;
+    --panel-2: #1a2431;
+    --text: #e9eef4;
+    --muted: #6f7e94;
+    --accent: #22d3ee;
+    --on-accent: #04161b;
+    --key: #172130;
+    --border: rgba(120, 160, 200, 0.14);
+    --shadow: rgba(0, 0, 0, 0.55);
+    --strike: #f5a524;
+    --ball: #2ec16b;
+    --out: #f4453e;
+    --glow-accent: 0 0 12px rgba(34, 211, 238, 0.5);
+    --glow-text: 0 0 10px rgba(34, 211, 238, 0.45);
+    --board-vignette: radial-gradient(
+      120% 80% at 50% -10%,
+      rgba(34, 211, 238, 0.06),
+      transparent 60%
+    );
   }
 }
 
@@ -68,6 +97,8 @@
 body {
   margin: 0;
   background: var(--bg);
+  background-image: var(--board-vignette);
+  background-attachment: fixed;
   min-height: 100dvh;
   transition: background 0.2s ease;
 }
@@ -83,4 +114,15 @@ button {
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
+}
+
+/* 모션 최소화 선호 존중 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

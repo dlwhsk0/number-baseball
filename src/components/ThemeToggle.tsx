@@ -23,7 +23,7 @@ export function ThemeToggle() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f172a' : '#eef2f7');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#080b11' : '#e7ecf3');
   }, [theme]);
 
   // 수동 선택 전에는 시스템 설정을 따라간다.

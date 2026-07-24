@@ -47,10 +47,18 @@
   이고, 메모 버튼(토글)이 항상 이 줄에 있다. "메모 모드"를 켜면 숫자 탭이 입력 대신 메모 표시를
   순환한다: 기본 → ○스트라이크 → △볼 → ✕아웃 → 기본. 표시는 키 전체를 덮는 큰 도형(워터마크).
   배지는 판정 색과 대응(주황/초록/빨강). 새 게임마다 초기화. 표시 전용이라 입력을 막지 않음. 상태는 `GameState.memo`.
-- **테마**: 시스템 다크/라이트 자동 감지 + 좌상단 해/달 토글(`src/components/ThemeToggle.tsx`).
-  색 팔레트는 `src/index.css`의 `:root`(라이트 기본) / `:root[data-theme='dark']`로 정의하고
-  `data-theme` 속성으로 전환. 수동 선택은 `localStorage.theme`에 저장, 없으면 시스템을 실시간 추종.
-  `index.html`의 인라인 스크립트가 마운트 전에 테마를 확정(FOUC 방지). accent 위 글자는 `--on-accent`.
+- **디자인 시스템 / 테마**: **야구 전광판(스코어보드)** 컨셉. 다크(야간 전광판)가 히어로, 라이트(주간 경기)는 토글 변형.
+  포인트색은 **일렉트릭 시안**(`--accent` = 다크 `#22d3ee` / 라이트 `#0891b2`). S·B·O 램프색은 앰버·초록·빨강.
+  - **토큰**(`src/index.css` `:root`): 색 외에 `--font-digit`(숫자·데이터용 모노스페이스, LED/세그먼트 대용),
+    라운드 `--r-sm/md/lg`(전광판은 각지게), 발광 `--glow-accent`·`--glow-text`(다크만, 라이트는 `none`),
+    `--board-vignette`(다크 밤하늘 배경, `body`에 fixed). accent 위 글자는 `--on-accent`.
+  - **전광판 성격**(`src/App.css`): 숫자는 전부 `--font-digit`+`tabular-nums`. 입력칸(`.slot.filled`)은
+    채우면 시안 발광 LED 타일(팝 애니메이션). S·B·O(`.sbo-cell`)는 값 있으면 램프색 링으로 점등.
+    포인트색 CTA·활성 컨트롤엔 `--glow-accent` 글로우. 승리 시 결과 카드 `win-pulse`. 타이머·카운트·순위 숫자도 세그먼트 폰트.
+  - **모션**: '적당히' — 슬롯 팝, 행 등장, 램프 점등, 승리 펄스 정도. `prefers-reduced-motion`이면 전부 정지(`index.css`).
+  - 색 팔레트는 `:root`(라이트 기본) / `:root[data-theme='dark']` / `prefers-color-scheme` 폴백 3곳에 정의, `data-theme`로 전환.
+    수동 선택은 `localStorage.theme` 저장, 없으면 시스템 실시간 추종. `index.html` 인라인 스크립트가 마운트 전 테마 확정(FOUC 방지).
+    테마색 메타(`theme-color`)는 `index.html`·`ThemeToggle`에 하드코딩(배경색 바꾸면 같이 갱신 — 다크 `#080b11`/라이트 `#e7ecf3`).
 - **푸터**: GitHub 프로필 링크 아이콘(`github.com/dlwhsk0`).
 - **게임 방법 모달**: 헤더 좌측 밝기 토글 아래 `?` 원형 버튼을 누르면 거의 전체 화면 모달(`src/components/RulesModal.tsx`)
   이 열려 규칙·판정·메모 모드를 설명. 좌상단 ✕/ESC/배경 탭으로 닫고, 열려 있는 동안 배경 스크롤 잠금.
