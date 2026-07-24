@@ -2,6 +2,8 @@ import { useEffect, useReducer, useRef, useState } from 'react';
 import { gameReducer, initGame } from '../game/useGame';
 import { Keypad } from './Keypad';
 import { History } from './History';
+import { Seg7 } from './Seg7';
+import { LampBank } from './LampBank';
 
 interface Props {
   /** 맞혀야 할 정답. */
@@ -24,6 +26,11 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
   const [memoMode, setMemoMode] = useState(false);
   const finished = state.status !== 'playing';
 
+  const lastJudge = state.guesses[state.guesses.length - 1]?.judgement;
+  const lampStrikes = lastJudge?.strikes ?? 0;
+  const lampBalls = lastJudge?.balls ?? 0;
+  const lampOuts = lastJudge ? state.digits - lampStrikes - lampBalls : 0;
+
   // 승리하면 한 번만 콜백.
   const firedRef = useRef(false);
   useEffect(() => {
@@ -45,15 +52,22 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
             <button
               key={i}
               type="button"
-              className={`slot${d ? ' filled' : ''}`}
+              className={`slot cell${d ? ' filled' : ''}`}
               disabled={finished || !d}
               aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
               onClick={() => dispatch({ type: 'clearSlot', index: i })}
             >
-              {d || '·'}
+              <Seg7 char={d} />
             </button>
           ))}
         </div>
+
+        <LampBank
+          strikes={lampStrikes}
+          balls={lampBalls}
+          outs={lampOuts}
+          digits={state.digits}
+        />
 
         <Keypad
           slots={state.slots}

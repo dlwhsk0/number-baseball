@@ -1,4 +1,5 @@
 import type { MemoMark } from '../game/useGame';
+import { Seg7 } from './Seg7';
 
 interface Props {
   /** 입력 칸(길이 3, 빈 칸은 ''). */
@@ -59,11 +60,14 @@ export function Keypad({
             <button
               key={d}
               type="button"
-              className={`key key-digit${mark ? ` mark-${mark}` : ''}`}
+              className={`key key-digit cell${mark ? ` mark-${mark}` : ''}`}
+              aria-label={d}
               disabled={digitDisabled(d)}
               onClick={() => (isMemo ? onMemo(d) : onDigit(d))}
             >
-              <span className="key-digit-num">{d}</span>
+              <span className="key-digit-num">
+                <Seg7 char={d} />
+              </span>
               {mark && <span className="key-badge">{BADGE[mark]}</span>}
             </button>
           );

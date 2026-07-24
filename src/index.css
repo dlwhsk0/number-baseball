@@ -4,103 +4,52 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* ===== 디자인 토큰 ===== */
-  /* 숫자·데이터용 폰트(LED/세그먼트 전광판 대용). 오프라인 PWA라 시스템 모노스페이스 스택 */
-  --font-digit: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Roboto Mono', Menlo,
-    Consolas, monospace;
-  /* 라운드 스케일 — 전광판은 각지게 */
-  --r-sm: 8px;
-  --r-md: 10px;
-  --r-lg: 14px;
-
-  /* ---- 라이트(주간 경기) : data-theme 속성으로 덮어씀 ---- */
-  color-scheme: light;
-  --bg: #e7ecf3;
-  --panel: #ffffff;
-  --panel-2: #eef2f8;
-  --text: #0f1826;
-  --muted: #5a6a7e;
-  --accent: #0891b2; /* 시안(라이트에선 대비 위해 진하게) */
-  --on-accent: #ffffff;
-  --key: #ffffff;
-  --border: #cdd6e2;
-  --shadow: rgba(15, 23, 42, 0.14);
-  /* 전광판 램프색: 스트라이크=앰버 · 볼=초록 · 아웃=빨강 */
-  --strike: #c2760a;
-  --ball: #1f9d4d;
-  --out: #d63a33;
-  /* 발광 효과 — 라이트에선 끔 */
-  --glow-accent: none;
-  --glow-text: none;
-  --board-vignette: none;
-}
-
-:root[data-theme='dark'] {
-  /* ---- 다크(야간 전광판) : 히어로 ---- */
+  /* ===== 디자인 토큰 — 야구장 전광판(순검정 보드 · 그린+화이트) =====
+     전광판은 하나의 세계(어두운 물체)라 단일 다크 테마로 확정. 라이트 변형 없음. */
   color-scheme: dark;
-  --bg: #080b11;
-  --panel: #0f1620;
-  --panel-2: #1a2431;
-  --text: #e9eef4;
-  --muted: #6f7e94;
-  --accent: #22d3ee; /* 일렉트릭 시안 LED */
-  --on-accent: #04161b;
-  --key: #172130;
-  --border: rgba(120, 160, 200, 0.14);
-  --shadow: rgba(0, 0, 0, 0.55);
-  --strike: #f5a524;
-  --ball: #2ec16b;
-  --out: #f4453e;
-  --glow-accent: 0 0 12px rgba(34, 211, 238, 0.5);
-  --glow-text: 0 0 10px rgba(34, 211, 238, 0.45);
-  /* 경기장 밤하늘 비네트 */
-  --board-vignette: radial-gradient(
-    120% 80% at 50% -10%,
-    rgba(34, 211, 238, 0.06),
-    transparent 60%
-  );
-}
+  --bg: #000000;
+  --panel: #050506; /* 플레이트·섹션 배경(램프·기록·모달 등) */
+  --panel-2: #0d0e11; /* 살짝 뜬 표면(기록 행 등) */
+  --cell: #070708; /* 숫자 블럭 셀 배경 */
+  --key: #0a0a0b; /* 키패드 키 배경 */
+  --text: #e7e7ea;
+  --muted: #6b7078;
+  --border: #1b1d22;
+  --shadow: rgba(0, 0, 0, 0.7);
 
-/* JS가 꺼져 data-theme이 없을 때의 시스템 폴백 */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    color-scheme: dark;
-    --bg: #080b11;
-    --panel: #0f1620;
-    --panel-2: #1a2431;
-    --text: #e9eef4;
-    --muted: #6f7e94;
-    --accent: #22d3ee;
-    --on-accent: #04161b;
-    --key: #172130;
-    --border: rgba(120, 160, 200, 0.14);
-    --shadow: rgba(0, 0, 0, 0.55);
-    --strike: #f5a524;
-    --ball: #2ec16b;
-    --out: #f4453e;
-    --glow-accent: 0 0 12px rgba(34, 211, 238, 0.5);
-    --glow-text: 0 0 10px rgba(34, 211, 238, 0.45);
-    --board-vignette: radial-gradient(
-      120% 80% at 50% -10%,
-      rgba(34, 211, 238, 0.06),
-      transparent 60%
-    );
-  }
+  /* 판독값 LED(기본 화이트)와 그린 액센트 */
+  --led: #eef2f8;
+  --glow: rgba(210, 228, 255, 0.42);
+  --accent: #4dff5e; /* 그린 — 확인·활성·입력 중인 정답 칸 */
+  --accent-glow: rgba(77, 255, 94, 0.75);
+  --on-accent: #04120a;
+
+  /* 전광판 램프색: 스트라이크=주황 · 볼=초록 · 아웃=빨강 */
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #1c1d20;
+
+  /* 라운드 스케일 — 전광판은 각지게 */
+  --r-sm: 6px;
+  --r-md: 9px;
+  --r-lg: 12px;
+
+  /* 텍스트 숫자용 모노(세그먼트가 아닌 곳: 카운트·타이머·점수) + 발광 별칭 */
+  --font-digit: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+  --glow-text: 0 0 10px var(--accent-glow);
+  --glow-accent: 0 0 12px var(--accent-glow);
 }
 
 * {
   box-sizing: border-box;
-  /* 모바일에서 탭할 때 뜨는 반투명 파란 하이라이트 제거 */
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
   margin: 0;
   background: var(--bg);
-  background-image: var(--board-vignette);
-  background-attachment: fixed;
   min-height: 100dvh;
-  transition: background 0.2s ease;
 }
 
 #root {
@@ -109,12 +58,69 @@ body {
 
 button {
   font-family: inherit;
-  /* 길게 눌러도 선택/콜아웃/하이라이트가 안 뜨게, 더블탭 확대 지연도 제거 */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
 }
+
+/* 스크린리더 전용(세그먼트 숫자의 실제 값을 읽어주기 위함) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===================================================================
+   세븐세그먼트 숫자(.seg7) — 세그먼트 <i> 7개, 켜짐/꺼짐은 --a..--g로.
+   크기는 부모의 font-size(em 기준)로 스케일, 색은 --led/--glow.
+   =================================================================== */
+.seg7 {
+  display: inline-block;
+  position: relative;
+  width: 0.62em;
+  height: 1.12em;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 0.07em var(--glow));
+  --a: 0; --b: 0; --c: 0; --d: 0; --e: 0; --f: 0; --g: 0;
+}
+.seg7 i {
+  position: absolute;
+  background: var(--led);
+  border-radius: 0.03em;
+}
+.seg7 .sa, .seg7 .sg, .seg7 .sd { left: 0.09em; right: 0.09em; height: 0.12em; }
+.seg7 .sa { top: 0; }
+.seg7 .sd { bottom: 0; }
+.seg7 .sg { top: calc(50% - 0.06em); }
+.seg7 .sf, .seg7 .sb, .seg7 .se, .seg7 .sc { width: 0.12em; height: calc(50% - 0.17em); }
+.seg7 .sf { top: 0.1em; left: 0; }
+.seg7 .sb { top: 0.1em; right: 0; }
+.seg7 .se { bottom: 0.1em; left: 0; }
+.seg7 .sc { bottom: 0.1em; right: 0; }
+.seg7 .sa { opacity: calc(0.07 + 0.93 * var(--a)); }
+.seg7 .sb { opacity: calc(0.07 + 0.93 * var(--b)); }
+.seg7 .sc { opacity: calc(0.07 + 0.93 * var(--c)); }
+.seg7 .sd { opacity: calc(0.07 + 0.93 * var(--d)); }
+.seg7 .se { opacity: calc(0.07 + 0.93 * var(--e)); }
+.seg7 .sf { opacity: calc(0.07 + 0.93 * var(--f)); }
+.seg7 .sg { opacity: calc(0.07 + 0.93 * var(--g)); }
+.d0 { --a: 1; --b: 1; --c: 1; --d: 1; --e: 1; --f: 1; }
+.d1 { --b: 1; --c: 1; }
+.d2 { --a: 1; --b: 1; --g: 1; --e: 1; --d: 1; }
+.d3 { --a: 1; --b: 1; --g: 1; --c: 1; --d: 1; }
+.d4 { --f: 1; --g: 1; --b: 1; --c: 1; }
+.d5 { --a: 1; --f: 1; --g: 1; --c: 1; --d: 1; }
+.d6 { --a: 1; --f: 1; --g: 1; --e: 1; --c: 1; --d: 1; }
+.d7 { --a: 1; --b: 1; --c: 1; }
+.d8 { --a: 1; --b: 1; --c: 1; --d: 1; --e: 1; --f: 1; --g: 1; }
+.d9 { --a: 1; --b: 1; --c: 1; --d: 1; --f: 1; --g: 1; }
 
 /* 모션 최소화 선호 존중 */
 @media (prefers-reduced-motion: reduce) {

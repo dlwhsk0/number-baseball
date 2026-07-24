@@ -2,6 +2,7 @@ import { useReducer, useState } from 'react';
 import { gameReducer, initGame, type GuessRecord } from '../game/useGame';
 import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
+import { Seg7 } from '../components/Seg7';
 
 interface Props {
   onExit: () => void;
@@ -227,11 +228,11 @@ function SecretEntry({
             <button
               key={i}
               type="button"
-              className={`slot${d ? ' filled' : ''}`}
+              className={`slot cell${d ? ' filled' : ''}`}
               disabled={!d}
               onClick={() => dispatch({ type: 'clearSlot', index: i })}
             >
-              {d || '·'}
+              <Seg7 char={d} />
             </button>
           ))}
         </div>

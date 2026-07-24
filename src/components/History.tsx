@@ -1,4 +1,5 @@
 import type { GuessRecord } from '../game/useGame';
+import { Seg7 } from './Seg7';
 
 interface Props {
   guesses: GuessRecord[];
@@ -27,7 +28,13 @@ export function History({ guesses }: Props) {
         return (
           <li key={i} className="history-row">
             <span className="history-index">{i + 1}</span>
-            <span className="history-guess">{g.guess}</span>
+            <span className="history-guess">
+              {g.guess.split('').map((ch, j) => (
+                <span key={j} className="cell hcell">
+                  <Seg7 char={ch} />
+                </span>
+              ))}
+            </span>
             <span className="sbo">
               {CELLS.map(({ key, letter }) => (
                 <span
