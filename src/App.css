@@ -11,7 +11,27 @@
   color: var(--text);
 }
 
-/* 헤더: [밝기/? 세로] · [타이틀] · [새 게임/멀티 세로] */
+/* 정답존 위 컨트롤 — 2행: [? · 혼자|멀티] / [난이도 · ↻새 게임] */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.controls .seg-btn {
+  padding: 6px 13px;
+  font-size: 0.82rem;
+}
+.controls .level-caption {
+  margin: -2px 0 0;
+}
+
+/* (구) 헤더 — 일부 스타일 재사용 */
 .app-header {
   display: flex;
   align-items: flex-start;

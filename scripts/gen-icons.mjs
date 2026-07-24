@@ -9,8 +9,8 @@ const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 /** 야구공 아이콘. pad=여백 비율(마스커블용). */
 function svg(pad = 0) {
-  const bg = '#0f172a';
-  const r = 0.5 - pad; // 반지름(0~0.5)
+  const bg = '#08090c';
+  const r = (0.5 - pad) * 0.62; // 반지름 — 타일 대비 야구공을 작게(여백 확보)
   const cx = 0.5;
   const cy = 0.5;
   const stitch = '#ef4444';

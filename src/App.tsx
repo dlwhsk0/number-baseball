@@ -134,8 +134,8 @@ export default function App() {
         onRefresh={() => updateServiceWorker(true)}
         onDismiss={() => setNeedRefresh(false)}
       />
-      <header className="app-header">
-        <div className="corner corner-left">
+      <header className="controls">
+        <div className="controls-row">
           <button
             type="button"
             className="help-btn"
@@ -145,74 +145,73 @@ export default function App() {
           >
             ?
           </button>
+          <div className="seg" role="group" aria-label="모드 선택">
+            <button
+              type="button"
+              className={`seg-btn${section === 'solo' ? ' active' : ''}`}
+              aria-pressed={section === 'solo'}
+              onClick={() => setSection('solo')}
+            >
+              혼자
+            </button>
+            <button
+              type="button"
+              className={`seg-btn${section === 'multi' ? ' active' : ''}`}
+              aria-pressed={section === 'multi'}
+              onClick={() => setSection('multi')}
+            >
+              멀티
+            </button>
+          </div>
         </div>
 
-        <div className="corner corner-right">
+        <div className="controls-row">
           {section === 'solo' ? (
             <>
+              <div className="seg" role="group" aria-label="난이도 선택">
+                {LEVEL_ORDER.map((lv) => (
+                  <button
+                    key={lv}
+                    type="button"
+                    className={`seg-btn${lv === level ? ' active' : ''}`}
+                    aria-pressed={lv === level}
+                    onClick={() => changeLevel(lv)}
+                  >
+                    {LEVELS[lv].label}
+                  </button>
+                ))}
+              </div>
               <button type="button" className="corner-btn" onClick={newGame}>
-                새 게임
-              </button>
-              <button
-                type="button"
-                className="corner-btn corner-btn-accent"
-                onClick={() => setSection('multi')}
-              >
-                멀티 ▶
+                ↻ 새 게임
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              className="corner-btn"
-              onClick={() => setSection('solo')}
-            >
-              ◀ 혼자
-            </button>
+            <div className="seg" role="group" aria-label="대결 선택">
+              {MULTI_TABS.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className={`seg-btn${multiMode === m.key ? ' active' : ''}`}
+                  aria-pressed={multiMode === m.key}
+                  onClick={() => setMultiMode(m.key)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
-      </header>
 
-      {section === 'multi' && (
-        <div className="nav">
-          <div className="mode-tabs" role="group" aria-label="대결 선택">
-            {MULTI_TABS.map((m) => (
-              <button
-                key={m.key}
-                type="button"
-                className={`mode-tab${multiMode === m.key ? ' active' : ''}`}
-                aria-pressed={multiMode === m.key}
-                onClick={() => setMultiMode(m.key)}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+        {section === 'solo' && (
+          <p className="level-caption">
+            {level === 'advanced' ? '4자리' : '3자리'}
+            {LEVELS[level].beginner ? ' · 자동 힌트(3아웃이면 ✕ 표시)' : ''}
+          </p>
+        )}
+      </header>
 
       {section === 'solo' ? (
         <>
-      <div className="level-bar">
-        <div className="level-select" role="group" aria-label="난이도 선택">
-          {LEVEL_ORDER.map((lv) => (
-            <button
-              key={lv}
-              type="button"
-              className={`level-btn${lv === level ? ' active' : ''}`}
-              aria-pressed={lv === level}
-              onClick={() => changeLevel(lv)}
-            >
-              {LEVELS[lv].label}
-            </button>
-          ))}
-        </div>
-        <p className="level-caption">
-          {level === 'advanced' ? '4자리' : '3자리'}
-          {LEVELS[level].beginner ? ' · 자동 힌트(3아웃이면 ✕ 표시)' : ''}
-        </p>
-      </div>
-
       <section className="board">
         <div
           className="input-display"
