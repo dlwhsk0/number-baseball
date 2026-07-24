@@ -3,7 +3,6 @@ import { gameReducer, initGame } from '../game/useGame';
 import { Keypad } from './Keypad';
 import { History } from './History';
 import { Seg7 } from './Seg7';
-import { LampBank } from './LampBank';
 
 interface Props {
   /** 맞혀야 할 정답. */
@@ -25,11 +24,6 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
   );
   const [memoMode, setMemoMode] = useState(false);
   const finished = state.status !== 'playing';
-
-  const lastJudge = state.guesses[state.guesses.length - 1]?.judgement;
-  const lampStrikes = lastJudge?.strikes ?? 0;
-  const lampBalls = lastJudge?.balls ?? 0;
-  const lampOuts = lastJudge ? state.digits - lampStrikes - lampBalls : 0;
 
   // 승리하면 한 번만 콜백.
   const firedRef = useRef(false);
@@ -62,13 +56,6 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
           ))}
         </div>
 
-        <LampBank
-          strikes={lampStrikes}
-          balls={lampBalls}
-          outs={lampOuts}
-          digits={state.digits}
-        />
-
         <Keypad
           slots={state.slots}
           memo={state.memo}
@@ -84,7 +71,7 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
 
       <section className="history-section">
         <div className="history-head">
-          <span>추측 기록</span>
+          <span>history</span>
           <span className="attempts">{state.guesses.length}회</span>
         </div>
         <History guesses={state.guesses} />

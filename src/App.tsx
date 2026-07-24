@@ -6,7 +6,7 @@ import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { Seg7 } from './components/Seg7';
-import { LampBank } from './components/LampBank';
+import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SpeedVersus } from './versus/SpeedVersus';
@@ -39,14 +39,23 @@ export default function App() {
   const [multiMode, setMultiMode] = useState<MultiMode>('speed');
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showIntro, setShowIntro] = useState(() => {
+    try {
+      return !sessionStorage.getItem('nb_intro');
+    } catch {
+      return false;
+    }
+  });
+  const dismissIntro = () => {
+    try {
+      sessionStorage.setItem('nb_intro', '1');
+    } catch {
+      /* 저장 불가 환경 무시 */
+    }
+    setShowIntro(false);
+  };
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
   const finished = state.status !== 'playing';
-
-  // 직전 추측의 판정 → B·S·O 램프 뱅크(없으면 모두 꺼짐).
-  const lastJudge = state.guesses[state.guesses.length - 1]?.judgement;
-  const lampStrikes = lastJudge?.strikes ?? 0;
-  const lampBalls = lastJudge?.balls ?? 0;
-  const lampOuts = lastJudge ? state.digits - lampStrikes - lampBalls : 0;
 
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -119,6 +128,7 @@ export default function App() {
 
   return (
     <main className="app">
+      {showIntro && <Intro onDone={dismissIntro} />}
       <UpdatePrompt
         show={needRefresh}
         onRefresh={() => updateServiceWorker(true)}
@@ -135,15 +145,6 @@ export default function App() {
           >
             ?
           </button>
-        </div>
-
-        <div className="header-title">
-          <h1>숫자 야구 ⚾</h1>
-          {section === 'solo' && (
-            <p className="subtitle">
-              서로 다른 {state.digits === 4 ? '네' : '세'} 자리 숫자를 맞혀보세요
-            </p>
-          )}
         </div>
 
         <div className="corner corner-right">
@@ -232,13 +233,6 @@ export default function App() {
           ))}
         </div>
 
-        <LampBank
-          strikes={lampStrikes}
-          balls={lampBalls}
-          outs={lampOuts}
-          digits={state.digits}
-        />
-
         {finished ? (
           <ResultBanner
             status={state.status}
@@ -263,7 +257,7 @@ export default function App() {
 
       <section className="history-section">
         <div className="history-head">
-          <span>추측 기록</span>
+          <span>history</span>
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>

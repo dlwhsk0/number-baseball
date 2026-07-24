@@ -39,10 +39,14 @@ export function History({ guesses }: Props) {
               {CELLS.map(({ key, letter }) => (
                 <span
                   key={key}
-                  className={`sbo-cell sbo-${key}${c[key] === 0 ? ' zero' : ''}`}
+                  className={`hsbo lamp-${key}${c[key] === 0 ? ' zero' : ''}`}
                 >
-                  <span className="sbo-letter">{letter}</span>
-                  <span className="sbo-count">{c[key]}</span>
+                  <span className="hsbo-letter">{letter}</span>
+                  <span className="bulbs">
+                    {Array.from({ length: g.guess.length }, (_, k) => (
+                      <span key={k} className={`bulb${k < c[key] ? ' on' : ''}`} />
+                    ))}
+                  </span>
                 </span>
               ))}
             </span>
