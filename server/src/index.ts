@@ -174,6 +174,16 @@ io.on('connection', (socket) => {
     advanceAfterReveal(room, p);
   });
 
+  socket.on('input', ({ value }) => {
+    const room = getRoom(data.code);
+    if (!room || data.index == null) return;
+    if (room.phase !== 'playing' || room.pending || room.turn !== data.index) return;
+    const v = String(value ?? '')
+      .replace(/[^0-9]/g, '')
+      .slice(0, room.digits);
+    socket.to(room.code).emit('opponentInput', { value: v });
+  });
+
   socket.on('rematch', () => {
     const room = getRoom(data.code);
     if (!room || data.index == null) return;

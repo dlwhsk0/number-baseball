@@ -55,9 +55,9 @@
   --border: #d3dae3;
   --shadow: rgba(20, 30, 50, 0.14);
   --led: #26313f; /* LCD처럼 어두운 세그먼트 */
-  --glow: transparent; /* 라이트에선 발광 없음 */
+  --glow: rgba(18, 161, 80, 0.22); /* 라이트에서도 은은한 발광 */
   --accent: #12a150; /* 진한 그린(대비) */
-  --accent-glow: transparent;
+  --accent-glow: rgba(18, 161, 80, 0.45);
   --on-accent: #ffffff;
   --strike: #c2760a;
   --ball: #16a34a;

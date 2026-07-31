@@ -28,6 +28,7 @@ export interface ClientToServerEvents {
   join: (p: { nick: string; code: string }, ack: (r: JoinAck) => void) => void;
   setSecret: (p: { secret: string }, ack: (r: OkAck) => void) => void;
   guess: (p: { guess: string }, ack: (r: OkAck) => void) => void;
+  input: (p: { value: string }) => void;
   rematch: () => void;
 }
 
@@ -44,6 +45,7 @@ export interface ServerToClientEvents {
     attempts: number;
   }) => void;
   turn: (p: { turn: 0 | 1 }) => void;
+  opponentInput: (p: { value: string }) => void;
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
   rematchRequested: () => void;
   opponentLeft: () => void;

@@ -35,6 +35,8 @@ export interface ClientToServerEvents {
   join: (p: { nick: string; code: string }, ack: (r: JoinAck) => void) => void;
   setSecret: (p: { secret: string }, ack: (r: OkAck) => void) => void;
   guess: (p: { guess: string }, ack: (r: OkAck) => void) => void;
+  /** 추측 입력 중간 상태(실시간 미리보기용). 내 차례에만 상대에게 중계된다. */
+  input: (p: { value: string }) => void;
   rematch: () => void;
 }
 
@@ -54,6 +56,8 @@ export interface ServerToClientEvents {
     attempts: number;
   }) => void;
   turn: (p: { turn: 0 | 1 }) => void;
+  /** 상대의 실시간 추측 입력 상태(부분 문자열). */
+  opponentInput: (p: { value: string }) => void;
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
   /** 상대가 재대결을 신청함(내가 수락하면 시작). */
   rematchRequested: () => void;

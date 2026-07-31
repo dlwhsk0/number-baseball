@@ -138,15 +138,23 @@ function OnlineInput({
   digits,
   submitLabel,
   onSubmit,
+  onChange,
 }: {
   digits: number;
   submitLabel: string;
   onSubmit: (value: string) => void;
+  onChange?: (value: string) => void;
 }) {
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame('', Infinity, digits, false),
   );
   const full = !state.slots.includes('');
+  // 입력 변화를 부모에 알림(실시간 미리보기 중계용). 콜백 identity와 무관하게 최신값 사용.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current?.(state.slots.join(''));
+  }, [state.slots]);
   return (
     <section className="board">
       <div
@@ -238,6 +246,7 @@ export function OnlineDuel({ onExit }: Props) {
   const [oppSolved, setOppSolved] = useState(false);
   const [mySolved, setMySolved] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
+  const [oppInput, setOppInput] = useState('');
 
   const [over, setOver] = useState<OverInfo | null>(null);
   const [oppLeft, setOppLeft] = useState(false);
@@ -250,6 +259,7 @@ export function OnlineDuel({ onExit }: Props) {
     setOppSolved(false);
     setMySolved(false);
     setReveal(null);
+    setOppInput('');
     setMySecret('');
     setMySecretSet(false);
     setSecretReady([false, false]);
@@ -281,6 +291,7 @@ export function OnlineDuel({ onExit }: Props) {
       setMySolved(false);
       setReveal(null);
       setMyTurn(turn === myIndexRef.current);
+      setOppInput('');
       setPhase('playing');
       // "모두 골랐어요! 누구 먼저" 잠깐 발표
       setStartAnnounce(true);
@@ -296,9 +307,12 @@ export function OnlineDuel({ onExit }: Props) {
         if (solved) setOppSolved(true);
       }
       setReveal({ by, guess, judgement, solved });
+      setOppInput('');
     });
+    s.on('opponentInput', ({ value }) => setOppInput(value));
     s.on('turn', ({ turn }) => {
       setReveal(null);
+      setOppInput('');
       setMyTurn(turn === myIndexRef.current);
     });
     s.on('over', (p) => {
@@ -323,6 +337,7 @@ export function OnlineDuel({ onExit }: Props) {
       s.off('secretProgress');
       s.off('start');
       s.off('reveal');
+      s.off('opponentInput');
       s.off('turn');
       s.off('over');
       s.off('rematchRequested');
@@ -393,6 +408,11 @@ export function OnlineDuel({ onExit }: Props) {
     socketRef.current.emit('guess', { guess }, (r) => {
       if (!r.ok) setError(r.error ?? '오류가 발생했어요.');
     });
+  };
+
+  // 추측 입력 중간 상태를 상대에게 중계(실시간 미리보기).
+  const emitInput = (value: string) => {
+    socketRef.current.emit('input', { value });
   };
 
   const rematch = () => {
@@ -560,13 +580,29 @@ export function OnlineDuel({ onExit }: Props) {
               digits={digits}
               submitLabel="추측"
               onSubmit={submitGuess}
+              onChange={emitInput}
             />
           </>
         ) : (
           <div className="versus versus-center">
             {mySolved && <div className="tension last">상대의 마지막 기회…</div>}
-            <LoadingDots />
-            <WaitingLine />
+            {oppInput ? (
+              <div className="live-input">
+                <span className="live-label">상대 입력 중</span>
+                <span className="num-cells">
+                  {Array.from({ length: digits }, (_, i) => (
+                    <span key={i} className="cell hcell">
+                      <Seg7 char={oppInput[i] ?? ''} />
+                    </span>
+                  ))}
+                </span>
+              </div>
+            ) : (
+              <>
+                <LoadingDots />
+                <WaitingLine />
+              </>
+            )}
           </div>
         )}
 

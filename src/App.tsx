@@ -88,6 +88,37 @@ export default function App() {
       holdRef.current = undefined;
     }
   };
+
+  // 이스터에그 2: 하단 깃허브 로고를 여러 번 누르면 '개발자 모드' 해금(삼성 개발자모드 오마주).
+  const devTapRef = useRef(0);
+  const devResetRef = useRef<number | undefined>(undefined);
+  const devToastRef = useRef<number | undefined>(undefined);
+  const [devMsg, setDevMsg] = useState<string | null>(null);
+  const [devUnlocked, setDevUnlocked] = useState(false);
+  const DEV_TOTAL = 7;
+  const DEV_MSGS = ['개발자가 깨어나는 중...', '조금만 더...', '거의 다 왔어요...', '한 번만 더!'];
+
+  const tapGithub = () => {
+    if (devUnlocked) return;
+    devTapRef.current += 1;
+    const n = devTapRef.current;
+    if (devResetRef.current) window.clearTimeout(devResetRef.current);
+    devResetRef.current = window.setTimeout(() => {
+      devTapRef.current = 0;
+    }, 1500);
+    if (n >= DEV_TOTAL) {
+      devTapRef.current = 0;
+      setDevMsg(null);
+      setDevUnlocked(true);
+      return;
+    }
+    if (n >= 3) {
+      const idx = Math.min(n - 3, DEV_MSGS.length - 1);
+      setDevMsg(`${DEV_MSGS[idx]} (${DEV_TOTAL - n})`);
+      if (devToastRef.current) window.clearTimeout(devToastRef.current);
+      devToastRef.current = window.setTimeout(() => setDevMsg(null), 1100);
+    }
+  };
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
   const finished = state.status !== 'playing';
 
@@ -315,19 +346,47 @@ export default function App() {
       )}
 
       <footer className="app-footer">
-        <a
+        <button
+          type="button"
           className="footer-link"
-          href="https://github.com/dlwhsk0"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="GitHub 프로필"
+          onClick={tapGithub}
+          aria-label="GitHub"
           title="GitHub @dlwhsk0"
         >
           <GitHubIcon />
-        </a>
+        </button>
       </footer>
 
       {eggMsg && <div className="egg-toast">{eggMsg}</div>}
+      {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
+
+      {devUnlocked && (
+        <div className="dev-modal-backdrop" onClick={() => setDevUnlocked(false)}>
+          <div
+            className="dev-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="dev-emblem">⚾</div>
+            <h3 className="dev-title">개발자 모드 해금!</h3>
+            <p className="dev-text">
+              여기까지 찾아줘서 고마워요. 이 게임을 만든 사람이에요 :)
+            </p>
+            <a
+              className="dev-link"
+              href="https://github.com/dlwhsk0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              github.com/dlwhsk0
+            </a>
+            <button type="button" className="dev-close" onClick={() => setDevUnlocked(false)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
 
