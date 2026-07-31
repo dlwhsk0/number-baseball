@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useGame, LEVELS, type Level } from './game/useGame';
 import { Keypad } from './components/Keypad';
@@ -11,13 +11,15 @@ import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
+import { OnlineDuel } from './versus/OnlineDuel';
 import './App.css';
 
 type Section = 'solo' | 'multi';
-type MultiMode = 'speed' | 'duel';
+type MultiMode = 'speed' | 'duel' | 'online';
 const MULTI_TABS: { key: MultiMode; label: string }[] = [
-  { key: 'speed', label: '스피드 대결' },
-  { key: 'duel', label: '턴제 대결' },
+  { key: 'speed', label: '스피드' },
+  { key: 'duel', label: '턴제' },
+  { key: 'online', label: '온라인' },
 ];
 
 const LEVEL_ORDER: Level[] = ['beginner', 'intermediate', 'advanced'];
@@ -36,7 +38,38 @@ export default function App() {
   const [level, setLevel] = useState<Level>(getInitialLevel);
   const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame(level);
   const [section, setSection] = useState<Section>('solo');
-  const [multiMode, setMultiMode] = useState<MultiMode>('speed');
+  const [online, setOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
+  // 멀티 기본값은 온라인(연결 없으면 스피드).
+  const [multiMode, setMultiMode] = useState<MultiMode>(() =>
+    typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'speed',
+  );
+  const [netMsg, setNetMsg] = useState<string | null>(null);
+  const netTimerRef = useRef<number | undefined>(undefined);
+  const showNet = (m: string) => {
+    setNetMsg(m);
+    if (netTimerRef.current) window.clearTimeout(netTimerRef.current);
+    netTimerRef.current = window.setTimeout(() => setNetMsg(null), 1900);
+  };
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+  // 연결이 끊기면 온라인 모드에서 스피드로 폴백.
+  useEffect(() => {
+    if (!online && multiMode === 'online') {
+      setMultiMode('speed');
+      showNet('네트워크 연결이 필요해요');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, multiMode]);
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showIntro, setShowIntro] = useState(() => {
@@ -53,6 +86,69 @@ export default function App() {
       /* 저장 불가 환경 무시 */
     }
     setShowIntro(false);
+  };
+
+  // 이스터에그: 라이트('주간') 모드. 다크가 무조건 기본 — 세션 한정이라 새로고침하면 다시 다크.
+  // 'history' 라벨을 길게 눌러 전환.
+  const [dayMode, setDayMode] = useState(false);
+  const [eggMsg, setEggMsg] = useState<string | null>(null);
+  const holdRef = useRef<number | undefined>(undefined);
+  const firstThemeRef = useRef(true);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (dayMode) root.setAttribute('data-theme', 'light');
+    else root.removeAttribute('data-theme');
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dayMode ? '#eef1f5' : '#000000');
+    if (firstThemeRef.current) {
+      firstThemeRef.current = false;
+      return;
+    }
+    setEggMsg(dayMode ? '☀️ 주간 모드' : '🌙 야간 모드');
+    const t = window.setTimeout(() => setEggMsg(null), 1500);
+    return () => window.clearTimeout(t);
+  }, [dayMode]);
+
+  const startHold = () => {
+    holdRef.current = window.setTimeout(() => setDayMode((v) => !v), 800);
+  };
+  const cancelHold = () => {
+    if (holdRef.current !== undefined) {
+      window.clearTimeout(holdRef.current);
+      holdRef.current = undefined;
+    }
+  };
+
+  // 이스터에그 2: 하단 깃허브 로고를 여러 번 누르면 '개발자 모드' 해금(삼성 개발자모드 오마주).
+  const devTapRef = useRef(0);
+  const devResetRef = useRef<number | undefined>(undefined);
+  const devToastRef = useRef<number | undefined>(undefined);
+  const [devMsg, setDevMsg] = useState<string | null>(null);
+  const [devUnlocked, setDevUnlocked] = useState(false);
+  const DEV_TOTAL = 7;
+  const DEV_MSGS = ['개발자가 깨어나는 중...', '조금만 더...', '거의 다 왔어요...', '한 번만 더!'];
+
+  const tapGithub = () => {
+    if (devUnlocked) return;
+    devTapRef.current += 1;
+    const n = devTapRef.current;
+    if (devResetRef.current) window.clearTimeout(devResetRef.current);
+    devResetRef.current = window.setTimeout(() => {
+      devTapRef.current = 0;
+    }, 1500);
+    if (n >= DEV_TOTAL) {
+      devTapRef.current = 0;
+      setDevMsg(null);
+      setDevUnlocked(true);
+      return;
+    }
+    if (n >= 3) {
+      const idx = Math.min(n - 3, DEV_MSGS.length - 1);
+      setDevMsg(`${DEV_MSGS[idx]} (${DEV_TOTAL - n})`);
+      if (devToastRef.current) window.clearTimeout(devToastRef.current);
+      devToastRef.current = window.setTimeout(() => setDevMsg(null), 1100);
+    }
   };
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
   const finished = state.status !== 'playing';
@@ -187,17 +283,27 @@ export default function App() {
             </>
           ) : (
             <div className="seg" role="group" aria-label="대결 선택">
-              {MULTI_TABS.map((m) => (
-                <button
-                  key={m.key}
-                  type="button"
-                  className={`seg-btn${multiMode === m.key ? ' active' : ''}`}
-                  aria-pressed={multiMode === m.key}
-                  onClick={() => setMultiMode(m.key)}
-                >
-                  {m.label}
-                </button>
-              ))}
+              {MULTI_TABS.map((m) => {
+                const off = m.key === 'online' && !online;
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    className={`seg-btn${multiMode === m.key ? ' active' : ''}${off ? ' disabled' : ''}`}
+                    aria-pressed={multiMode === m.key}
+                    aria-disabled={off}
+                    onClick={() => {
+                      if (off) {
+                        showNet('온라인은 네트워크 연결이 필요해요');
+                        return;
+                      }
+                      setMultiMode(m.key);
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -256,7 +362,15 @@ export default function App() {
 
       <section className="history-section">
         <div className="history-head">
-          <span>history</span>
+          <span
+            className="egg-trigger"
+            onPointerDown={startHold}
+            onPointerUp={cancelHold}
+            onPointerLeave={cancelHold}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            history
+          </span>
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
@@ -266,22 +380,54 @@ export default function App() {
         </>
       ) : multiMode === 'speed' ? (
         <SpeedVersus onExit={() => setSection('solo')} />
-      ) : (
+      ) : multiMode === 'duel' ? (
         <DuelVersus onExit={() => setSection('solo')} />
+      ) : (
+        <OnlineDuel onExit={() => setSection('solo')} />
       )}
 
       <footer className="app-footer">
-        <a
+        <button
+          type="button"
           className="footer-link"
-          href="https://github.com/dlwhsk0"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="GitHub 프로필"
-          title="GitHub @dlwhsk0"
+          onClick={tapGithub}
+          aria-label="야구공"
         >
-          <GitHubIcon />
-        </a>
+          <span className="footer-ball" aria-hidden="true">
+            ⚾
+          </span>
+        </button>
       </footer>
+
+      {eggMsg && <div className="egg-toast">{eggMsg}</div>}
+      {netMsg && <div className="egg-toast">{netMsg}</div>}
+      {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
+
+      {devUnlocked && (
+        <div className="dev-modal-backdrop" onClick={() => setDevUnlocked(false)}>
+          <div
+            className="dev-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="dev-emblem">⚾</div>
+            <h3 className="dev-title">저를 찾아내셨군요!</h3>
+            <a
+              className="dev-link"
+              href="https://github.com/dlwhsk0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <GitHubIcon />
+              <span>dlwhsk0</span>
+            </a>
+            <button type="button" className="dev-close" onClick={() => setDevUnlocked(false)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
 
