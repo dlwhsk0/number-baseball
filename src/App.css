@@ -1113,6 +1113,30 @@
   cursor: pointer;
 }
 
+/* 초대 코드 복사 버튼 */
+.copy-btn {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.05s ease;
+}
+.copy-btn:active {
+  transform: scale(0.96);
+}
+/* 대기 중 메모 힌트 */
+.memo-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 /* 준비 현황(숫자 고르는 중) — 상대가 정하면 강조 */
 .ready-count {
   display: inline-block;

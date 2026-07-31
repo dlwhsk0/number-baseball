@@ -243,6 +243,7 @@ io.on('connection', (socket) => {
       mySecretSet: me.secret != null,
       oppAttempts: room.histories[1 - idx].length,
       oppSolved: room.solved[1 - idx],
+      oppHistory: room.histories[1 - idx],
       opponentNick: opp?.nick ?? '상대',
       opponentConnected: opp?.connected ?? false,
       over: room.phase === 'over' ? room.lastOver : undefined,

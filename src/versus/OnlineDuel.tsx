@@ -273,12 +273,14 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const [mySolved, setMySolved] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [oppInput, setOppInput] = useState('');
+  const [oppHistory, setOppHistory] = useState<GuessRecord[]>([]);
   const [oppDisconnected, setOppDisconnected] = useState(false);
 
   const [over, setOver] = useState<OverInfo | null>(null);
   const [oppLeft, setOppLeft] = useState(false);
   const [rematchWait, setRematchWait] = useState(false);
   const [oppWantsRematch, setOppWantsRematch] = useState(false);
+  const [copied, setCopied] = useState(false);
   // 메모(내 추측용) — 게임 내내 유지, 새 판마다 초기화.
   const [memo, setMemo] = useState<Record<string, MemoMark>>({});
   const [memoMode, setMemoMode] = useState(false);
@@ -290,6 +292,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setMySolved(false);
     setReveal(null);
     setOppInput('');
+    setOppHistory([]);
     setMySecret('');
     setMySecretSet(false);
     setSecretReady([false, false]);
@@ -311,6 +314,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setSecretReady(r.secretReady);
     setOppAttempts(r.oppAttempts);
     setOppSolved(r.oppSolved);
+    setOppHistory(r.oppHistory);
     if (r.phase === 'over' && r.over) {
       setReveal(null);
       setStartAnnounce(false);
@@ -391,6 +395,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         if (solved) setMySolved(true);
       } else {
         setOppAttempts(attempts);
+        setOppHistory((h) => [...h, { guess, judgement }]);
         if (solved) setOppSolved(true);
       }
       setReveal({ by, guess, judgement, solved });
@@ -530,6 +535,16 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     socketRef.current.emit('rematch');
   };
 
+  const copyCode = () => {
+    try {
+      navigator.clipboard?.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* 클립보드 불가 환경 무시 */
+    }
+  };
+
   const exit = () => {
     sessionRef.current = null;
     socketRef.current.disconnect();
@@ -633,6 +648,9 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         <div className="room-code" aria-label={`방 코드 ${code}`}>
           {code}
         </div>
+        <button type="button" className="copy-btn" onClick={copyCode}>
+          {copied ? '복사됐어요!' : '코드 복사'}
+        </button>
         <LoadingDots />
         <p className="versus-desc">이 코드를 상대에게 알려주세요. 상대가 입장하면 시작돼요.</p>
         <button type="button" className="versus-secondary" onClick={backToMenu}>
@@ -659,10 +677,25 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         </div>
         {oppReady && <p className="ready-note">상대가 숫자를 정했어요!</p>}
         {mySecretSet ? (
-          <div className="versus versus-center">
-            <LoadingDots />
-            <WaitingLine />
-          </div>
+          <>
+            <div className="versus versus-center">
+              <LoadingDots />
+              <p className="wait-line">상대가 숫자를 정하는 중…</p>
+            </div>
+            <p className="memo-hint">미리 메모해둘 수 있어요 — 숫자를 눌러 ○△✕ 표시</p>
+            <Keypad
+              slots={Array(digits).fill('')}
+              memo={memo}
+              mode="memo"
+              disabled={false}
+              showMemo={false}
+              submitLabel="확인"
+              onDigit={() => {}}
+              onMemo={cycleMemo}
+              onDelete={() => {}}
+              onSubmit={() => {}}
+            />
+          </>
         ) : (
           <>
             <p className="versus-desc">
@@ -752,11 +785,22 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
         <section className="history-section">
           <div className="history-head">
-            <span>history</span>
+            <span>내 기록</span>
             <span className="attempts">{history.length}회</span>
           </div>
           <History guesses={history} />
         </section>
+        {oppHistory.length > 0 && (
+          <section className="history-section">
+            <div className="history-head">
+              <span>
+                <Nick>{opponentNick}</Nick> 기록
+              </span>
+              <span className="attempts">{oppHistory.length}회</span>
+            </div>
+            <History guesses={oppHistory} />
+          </section>
+        )}
         {error && <p className="online-error">{error}</p>}
       </div>
     );

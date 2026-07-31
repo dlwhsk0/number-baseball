@@ -33,6 +33,7 @@ export interface ResumeInfo {
   mySecretSet: boolean;
   oppAttempts: number;
   oppSolved: boolean;
+  oppHistory: { guess: string; judgement: Judgement }[];
   opponentNick: string;
   opponentConnected: boolean;
   over?: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] };

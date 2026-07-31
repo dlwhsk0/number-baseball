@@ -42,6 +42,7 @@ export interface ResumeInfo {
   mySecretSet: boolean;
   oppAttempts: number;
   oppSolved: boolean;
+  oppHistory: GuessRecord[];
   opponentNick: string;
   opponentConnected: boolean;
   over?: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] };
