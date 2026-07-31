@@ -878,6 +878,71 @@
   gap: 10px;
 }
 
+/* ===== 온라인 대결 ===== */
+.online-status {
+  margin: -4px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.online-status.on {
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+.online-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--cell);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+.online-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+.online-code {
+  font-family: var(--font-digit);
+  font-size: 1.1rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.online-join {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.online-join .versus-secondary {
+  width: auto;
+  white-space: nowrap;
+  padding: 0 16px;
+}
+.online-error {
+  margin: 0;
+  text-align: center;
+  color: var(--out);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+/* 방 코드 — 크게 발광 */
+.room-code {
+  font-family: var(--font-digit);
+  font-size: 2.6rem;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: var(--accent);
+  text-shadow: var(--glow-accent);
+  padding: 14px 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  border-radius: var(--r-lg);
+  background: var(--cell);
+}
+
 /* 핸드오프(차례 넘기기) */
 .handoff-title {
   margin: 0;

@@ -33,13 +33,17 @@
   - 혼자일 때 그 아래 작은 `level-caption`(자릿수·자동 힌트). 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
-- **대결 모드**(App `section='multi'`): 컨트롤 2행의 `[스피드 대결 | 턴제 대결]` 세그먼트(`multiMode`)로 선택.
-  대결은 **한 기기 패스앤플레이**(서버 없음). 혼자로 복귀는 `혼자|멀티` 토글 또는 각 대결 화면의 `onExit`.
-  - **스피드 대결(모드1)**: `src/versus/SpeedVersus.tsx`. 공통 숫자 1개를 2~4명이 번갈아(핸드오프 화면으로 이전 기록 숨김)
+- **대결 모드**(App `section='multi'`): 컨트롤 2행의 `[스피드 | 턴제 | 온라인]` 세그먼트(`multiMode`)로 선택.
+  스피드·턴제는 **한 기기 패스앤플레이**(서버 없음), 온라인은 **서버 대전**. 혼자로 복귀는 `혼자|멀티` 토글 또는 각 화면의 `onExit`.
+  - **스피드 대결**: `src/versus/SpeedVersus.tsx`. 공통 숫자 1개를 2~4명이 번갈아(핸드오프 화면으로 이전 기록 숨김)
     무제한 시도로 풀고, 적은 횟수→빠른 시간 순으로 승자. 라이브 타이머. 각 턴은 `GuessBoard`(순수 `gameReducer` 재사용)로.
-  - **턴제 대결(모드2)**: `src/versus/DuelVersus.tsx`. 일대일. 서로 상대가 맞힐 숫자를 몰래 정하고(핸드오프),
+  - **턴제 대결**: `src/versus/DuelVersus.tsx`. 일대일. 서로 상대가 맞힐 숫자를 몰래 정하고(핸드오프),
     번갈아 한 번씩 상대 숫자를 추측. 공정성: 선공(P1)이 맞히면 후공(P2)에게 같은 라운드 마지막 기회 → 둘 다 맞히면 무승부.
     비밀 입력·턴 입력은 `Keypad`의 `showMemo={false}`로 메모 버튼 숨김.
+  - **온라인 대결**: `src/versus/OnlineDuel.tsx` + `src/net/`(`socket.ts` 단일 소켓, `protocol.ts` 이벤트 타입).
+    턴제 규칙을 **서버 권위**로. 방 코드로 1:1 입장 → 비밀 설정 → 턴 동기화 → 결과·재대결. 로컬 상태는 서버 이벤트로만 전이.
+    서버는 `server/`(Node+Socket.IO, 정답 보관·판정). 접속 주소는 `VITE_SERVER_URL`(개발 기본 `http://localhost:3001`, 배포 `wss://도메인`).
+    `protocol.ts`는 `server/src/types.ts`와 동일하게 유지. 규칙 로직 `logic.ts`는 프론트·서버 양쪽에 복제(함께 수정).
 - **`GuessBoard`**(`src/components/GuessBoard.tsx`): 입력칸+키패드+메모+히스토리를 묶은 재사용 보드. 정답·자릿수·onWin을 받는다.
 - **난이도 선택**(혼자 모드): 헤더 아래 세그먼트 컨트롤(초보자/중급/고급). 고르면 그 난이도로 새 판 시작.
   진행 중인 판(입력·추측·메모 있음)에서 바꾸면 `ConfirmDialog`로 확인받는다(빈 판이면 바로 전환).

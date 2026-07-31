@@ -11,13 +11,15 @@ import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
+import { OnlineDuel } from './versus/OnlineDuel';
 import './App.css';
 
 type Section = 'solo' | 'multi';
-type MultiMode = 'speed' | 'duel';
+type MultiMode = 'speed' | 'duel' | 'online';
 const MULTI_TABS: { key: MultiMode; label: string }[] = [
-  { key: 'speed', label: '스피드 대결' },
-  { key: 'duel', label: '턴제 대결' },
+  { key: 'speed', label: '스피드' },
+  { key: 'duel', label: '턴제' },
+  { key: 'online', label: '온라인' },
 ];
 
 const LEVEL_ORDER: Level[] = ['beginner', 'intermediate', 'advanced'];
@@ -266,8 +268,10 @@ export default function App() {
         </>
       ) : multiMode === 'speed' ? (
         <SpeedVersus onExit={() => setSection('solo')} />
-      ) : (
+      ) : multiMode === 'duel' ? (
         <DuelVersus onExit={() => setSection('solo')} />
+      ) : (
+        <OnlineDuel onExit={() => setSection('solo')} />
       )}
 
       <footer className="app-footer">
