@@ -36,7 +36,13 @@ export interface ServerToClientEvents {
   phase: (p: { phase: 'secret'; digits: number }) => void;
   secretProgress: (p: { ready: boolean[] }) => void;
   start: (p: { turn: 0 | 1; digits: number }) => void;
-  opponentGuessed: (p: { attempts: number; solved: boolean }) => void;
+  reveal: (p: {
+    by: 0 | 1;
+    guess: string;
+    judgement: Judgement;
+    solved: boolean;
+    attempts: number;
+  }) => void;
   turn: (p: { turn: 0 | 1 }) => void;
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
   opponentLeft: () => void;

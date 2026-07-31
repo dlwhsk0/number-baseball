@@ -16,6 +16,8 @@ export interface Room {
   players: Player[]; // index 0 = 방장(선공), 1 = 후공
   phase: Phase;
   turn: 0 | 1;
+  /** 결과 발표 텀 동안 true — 이 사이 추측을 막는다. */
+  pending: boolean;
   histories: [GuessRecord[], GuessRecord[]];
   solved: [boolean, boolean];
   rematch: [boolean, boolean];
@@ -43,6 +45,7 @@ export function createRoom(hostId: string, nick: string, digits: number): Room {
     players: [{ id: hostId, nick, secret: null }],
     phase: 'waiting',
     turn: 0,
+    pending: false,
     histories: [[], []],
     solved: [false, false],
     rematch: [false, false],

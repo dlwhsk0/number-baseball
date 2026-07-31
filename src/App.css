@@ -978,6 +978,242 @@
   background: var(--cell);
 }
 
+/* 준비 현황(비밀 고르는 중) */
+.ready-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.ready-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.ready-chip.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+
+/* 로딩 점 애니메이션(상대 대기) */
+.loading-dots {
+  display: inline-flex;
+  gap: 7px;
+}
+.loading-dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
+  animation: dot-pulse 1s ease-in-out infinite;
+}
+.loading-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.loading-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 숫자 미니 셀 묶음(발표·결과) */
+.num-cells {
+  display: inline-flex;
+  gap: 5px;
+}
+.num-cells .hcell {
+  width: 30px;
+  height: 40px;
+}
+.num-cells .seg7 {
+  font-size: 26px;
+}
+
+/* 추측 발표 카드(양쪽에 잠깐) */
+.reveal-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 16px;
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  animation: reveal-in 0.25s ease-out;
+}
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.reveal-card.mine {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.reveal-card.solved {
+  border-color: var(--strike);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--strike) 30%, transparent);
+}
+.reveal-who {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.reveal-sbo {
+  gap: 14px;
+}
+.reveal-sbo .bulb {
+  width: 11px;
+  height: 11px;
+}
+.reveal-reaction {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+/* 긴장감 배너(역전 찬스 / 마지막 기회) */
+.tension {
+  text-align: center;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+.tension.reverse {
+  color: var(--strike);
+  background: color-mix(in srgb, var(--strike) 14%, transparent);
+  border: 1px solid var(--strike);
+  animation: tension-pulse 0.9s ease-in-out infinite;
+}
+.tension.last {
+  color: var(--out);
+  background: color-mix(in srgb, var(--out) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--out) 60%, transparent);
+}
+@keyframes tension-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: 0 0 18px color-mix(in srgb, var(--strike) 45%, transparent);
+  }
+}
+
+/* 결과 화면 — 크게, 승/패 구분 */
+.online-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 26px 16px 18px;
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+.online-result.win {
+  border-color: var(--accent);
+  box-shadow: 0 0 34px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+.online-result.lose {
+  border-color: color-mix(in srgb, var(--out) 55%, var(--border));
+}
+.result-emblem {
+  font-size: 3.4rem;
+  line-height: 1;
+  animation: emblem-pop 0.4s ease-out;
+}
+@keyframes emblem-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.result-headline {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.online-result.win .result-headline {
+  color: var(--accent);
+  text-shadow: var(--glow-accent);
+}
+.online-result.lose .result-headline {
+  color: var(--out);
+}
+.result-cards {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+.result-card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  border: 1px solid transparent;
+}
+.result-card.winner {
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+.rc-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rc-attempts {
+  font-family: var(--font-digit);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.result-vs {
+  align-self: center;
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.online-result .versus-actions {
+  width: 100%;
+  margin-top: 6px;
+}
+
 /* 핸드오프(차례 넘기기) */
 .handoff-title {
   margin: 0;

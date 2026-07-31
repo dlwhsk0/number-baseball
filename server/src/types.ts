@@ -45,8 +45,14 @@ export interface ServerToClientEvents {
   secretProgress: (p: { ready: boolean[] }) => void;
   /** 둘 다 비밀 설정 완료 → 플레이 시작. */
   start: (p: { turn: 0 | 1; digits: number }) => void;
-  /** 상대가 한 번 추측함(내 숫자는 안 알려주고 진행 상황만). */
-  opponentGuessed: (p: { attempts: number; solved: boolean }) => void;
+  /** 추측 결과 발표(양쪽에 잠깐 표시). by=추측한 사람, 이후 delay 뒤 turn/over가 온다. */
+  reveal: (p: {
+    by: 0 | 1;
+    guess: string;
+    judgement: Judgement;
+    solved: boolean;
+    attempts: number;
+  }) => void;
   turn: (p: { turn: 0 | 1 }) => void;
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
   opponentLeft: () => void;

@@ -46,21 +46,29 @@ async function main() {
   const bad = await emit(A, 'guess', { guess: '112' });
   assert(!bad.ok, '중복 숫자 추측 거부');
 
-  // 앨리스가 밥의 숫자(123) 정답 추측 → 3스트라이크
+  // 앨리스가 밥의 숫자(123) 정답 추측 → 발표(reveal) 3스트라이크
+  const aReveal = once(A, 'reveal');
   const bTurn = once(B, 'turn');
   const gWin = await emit(A, 'guess', { guess: '123' });
-  assert(gWin.ok && gWin.judgement.strikes === 3, '앨리스 정답(3스트라이크)');
+  assert(gWin.ok, '앨리스 추측 접수');
+  const rev = await aReveal;
+  assert(rev.by === 0 && rev.judgement.strikes === 3 && rev.solved, '발표: 앨리스 3스트라이크·정답');
+
+  // 발표 텀(pending) 동안엔 추측 거부
+  const pend = await emit(A, 'guess', { guess: '456' });
+  assert(!pend.ok, '발표 중 추측 거부');
+
   const t = await bTurn;
-  assert(t.turn === 1, '후공(밥)에게 마지막 기회로 턴 이동');
+  assert(t.turn === 1, '발표 후 후공(밥)에게 마지막 기회 턴');
 
   // 상대 차례에 앨리스가 또 두면 거부
   const notYours = await emit(A, 'guess', { guess: '456' });
   assert(!notYours.ok, '상대 차례엔 추측 거부');
 
-  // 밥은 못 맞힘 → 앨리스 승(outcome 0)
+  // 밥은 못 맞힘 → 발표 뒤 앨리스 승(outcome 0)
   const over = once(A, 'over');
   const gLose = await emit(B, 'guess', { guess: '789' });
-  assert(gLose.ok && gLose.judgement.strikes === 0, '밥 오답(0스트라이크)');
+  assert(gLose.ok, '밥 추측 접수');
   const result = await over;
   assert(result.outcome === 0, '결과: 선공(앨리스) 승');
   assert(result.secrets[0] === '456' && result.secrets[1] === '123', '종료 시 양쪽 정답 공개');

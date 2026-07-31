@@ -20,6 +20,8 @@ import type {
 const PORT = Number(process.env.PORT) || 3001;
 // 배포 시 프론트 도메인만 허용(예: https://number-baseball-chi.vercel.app). 기본은 전체 허용(개발).
 const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
+// 결과 발표 텀(ms) — 이 시간 동안 양쪽에 결과를 보여준 뒤 턴을 넘긴다. 테스트에선 짧게.
+const REVEAL_MS = Number(process.env.REVEAL_MS) || 1900;
 
 const httpServer = createServer((req, res) => {
   if (req.url === '/health') {
@@ -48,6 +50,26 @@ function endGame(room: Room, outcome: Outcome): void {
     secrets: [room.players[0]?.secret ?? null, room.players[1]?.secret ?? null],
     attempts: [room.histories[0].length, room.histories[1].length],
   });
+}
+
+// 결과 발표 텀 뒤 턴/종료로 진행. 발표 중(pending) 방이 사라지거나 바뀌면 무시.
+function advanceAfterReveal(room: Room, guesser: 0 | 1): void {
+  setTimeout(() => {
+    if (getRoom(room.code) !== room || room.phase !== 'playing' || !room.pending) return;
+    room.pending = false;
+    if (guesser === 0) {
+      room.turn = 1;
+      io.to(room.code).emit('turn', { turn: 1 });
+    } else {
+      if (room.solved[0] && room.solved[1]) endGame(room, 'draw');
+      else if (room.solved[0]) endGame(room, 0);
+      else if (room.solved[1]) endGame(room, 1);
+      else {
+        room.turn = 0;
+        io.to(room.code).emit('turn', { turn: 0 });
+      }
+    }
+  }, REVEAL_MS);
 }
 
 io.on('connection', (socket) => {
@@ -104,6 +126,7 @@ io.on('connection', (socket) => {
     if (bothSecretsSet(room)) {
       room.phase = 'playing';
       room.turn = 0;
+      room.pending = false;
       io.to(room.code).emit('start', { turn: 0, digits: room.digits });
     }
   });
@@ -114,8 +137,8 @@ io.on('connection', (socket) => {
       ack({ ok: false, error: '방이 없어요.' });
       return;
     }
-    if (room.phase !== 'playing') {
-      ack({ ok: false, error: '아직 시작 전이에요.' });
+    if (room.phase !== 'playing' || room.pending) {
+      ack({ ok: false, error: '지금은 추측할 수 없어요.' });
       return;
     }
     const p = data.index;
@@ -136,27 +159,19 @@ io.on('connection', (socket) => {
     const judgement = judge(opponentSecret, g);
     room.histories[p].push({ guess: g, judgement });
     if (isWin(judgement, room.digits)) room.solved[p] = true;
-    ack({ ok: true, judgement });
+    ack({ ok: true });
 
-    // 상대에겐 내 숫자는 숨기고 진행 상황만
-    socket.to(room.code).emit('opponentGuessed', {
-      attempts: room.histories[p].length,
+    // 결과를 양쪽에 발표(추측한 사람 숫자는 상대의 비밀과 무관하므로 공개해도 공정성 유지).
+    room.pending = true;
+    io.to(room.code).emit('reveal', {
+      by: p,
+      guess: g,
+      judgement,
       solved: room.solved[p],
+      attempts: room.histories[p].length,
     });
-
-    // 턴/라운드 판정 — 선공(0) 먼저, 후공(1)에게 같은 라운드 마지막 기회
-    if (p === 0) {
-      room.turn = 1;
-      io.to(room.code).emit('turn', { turn: 1 });
-    } else {
-      if (room.solved[0] && room.solved[1]) endGame(room, 'draw');
-      else if (room.solved[0]) endGame(room, 0);
-      else if (room.solved[1]) endGame(room, 1);
-      else {
-        room.turn = 0;
-        io.to(room.code).emit('turn', { turn: 0 });
-      }
-    }
+    // 발표 텀 뒤 턴/종료 진행(선공 먼저, 후공에게 같은 라운드 마지막 기회)
+    advanceAfterReveal(room, p);
   });
 
   socket.on('rematch', () => {
@@ -170,6 +185,7 @@ io.on('connection', (socket) => {
       room.players.forEach((pl) => (pl.secret = null));
       room.phase = 'secret';
       room.turn = 0;
+      room.pending = false;
       io.to(room.code).emit('phase', { phase: 'secret', digits: room.digits });
     }
   });

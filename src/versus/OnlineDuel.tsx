@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSocket } from '../net/socket';
 import { gameReducer, initGame, type GuessRecord } from '../game/useGame';
+import type { Judgement } from '../game/logic';
 import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
@@ -16,8 +17,86 @@ interface OverInfo {
   secrets: (string | null)[];
   attempts: number[];
 }
+interface Reveal {
+  by: 0 | 1;
+  guess: string;
+  judgement: Judgement;
+  solved: boolean;
+}
 
-/** 입력 칸 + 키패드(메모 없음). 다 채우면 onSubmit. gameReducer로 규칙 검증 재사용. */
+/** 숫자 문자열을 미니 세그먼트 셀로. */
+function NumCells({ value }: { value: string }) {
+  return (
+    <span className="num-cells">
+      {value.split('').map((c, i) => (
+        <span key={i} className="cell hcell">
+          <Seg7 char={c} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function LoadingDots() {
+  return (
+    <span className="loading-dots" aria-label="기다리는 중">
+      <i />
+      <i />
+      <i />
+    </span>
+  );
+}
+
+const SBO = [
+  { key: 'strike', letter: 'S' },
+  { key: 'ball', letter: 'B' },
+  { key: 'out', letter: 'O' },
+] as const;
+
+/** 추측 후 발표 카드(양쪽에 잠깐). 정답에 가까우면 아쉬워하는 리액션. */
+function RevealCard({
+  reveal,
+  digits,
+  mine,
+  opponentNick,
+}: {
+  reveal: Reveal;
+  digits: number;
+  mine: boolean;
+  opponentNick: string;
+}) {
+  const s = reveal.judgement.strikes;
+  const b = reveal.judgement.balls;
+  const counts: Record<string, number> = { strike: s, ball: b, out: digits - s - b };
+
+  let reaction: string;
+  if (reveal.solved) reaction = mine ? '정답! 🎉' : `${opponentNick} 정답! 😱`;
+  else if (s === digits - 1) reaction = mine ? '아쉽다! 한 끗 차이 😖' : '상대 아슬아슬… 😬';
+  else if (s >= 1 || b >= 1) reaction = mine ? '좁혀가는 중! 🔥' : '상대가 좁혀가요 👀';
+  else reaction = mine ? '아웃… 침착하게 🧐' : '상대 아웃! 😌';
+
+  return (
+    <div className={`reveal-card${reveal.solved ? ' solved' : ''}${mine ? ' mine' : ' theirs'}`}>
+      <p className="reveal-who">{mine ? '내 결과' : `${opponentNick}의 결과`}</p>
+      <NumCells value={reveal.guess} />
+      <div className="sbo reveal-sbo">
+        {SBO.map(({ key, letter }) => (
+          <span key={key} className={`hsbo lamp-${key}${counts[key] === 0 ? ' zero' : ''}`}>
+            <span className="hsbo-letter">{letter}</span>
+            <span className="bulbs">
+              {Array.from({ length: digits }, (_, k) => (
+                <span key={k} className={`bulb${k < counts[key] ? ' on' : ''}`} />
+              ))}
+            </span>
+          </span>
+        ))}
+      </div>
+      <p className="reveal-reaction">{reaction}</p>
+    </div>
+  );
+}
+
+/** 입력 칸 + 키패드(메모 없음). 다 채우면 onSubmit. */
 function OnlineInput({
   digits,
   submitLabel,
@@ -67,10 +146,7 @@ function OnlineInput({
   );
 }
 
-/**
- * 온라인 턴제 대결(방 코드). 서버가 정답을 쥐고 판정한다.
- * 로컬 상태는 서버 이벤트로만 전이한다(단일 진실은 서버).
- */
+/** 온라인 턴제 대결(방 코드). 서버가 정답을 쥐고 판정한다. */
 export function OnlineDuel({ onExit }: Props) {
   const socketRef = useRef(getSocket());
   const myIndexRef = useRef<0 | 1>(0);
@@ -100,6 +176,8 @@ export function OnlineDuel({ onExit }: Props) {
   const [history, setHistory] = useState<GuessRecord[]>([]);
   const [oppAttempts, setOppAttempts] = useState(0);
   const [oppSolved, setOppSolved] = useState(false);
+  const [mySolved, setMySolved] = useState(false);
+  const [reveal, setReveal] = useState<Reveal | null>(null);
 
   const [over, setOver] = useState<OverInfo | null>(null);
   const [oppLeft, setOppLeft] = useState(false);
@@ -109,6 +187,8 @@ export function OnlineDuel({ onExit }: Props) {
     setHistory([]);
     setOppAttempts(0);
     setOppSolved(false);
+    setMySolved(false);
+    setReveal(null);
     setMySecretSet(false);
     setSecretReady([false, false]);
     setOver(null);
@@ -134,15 +214,27 @@ export function OnlineDuel({ onExit }: Props) {
       setHistory([]);
       setOppAttempts(0);
       setOppSolved(false);
+      setMySolved(false);
+      setReveal(null);
       setMyTurn(turn === myIndexRef.current);
       setPhase('playing');
     });
-    s.on('turn', ({ turn }) => setMyTurn(turn === myIndexRef.current));
-    s.on('opponentGuessed', ({ attempts, solved }) => {
-      setOppAttempts(attempts);
-      setOppSolved(solved);
+    s.on('reveal', ({ by, guess, judgement, solved, attempts }) => {
+      if (by === myIndexRef.current) {
+        setHistory((h) => [...h, { guess, judgement }]);
+        if (solved) setMySolved(true);
+      } else {
+        setOppAttempts(attempts);
+        if (solved) setOppSolved(true);
+      }
+      setReveal({ by, guess, judgement, solved });
+    });
+    s.on('turn', ({ turn }) => {
+      setReveal(null);
+      setMyTurn(turn === myIndexRef.current);
     });
     s.on('over', (p) => {
+      setReveal(null);
       setOver(p);
       setPhase('over');
     });
@@ -160,8 +252,8 @@ export function OnlineDuel({ onExit }: Props) {
       s.off('phase');
       s.off('secretProgress');
       s.off('start');
+      s.off('reveal');
       s.off('turn');
-      s.off('opponentGuessed');
       s.off('over');
       s.off('opponentLeft');
       s.off('errorMsg');
@@ -212,7 +304,6 @@ export function OnlineDuel({ onExit }: Props) {
       setMyIndex(1);
       if (r.digits) setDigits(r.digits);
       if (r.opponentNick) setOpponentNick(r.opponentNick);
-      // 'phase' 이벤트가 secret 단계로 옮긴다.
     });
   };
 
@@ -227,11 +318,8 @@ export function OnlineDuel({ onExit }: Props) {
   const submitGuess = (guess: string) => {
     setError(null);
     socketRef.current.emit('guess', { guess }, (r) => {
-      if (r.ok && r.judgement) {
-        setHistory((h) => [...h, { guess, judgement: r.judgement! }]);
-      } else {
-        setError(r.error ?? '오류가 발생했어요.');
-      }
+      if (!r.ok) setError(r.error ?? '오류가 발생했어요.');
+      // 성공 시 히스토리는 reveal 이벤트로 반영된다.
     });
   };
 
@@ -327,6 +415,7 @@ export function OnlineDuel({ onExit }: Props) {
         <div className="room-code" aria-label={`방 코드 ${code}`}>
           {code}
         </div>
+        <LoadingDots />
         <p className="versus-desc">이 코드를 상대에게 알려주세요. 상대가 입장하면 시작돼요.</p>
         <button type="button" className="versus-secondary" onClick={exit}>
           나가기
@@ -336,18 +425,25 @@ export function OnlineDuel({ onExit }: Props) {
   }
 
   if (phase === 'secret') {
+    const readyCount = secretReady.filter(Boolean).length;
     return (
       <div className="versus">
         <div className="turn-bar">
           <span className="turn-who">비밀 숫자 정하기</span>
-          <span className="turn-hint">나 vs {opponentNick}</span>
+          <span className="turn-hint">준비 {readyCount}/2</span>
+        </div>
+        <div className="ready-row">
+          <span className={`ready-chip${secretReady[myIndex] ? ' on' : ''}`}>
+            나 {secretReady[myIndex] ? '✓' : '…'}
+          </span>
+          <span className={`ready-chip${secretReady[1 - myIndex] ? ' on' : ''}`}>
+            {opponentNick} {secretReady[1 - myIndex] ? '✓' : '…'}
+          </span>
         </div>
         {mySecretSet ? (
           <div className="versus versus-center">
-            <p className="handoff-sub">상대가 정하는 중…</p>
-            <p className="versus-desc">
-              {secretReady.filter(Boolean).length} / 2 준비 완료
-            </p>
+            <LoadingDots />
+            <p className="versus-desc">상대가 정하는 중…</p>
           </div>
         ) : (
           <>
@@ -367,23 +463,36 @@ export function OnlineDuel({ onExit }: Props) {
     return (
       <div className="versus">
         <div className="turn-bar">
-          <span className="turn-who">{myTurn ? '내 차례' : `${opponentNick} 차례`}</span>
+          <span className="turn-who">
+            {reveal ? '결과 발표' : myTurn ? '내 차례' : `${opponentNick} 차례`}
+          </span>
           <span className="turn-hint">
             상대 {oppAttempts}회{oppSolved ? ' · 맞힘!' : ''}
           </span>
         </div>
 
-        {myTurn ? (
-          <OnlineInput
-            key={history.length}
+        {reveal ? (
+          <RevealCard
+            reveal={reveal}
             digits={digits}
-            submitLabel="추측"
-            onSubmit={submitGuess}
+            mine={reveal.by === myIndex}
+            opponentNick={opponentNick}
           />
+        ) : myTurn ? (
+          <>
+            {oppSolved && <div className="tension reverse">⚡ 역전 찬스! 맞히면 무승부</div>}
+            <OnlineInput
+              key={history.length}
+              digits={digits}
+              submitLabel="추측"
+              onSubmit={submitGuess}
+            />
+          </>
         ) : (
           <div className="versus versus-center">
-            <p className="handoff-sub">{opponentNick} 차례예요</p>
-            <p className="versus-desc">잠시만 기다려주세요…</p>
+            {mySolved && <div className="tension last">상대의 마지막 기회… 🤞</div>}
+            <LoadingDots />
+            <p className="versus-desc">{opponentNick} 차례예요</p>
           </div>
         )}
 
@@ -400,62 +509,53 @@ export function OnlineDuel({ onExit }: Props) {
   }
 
   // over
+  if (oppLeft) {
+    return (
+      <div className="versus">
+        <h2 className="versus-title">상대가 나갔어요</h2>
+        <p className="versus-desc">대결이 종료됐어요.</p>
+        <button type="button" className="versus-primary" onClick={exit}>
+          나가기
+        </button>
+      </div>
+    );
+  }
+  if (!over) return null;
+
+  const draw = over.outcome === 'draw';
+  const won = over.outcome === myIndex;
   return (
-    <div className="versus">
-      {oppLeft ? (
-        <>
-          <h2 className="versus-title">상대가 나갔어요</h2>
-          <p className="versus-desc">대결이 종료됐어요.</p>
-          <button type="button" className="versus-primary" onClick={exit}>
-            나가기
-          </button>
-        </>
-      ) : (
-        over && (
-          <>
-            <h2 className="versus-title">
-              {over.outcome === 'draw'
-                ? '무승부!'
-                : over.outcome === myIndex
-                  ? '승리 🏆'
-                  : '패배 😢'}
-            </h2>
-            <p className="versus-desc">
-              내 숫자 <strong>{over.secrets[myIndex]}</strong> · {opponentNick} 숫자{' '}
-              <strong>{over.secrets[1 - myIndex]}</strong>
-            </p>
-            <ol className="score-list">
-              <li className={`score-row${over.outcome === myIndex ? ' win' : ''}`}>
-                <span className="score-rank">나</span>
-                <span className="score-name">{nick.trim() || '나'}</span>
-                <span className="score-stat">{over.attempts[myIndex]}회</span>
-              </li>
-              <li
-                className={`score-row${
-                  over.outcome !== 'draw' && over.outcome === 1 - myIndex ? ' win' : ''
-                }`}
-              >
-                <span className="score-rank">상</span>
-                <span className="score-name">{opponentNick}</span>
-                <span className="score-stat">{over.attempts[1 - myIndex]}회</span>
-              </li>
-            </ol>
-            <div className="versus-actions">
-              <button type="button" className="versus-secondary" onClick={exit}>
-                나가기
-              </button>
-              <button
-                type="button"
-                className="versus-primary"
-                disabled={rematchWait}
-                onClick={rematch}
-              >
-                {rematchWait ? '상대 대기…' : '재대결'}
-              </button>
-            </div>
-          </>
-        )
-      )}
+    <div className={`online-result ${draw ? 'draw' : won ? 'win' : 'lose'}`}>
+      <div className="result-emblem">{draw ? '🤝' : won ? '🏆' : '😢'}</div>
+      <h2 className="result-headline">{draw ? '무승부' : won ? '승리!' : '패배'}</h2>
+
+      <div className="result-cards">
+        <div className={`result-card${won ? ' winner' : ''}`}>
+          <span className="rc-name">{nick.trim() || '나'}</span>
+          <NumCells value={over.secrets[myIndex] ?? ''} />
+          <span className="rc-attempts">{over.attempts[myIndex]}회</span>
+        </div>
+        <div className="result-vs">VS</div>
+        <div className={`result-card${!draw && !won ? ' winner' : ''}`}>
+          <span className="rc-name">{opponentNick}</span>
+          <NumCells value={over.secrets[1 - myIndex] ?? ''} />
+          <span className="rc-attempts">{over.attempts[1 - myIndex]}회</span>
+        </div>
+      </div>
+
+      <div className="versus-actions">
+        <button type="button" className="versus-secondary" onClick={exit}>
+          나가기
+        </button>
+        <button
+          type="button"
+          className="versus-primary"
+          disabled={rematchWait}
+          onClick={rematch}
+        >
+          {rematchWait ? '상대 대기…' : '재대결'}
+        </button>
+      </div>
     </div>
   );
 }
