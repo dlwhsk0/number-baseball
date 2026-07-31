@@ -16,9 +16,9 @@ import './App.css';
 type Section = 'solo' | 'multi';
 type MultiMode = 'speed' | 'duel' | 'online';
 const MULTI_TABS: { key: MultiMode; label: string }[] = [
+  { key: 'online', label: '온라인' },
   { key: 'speed', label: '스피드' },
   { key: 'duel', label: '턴제' },
-  { key: 'online', label: '온라인' },
 ];
 
 const LEVEL_ORDER: Level[] = ['beginner', 'intermediate', 'advanced'];
