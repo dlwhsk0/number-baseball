@@ -223,13 +223,11 @@ function SecretPeek({ secret }: { secret: string }) {
       <span className="peek-label">내 숫자</span>
       <span
         className={`peek-value${peeking ? ' on' : ''}`}
-        onPointerDown={() => setPeeking(true)}
-        onPointerUp={() => setPeeking(false)}
-        onPointerLeave={() => setPeeking(false)}
+        onClick={() => setPeeking((v) => !v)}
         onContextMenu={(e) => e.preventDefault()}
       >
         <NumCells value={secret} />
-        {!peeking && <span className="peek-hint">꾹 눌러 확인</span>}
+        {!peeking && <span className="peek-hint">눌러서 확인</span>}
       </span>
     </div>
   );
@@ -310,7 +308,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const applyResume = (r: import('../net/protocol').ResumeInfo) => {
     setDigits(r.digits);
     setOpponentNick(r.opponentNick);
-    setOppDisconnected(!r.opponentConnected);
+    // 로비(상대 아직 없음)에선 상대 끊김 배너 띄우지 않음.
+    setOppDisconnected(r.phase !== 'lobby' && !r.opponentConnected);
     setSecretReady(r.secretReady);
     setOppAttempts(r.oppAttempts);
     setOppSolved(r.oppSolved);
@@ -355,8 +354,10 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         if (r.ok && r.resume) {
           applyResume(r.resume);
         } else {
+          // 방이 만료(유예 초과)·삭제됨 → 대기 상태에 갇히지 않게 메뉴로.
           sessionRef.current = null;
-          setError(r.error ?? '재접속에 실패했어요.');
+          setOppDisconnected(false);
+          setError('방이 만료됐어요. 다시 만들거나 코드로 입장해주세요.');
           setPhase('menu');
         }
       });
