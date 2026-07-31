@@ -996,6 +996,28 @@
   background: var(--cell);
 }
 
+/* 연결 상태 배너(재접속 중 / 상대 끊김) */
+.net-banner {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 140;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--strike);
+  color: var(--strike);
+  font-weight: 700;
+  font-size: 0.85rem;
+  box-shadow: 0 6px 20px var(--shadow);
+  animation: egg-pop 0.2s ease-out;
+}
+.net-banner.opp {
+  border-color: var(--out);
+  color: var(--out);
+}
+
 /* 상대 실시간 입력 미리보기 */
 .live-input {
   display: flex;

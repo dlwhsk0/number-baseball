@@ -4,7 +4,6 @@ import { useGame, LEVELS, type Level } from './game/useGame';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
-import { UpdatePrompt } from './components/UpdatePrompt';
 import { Seg7 } from './components/Seg7';
 import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
@@ -153,52 +152,33 @@ export default function App() {
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
   const finished = state.status !== 'playing';
 
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
+  // PWA: 새 버전은 autoUpdate로 백그라운드 설치 → 다음 실행 때 자동 적용(팝업 없음).
+  // 진행 중 강제 리로드를 막기 위해 여기서 즉시 리로드는 하지 않는다.
+  useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
-      // 새 버전 확인 시점을 늘린다. 모바일/설치앱은 앱을 껐다 켜도 메모리에서
-      // '재개(resume)'만 되어 자동 확인이 안 돌기 때문에, 앱이 보일 때마다 확인한다.
+      // 앱이 보일 때마다 + 1분마다 새 버전 확인(모바일/설치앱은 자동 확인이 잘 안 돎).
       const check = () => {
         if (document.visibilityState === 'visible') registration.update();
       };
       check();
       document.addEventListener('visibilitychange', check);
-      setInterval(check, 30 * 60 * 1000);
+      setInterval(check, 60 * 1000);
     },
   });
 
-  // 빈 판(게임 시작 전)에서 업데이트가 잡히면 조용히 즉시 적용한다.
-  // 게임 중이면 건드리지 않고 배너만 보여준다(진행 중 초기화 방지).
-  // 혼자 모드의 빈 판에서만 조용히 자동 적용(대결 진행 중에 리로드되면 안 됨).
+  // 빈 판(진행 중 난이도 변경 확인용).
   const pristine =
     state.status === 'playing' &&
     state.guesses.length === 0 &&
     state.slots.every((s) => s === '') &&
     Object.keys(state.memo).length === 0;
-  const canAutoReload = pristine && section === 'solo';
-  useEffect(() => {
-    if (needRefresh && canAutoReload) updateServiceWorker(true);
-  }, [needRefresh, canAutoReload, updateServiceWorker]);
-
-  // 대기 중 업데이트가 있으면 새 판을 시작하는 이 시점에 적용(새로고침)하고 끝낸다.
-  const applyUpdateIfPending = () => {
-    if (needRefresh) {
-      updateServiceWorker(true);
-      return true;
-    }
-    return false;
-  };
 
   const newGame = () => {
-    if (applyUpdateIfPending()) return;
     setMemoMode(false);
     reset(level);
   };
 
-  // 실제로 난이도를 바꾸고 새 판을 시작한다.
   const doChangeLevel = (lv: Level) => {
     setLevel(lv);
     try {
@@ -206,7 +186,6 @@ export default function App() {
     } catch {
       /* 저장 불가 환경 무시 */
     }
-    if (applyUpdateIfPending()) return;
     setMemoMode(false);
     reset(lv);
   };
@@ -233,11 +212,6 @@ export default function App() {
   return (
     <main className="app">
       {showIntro && <Intro onDone={dismissIntro} />}
-      <UpdatePrompt
-        show={needRefresh}
-        onRefresh={() => updateServiceWorker(true)}
-        onDismiss={() => setNeedRefresh(false)}
-      />
       <header className="controls">
         <div className="controls-row">
           <button

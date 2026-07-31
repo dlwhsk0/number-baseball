@@ -15,6 +15,7 @@ import type {
   ServerToClientEvents,
   SocketData,
   Outcome,
+  ResumeInfo,
 } from './types.js';
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -22,6 +23,8 @@ const PORT = Number(process.env.PORT) || 3001;
 const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
 // 결과 발표 텀(ms) — 이 시간 동안 양쪽에 결과를 보여준 뒤 턴을 넘긴다. 테스트에선 짧게.
 const REVEAL_MS = Number(process.env.REVEAL_MS) || 1900;
+// 끊긴 뒤 재접속 유예(ms). 이 사이 재접속하면 게임 이어감. 모바일 백그라운드/네트워크 전환 대비.
+const GRACE_MS = Number(process.env.GRACE_MS) || 30000;
 
 const httpServer = createServer((req, res) => {
   if (req.url === '/health') {
@@ -35,7 +38,12 @@ const httpServer = createServer((req, res) => {
 
 const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string, never>, SocketData>(
   httpServer,
-  { cors: { origin: ORIGIN } },
+  {
+    cors: { origin: ORIGIN },
+    // 모바일 백그라운드/스로틀에 관대하게 — 잠깐 멈춰도 바로 끊기지 않도록.
+    pingInterval: 25000,
+    pingTimeout: 40000,
+  },
 );
 
 function sanitizeNick(nick: unknown): string {
@@ -45,11 +53,13 @@ function sanitizeNick(nick: unknown): string {
 
 function endGame(room: Room, outcome: Outcome): void {
   room.phase = 'over';
-  io.to(room.code).emit('over', {
+  const payload = {
     outcome,
     secrets: [room.players[0]?.secret ?? null, room.players[1]?.secret ?? null],
     attempts: [room.histories[0].length, room.histories[1].length],
-  });
+  };
+  room.lastOver = payload; // 재접속 시 결과 복원용
+  io.to(room.code).emit('over', payload);
 }
 
 // 결과 발표 텀 뒤 턴/종료로 진행. 발표 중(pending) 방이 사라지거나 바뀌면 무시.
@@ -81,7 +91,7 @@ io.on('connection', (socket) => {
     data.code = room.code;
     data.index = 0;
     socket.join(room.code);
-    ack({ ok: true, code: room.code, index: 0, digits: d });
+    ack({ ok: true, code: room.code, index: 0, digits: d, token: room.players[0].token });
   });
 
   socket.on('join', ({ nick, code }, ack) => {
@@ -100,6 +110,7 @@ io.on('connection', (socket) => {
       index: 1,
       digits: res.room.digits,
       opponentNick: res.room.players[0].nick,
+      token: res.room.players[1].token,
     });
     socket.to(c).emit('opponentJoined', { nick: res.room.players[1].nick });
     // 둘 다 입장 → 비밀 숫자 정하기 단계
@@ -201,12 +212,59 @@ io.on('connection', (socket) => {
     }
   });
 
+  // 재접속: 저장한 코드·자리·토큰으로 소켓을 다시 자리에 연결하고 현재 상태를 돌려준다.
+  socket.on('rejoin', ({ code, index, token }, ack) => {
+    const room = getRoom(String(code ?? '').toUpperCase().trim());
+    if (!room) {
+      ack({ ok: false, error: '방이 사라졌어요.' });
+      return;
+    }
+    const idx: 0 | 1 = index === 1 ? 1 : 0;
+    const me = room.players[idx];
+    if (!me || me.token !== token) {
+      ack({ ok: false, error: '재접속 정보가 올바르지 않아요.' });
+      return;
+    }
+    if (me.graceTimer) {
+      clearTimeout(me.graceTimer);
+      me.graceTimer = undefined;
+    }
+    me.id = socket.id;
+    me.connected = true;
+    data.code = room.code;
+    data.index = idx;
+    socket.join(room.code);
+    const opp = room.players[1 - idx];
+    const resume: ResumeInfo = {
+      phase: room.phase === 'waiting' ? 'lobby' : room.phase,
+      digits: room.digits,
+      turn: room.turn,
+      secretReady: room.players.map((p) => p.secret != null),
+      mySecretSet: me.secret != null,
+      oppAttempts: room.histories[1 - idx].length,
+      oppSolved: room.solved[1 - idx],
+      opponentNick: opp?.nick ?? '상대',
+      opponentConnected: opp?.connected ?? false,
+      over: room.phase === 'over' ? room.lastOver : undefined,
+    };
+    ack({ ok: true, resume });
+    socket.to(room.code).emit('opponentReconnected');
+  });
+
   socket.on('disconnect', () => {
     const room = getRoom(data.code);
-    if (!room) return;
-    // 한 명이라도 나가면 방을 정리하고 상대에게 알린다.
-    socket.to(room.code).emit('opponentLeft');
-    deleteRoom(room.code);
+    if (!room || data.index == null) return;
+    const me = room.players[data.index];
+    // 이미 다른 소켓이 이 자리에 재접속했으면 옛 소켓의 disconnect는 무시.
+    if (!me || me.id !== socket.id) return;
+    me.connected = false;
+    io.to(room.code).emit('opponentDisconnected');
+    // 유예 시간 내 재접속 안 하면 방 정리 + 상대에게 나감 알림.
+    me.graceTimer = setTimeout(() => {
+      if (getRoom(room.code) !== room) return;
+      io.to(room.code).emit('opponentLeft');
+      deleteRoom(room.code);
+    }, GRACE_MS);
   });
 });
 

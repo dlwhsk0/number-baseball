@@ -14,8 +14,12 @@ export function getSocket(): GameSocket {
   if (!socket) {
     socket = io(SERVER_URL, {
       autoConnect: false,
-      transports: ['websocket'],
+      // 웹소켓 우선, 안 되면 폴링으로 폴백(모바일/불안정 네트워크 대비).
+      transports: ['websocket', 'polling'],
       reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 700,
+      reconnectionDelayMax: 4000,
     });
   }
   return socket;

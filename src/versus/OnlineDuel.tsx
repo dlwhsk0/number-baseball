@@ -77,6 +77,13 @@ function LoadingDots() {
   );
 }
 
+/** 연결 상태 배너(내 재접속 중 / 상대 끊김). 정상이면 안 보임. */
+function NetStatus({ connected, oppDisconnected }: { connected: boolean; oppDisconnected: boolean }) {
+  if (!connected) return <div className="net-banner">재접속 중…</div>;
+  if (oppDisconnected) return <div className="net-banner opp">상대 연결 끊김 — 대기 중…</div>;
+  return null;
+}
+
 /** 상대 대기 멘트 — 몇 초마다 랜덤 교체. */
 function WaitingLine() {
   const [i, setI] = useState(() => Math.floor(Math.random() * WAIT_PHRASES.length));
@@ -233,6 +240,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
   const myIndexRef = useRef<0 | 1>(0);
   const announceRef = useRef<number | undefined>(undefined);
+  // 재접속용 세션(코드·자리·토큰). 소켓이 끊겼다 붙으면 이걸로 다시 합류한다.
+  const sessionRef = useRef<{ code: string; index: 0 | 1; token: string } | null>(null);
 
   const [phase, setPhase] = useState<Phase>('menu');
   const [connected, setConnected] = useState(false);
@@ -264,6 +273,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const [mySolved, setMySolved] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [oppInput, setOppInput] = useState('');
+  const [oppDisconnected, setOppDisconnected] = useState(false);
 
   const [over, setOver] = useState<OverInfo | null>(null);
   const [oppLeft, setOppLeft] = useState(false);
@@ -290,6 +300,33 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setStartAnnounce(false);
     setMemo({});
     setMemoMode(false);
+    setOppDisconnected(false);
+  };
+
+  // 재접속 후 서버가 준 현재 상태로 화면을 되돌린다(놓친 진행 동기화).
+  const applyResume = (r: import('../net/protocol').ResumeInfo) => {
+    setDigits(r.digits);
+    setOpponentNick(r.opponentNick);
+    setOppDisconnected(!r.opponentConnected);
+    setSecretReady(r.secretReady);
+    setOppAttempts(r.oppAttempts);
+    setOppSolved(r.oppSolved);
+    if (r.phase === 'over' && r.over) {
+      setReveal(null);
+      setStartAnnounce(false);
+      setOver(r.over);
+      setPhase('over');
+    } else if (r.phase === 'playing') {
+      setReveal(null);
+      setStartAnnounce(false);
+      setMyTurn(r.turn === myIndexRef.current);
+      setPhase('playing');
+    } else if (r.phase === 'secret') {
+      setMySecretSet(r.mySecretSet);
+      setPhase('secret');
+    } else {
+      setPhase('lobby');
+    }
   };
 
   const cycleMemo = (d: string) =>
@@ -305,11 +342,27 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
   useEffect(() => {
     const s = socketRef.current;
-    const onConnect = () => setConnected(true);
+    const onConnect = () => {
+      setConnected(true);
+      // 세션이 있으면(게임 중 재연결) 저장한 코드·자리·토큰으로 다시 합류.
+      const sess = sessionRef.current;
+      if (!sess) return;
+      s.emit('rejoin', { code: sess.code, index: sess.index, token: sess.token }, (r) => {
+        if (r.ok && r.resume) {
+          applyResume(r.resume);
+        } else {
+          sessionRef.current = null;
+          setError(r.error ?? '재접속에 실패했어요.');
+          setPhase('menu');
+        }
+      });
+    };
     const onDisconnect = () => setConnected(false);
 
     s.on('connect', onConnect);
     s.on('disconnect', onDisconnect);
+    s.on('opponentDisconnected', () => setOppDisconnected(true));
+    s.on('opponentReconnected', () => setOppDisconnected(false));
     s.on('opponentJoined', ({ nick: n }) => setOpponentNick(n));
     s.on('phase', ({ digits: d }) => {
       setDigits(d);
@@ -356,6 +409,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     });
     s.on('rematchRequested', () => setOppWantsRematch(true));
     s.on('opponentLeft', () => {
+      sessionRef.current = null;
+      setOppDisconnected(false);
       setOppLeft(true);
       setPhase('over');
     });
@@ -366,6 +421,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
       if (announceRef.current) window.clearTimeout(announceRef.current);
       s.off('connect', onConnect);
       s.off('disconnect', onDisconnect);
+      s.off('opponentDisconnected');
+      s.off('opponentReconnected');
       s.off('opponentJoined');
       s.off('phase');
       s.off('secretProgress');
@@ -412,6 +469,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     socketRef.current.emit('create', { nick, digits }, (r) => {
       setBusy(false);
       if (r.ok) {
+        sessionRef.current = { code: r.code, index: 0, token: r.token };
         setCode(r.code);
         myIndexRef.current = 0;
         setMyIndex(0);
@@ -435,6 +493,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         setError(r.error ?? '입장에 실패했어요.');
         return;
       }
+      sessionRef.current = { code: r.code ?? c, index: 1, token: r.token ?? '' };
       setCode(r.code ?? c);
       myIndexRef.current = 1;
       setMyIndex(1);
@@ -472,12 +531,14 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   };
 
   const exit = () => {
+    sessionRef.current = null;
     socketRef.current.disconnect();
     onExit();
   };
 
   // 방/게임에서 나가되 온라인 메뉴로 복귀(멀티 유지). 서버 방은 정리되고 상대에겐 알림.
   const backToMenu = () => {
+    sessionRef.current = null;
     socketRef.current.disconnect();
     resetRound();
     setCode('');
@@ -567,6 +628,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   if (phase === 'lobby') {
     return (
       <div className="versus versus-center">
+        <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <p className="handoff-sub">상대를 기다리는 중…</p>
         <div className="room-code" aria-label={`방 코드 ${code}`}>
           {code}
@@ -585,6 +647,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const oppReady = secretReady[1 - myIndex];
     return (
       <div className="versus">
+        <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <div className="turn-bar">
           <span className="turn-who">숫자 정하기</span>
           <span
@@ -618,6 +681,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const firstNick = myIndex === 0 ? nick.trim() || '나' : opponentNick;
     return (
       <div className="versus">
+        <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <div
           className={`turn-bar${
             reveal || startAnnounce ? '' : myTurn ? ' my-turn' : ' opp-turn'

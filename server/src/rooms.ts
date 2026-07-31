@@ -1,11 +1,18 @@
 // 방(room) 상태 관리 — 메모리 저장(영속화 없음). 코드로 입장하는 1:1 턴제 대결.
-import type { GuessRecord } from './types.js';
+// 재접속 지원: 끊겨도 방을 바로 안 지우고 토큰으로 재합류(rejoin)할 수 있게 한다.
+import { randomBytes } from 'node:crypto';
+import type { GuessRecord, Outcome } from './types.js';
 
 export interface Player {
-  id: string;
+  id: string; // 현재 소켓 id(재접속하면 바뀜)
   nick: string;
   /** 상대가 맞힐 비밀 숫자. 서버만 알고, 게임 종료 시에만 공개. */
   secret: string | null;
+  /** 재접속 인증 토큰. */
+  token: string;
+  connected: boolean;
+  /** 끊긴 뒤 유예 타이머(만료되면 방 정리). */
+  graceTimer?: ReturnType<typeof setTimeout>;
 }
 
 export type Phase = 'waiting' | 'secret' | 'playing' | 'over';
@@ -21,6 +28,8 @@ export interface Room {
   histories: [GuessRecord[], GuessRecord[]];
   solved: [boolean, boolean];
   rematch: [boolean, boolean];
+  /** 마지막 결과(재접속 시 결과 화면 복원용). */
+  lastOver?: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] };
 }
 
 const rooms = new Map<string, Room>();
@@ -38,11 +47,15 @@ function genCode(): string {
   return code;
 }
 
+function genToken(): string {
+  return randomBytes(12).toString('hex');
+}
+
 export function createRoom(hostId: string, nick: string, digits: number): Room {
   const room: Room = {
     code: genCode(),
     digits,
-    players: [{ id: hostId, nick, secret: null }],
+    players: [{ id: hostId, nick, secret: null, token: genToken(), connected: true }],
     phase: 'waiting',
     turn: 0,
     pending: false,
@@ -62,7 +75,7 @@ export function joinRoom(
   const room = rooms.get(code);
   if (!room) return { error: '방을 찾을 수 없어요. 코드를 확인해주세요.' };
   if (room.players.length >= 2) return { error: '방이 가득 찼어요.' };
-  room.players.push({ id, nick, secret: null });
+  room.players.push({ id, nick, secret: null, token: genToken(), connected: true });
   return { room, index: 1 };
 }
 
@@ -71,6 +84,8 @@ export function getRoom(code: string | undefined): Room | undefined {
 }
 
 export function deleteRoom(code: string): void {
+  const room = rooms.get(code);
+  room?.players.forEach((p) => p.graceTimer && clearTimeout(p.graceTimer));
   rooms.delete(code);
 }
 

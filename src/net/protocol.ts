@@ -8,6 +8,7 @@ export interface CreateAck {
   code: string;
   index: 0;
   digits: number;
+  token: string;
 }
 export interface JoinAck {
   ok: boolean;
@@ -16,11 +17,30 @@ export interface JoinAck {
   index?: 1;
   digits?: number;
   opponentNick?: string;
+  token?: string;
 }
 export interface OkAck {
   ok: boolean;
   error?: string;
   judgement?: Judgement;
+}
+
+export interface ResumeInfo {
+  phase: 'lobby' | 'secret' | 'playing' | 'over';
+  digits: number;
+  turn: 0 | 1;
+  secretReady: boolean[];
+  mySecretSet: boolean;
+  oppAttempts: number;
+  oppSolved: boolean;
+  opponentNick: string;
+  opponentConnected: boolean;
+  over?: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] };
+}
+export interface RejoinAck {
+  ok: boolean;
+  error?: string;
+  resume?: ResumeInfo;
 }
 
 export interface ClientToServerEvents {
@@ -30,6 +50,7 @@ export interface ClientToServerEvents {
   guess: (p: { guess: string }, ack: (r: OkAck) => void) => void;
   input: (p: { value: string }) => void;
   rematch: () => void;
+  rejoin: (p: { code: string; index: 0 | 1; token: string }, ack: (r: RejoinAck) => void) => void;
 }
 
 export interface ServerToClientEvents {
@@ -48,6 +69,8 @@ export interface ServerToClientEvents {
   opponentInput: (p: { value: string }) => void;
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
   rematchRequested: () => void;
+  opponentDisconnected: () => void;
+  opponentReconnected: () => void;
   opponentLeft: () => void;
   errorMsg: (p: { message: string }) => void;
 }

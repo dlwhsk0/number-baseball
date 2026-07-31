@@ -14,6 +14,8 @@ export interface CreateAck {
   code: string;
   index: 0;
   digits: number;
+  /** 재접속(rejoin) 인증용 토큰. */
+  token: string;
 }
 export interface JoinAck {
   ok: boolean;
@@ -22,12 +24,32 @@ export interface JoinAck {
   index?: 1;
   digits?: number;
   opponentNick?: string;
+  token?: string;
 }
 export interface OkAck {
   ok: boolean;
   error?: string;
   /** guess 성공 시 서버 판정(추측한 본인에게만). */
   judgement?: Judgement;
+}
+
+/** 재접속 시 서버가 현재 상태를 되돌려줘 놓친 것을 동기화. */
+export interface ResumeInfo {
+  phase: 'lobby' | 'secret' | 'playing' | 'over';
+  digits: number;
+  turn: 0 | 1;
+  secretReady: boolean[];
+  mySecretSet: boolean;
+  oppAttempts: number;
+  oppSolved: boolean;
+  opponentNick: string;
+  opponentConnected: boolean;
+  over?: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] };
+}
+export interface RejoinAck {
+  ok: boolean;
+  error?: string;
+  resume?: ResumeInfo;
 }
 
 export interface ClientToServerEvents {
@@ -38,6 +60,8 @@ export interface ClientToServerEvents {
   /** 추측 입력 중간 상태(실시간 미리보기용). 내 차례에만 상대에게 중계된다. */
   input: (p: { value: string }) => void;
   rematch: () => void;
+  /** 재접속: 저장한 방 코드·자리·토큰으로 다시 합류. */
+  rejoin: (p: { code: string; index: 0 | 1; token: string }, ack: (r: RejoinAck) => void) => void;
 }
 
 export interface ServerToClientEvents {
@@ -61,6 +85,10 @@ export interface ServerToClientEvents {
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
   /** 상대가 재대결을 신청함(내가 수락하면 시작). */
   rematchRequested: () => void;
+  /** 상대 연결이 끊김(유예 대기 중 — 아직 나간 건 아님). */
+  opponentDisconnected: () => void;
+  /** 상대가 재접속함. */
+  opponentReconnected: () => void;
   opponentLeft: () => void;
   errorMsg: (p: { message: string }) => void;
 }

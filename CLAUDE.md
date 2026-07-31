@@ -44,6 +44,9 @@
     턴제 규칙을 **서버 권위**로. 방 코드로 1:1 입장 → 비밀 설정 → 턴 동기화 → 결과·재대결. 로컬 상태는 서버 이벤트로만 전이.
     서버는 `server/`(Node+Socket.IO, 정답 보관·판정). 접속 주소는 `VITE_SERVER_URL`(개발 기본 `http://localhost:3001`, 배포 `wss://도메인`).
     `protocol.ts`는 `server/src/types.ts`와 동일하게 유지. 규칙 로직 `logic.ts`는 프론트·서버 양쪽에 복제(함께 수정).
+    **재접속 복구**: 끊겨도 서버가 방을 바로 안 지우고 유예(`GRACE_MS` 기본 30s). 클라는 세션(코드·자리·토큰)을 저장했다가
+    소켓 재연결 시 `rejoin`으로 다시 합류하고 `resume`으로 상태 동기화. 모바일 백그라운드/네트워크 전환 대비(`opponentDisconnected/Reconnected` 알림, `NetStatus` 배너).
+    Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **서버 코드 바꾸면 VM 재배포 필요**(`git pull && pnpm build && pm2 restart nb-server`).
     연출: 추측 후 **결과 발표 텀**(서버 `reveal` → `REVEAL_MS` 뒤 turn/over, 그동안 `pending`으로 입력 차단), 특이 이벤트 리액션,
     선공이 맞히면 후공 **역전 찬스**, 시작 발표, 상대 대기 랜덤 멘트, **내 숫자 peek**(블러+꾹 눌러 확인),
     **상대 실시간 입력 미리보기**(`input`/`opponentInput` 중계), 재대결 신청 알림(`rematchRequested`), 승/패 강조 결과 화면.
@@ -91,16 +94,11 @@
 - [x] 메모 기능: 키패드 통합 메모 모드(○S·△B·✗O)
 
 ## PWA / 아이콘
-- `vite-plugin-pwa`로 매니페스트·서비스워커 자동 생성(`registerType: 'prompt'`).
-- **업데이트 방식**(`src/App.tsx`의 `useRegisterSW` + `src/components/UpdatePrompt.tsx`):
-  - **확인**: 앱이 보일 때마다(`visibilitychange`) + 30분마다 `registration.update()`. 모바일/설치앱은
-    껐다 켜도 '재개'만 되어 자동 확인이 안 돌기 때문에 visibility 기반으로 강제 확인한다.
-  - **적용**: 빈 판(게임 시작 전: guesses 0·slots 빈칸·memo 없음)에서 업데이트가 잡히면 **조용히 즉시 적용**
-    (`updateServiceWorker(true)`). 게임 중이면 하단 배너만 띄우고, "지금 새로고침" 또는 "새 게임/다시하기"를
-    누를 때 적용 → 진행 중 초기화 방지.
-  - 오프라인이면 마지막 캐시 버전으로 동작하고, 온라인 복귀 후 열면 확인·적용된다.
-  - React 훅이 `workbox-window`(peer dep)를 요구해서 devDependencies에 명시(pnpm은 peer 자동설치 안 함).
-  - 주의: SW 교체는 한 텀 늦다 — 새 로직은 사용자가 그 버전에 올라온 *다음* 배포부터 적용된다.
+- `vite-plugin-pwa`로 매니페스트·서비스워커 자동 생성(`registerType: 'autoUpdate'`).
+- **업데이트 방식**(`src/App.tsx`의 `useRegisterSW`): **팝업 없음.** 새 버전은 백그라운드에서 자동 설치되고
+  **다음 실행 때 적용**된다. `onRegisteredSW`에서 앱이 보일 때마다(`visibilitychange`) + 1분마다 `registration.update()`로 확인.
+  진행 중 강제 리로드는 하지 않음(온라인 대전 끊김 방지). React 훅은 `workbox-window`(peer dep) 필요 → devDependencies에 명시.
+  주의: SW 교체는 한 텀 늦다 — 새 로직은 그 버전에 올라온 *다음* 실행부터 적용.
 - 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. 야구공(흰 원+빨간 실밥)을 검정 타일(`#08090c`)에.
   공 반지름은 `(0.5-pad)*0.62`로 타일 대비 작게(여백). 재생성: `pnpm add -D sharp` 후 `node scripts/gen-icons.mjs`
   (sharp는 애드혹 — 생성 후 `git checkout package.json pnpm-lock.yaml`로 의존성 되돌림).
