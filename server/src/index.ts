@@ -178,6 +178,7 @@ io.on('connection', (socket) => {
     const room = getRoom(data.code);
     if (!room || data.index == null) return;
     room.rematch[data.index] = true;
+    socket.to(room.code).emit('rematchRequested'); // 상대에게 신청 알림
     if (room.players.length === 2 && room.rematch[0] && room.rematch[1]) {
       room.histories = [[], []];
       room.solved = [false, false];

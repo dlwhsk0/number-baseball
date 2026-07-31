@@ -45,6 +45,7 @@ export interface ServerToClientEvents {
   }) => void;
   turn: (p: { turn: 0 | 1 }) => void;
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
+  rematchRequested: () => void;
   opponentLeft: () => void;
   errorMsg: (p: { message: string }) => void;
 }

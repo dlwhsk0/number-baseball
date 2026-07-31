@@ -55,6 +55,8 @@ export interface ServerToClientEvents {
   }) => void;
   turn: (p: { turn: 0 | 1 }) => void;
   over: (p: { outcome: Outcome; secrets: (string | null)[]; attempts: number[] }) => void;
+  /** 상대가 재대결을 신청함(내가 수락하면 시작). */
+  rematchRequested: () => void;
   opponentLeft: () => void;
   errorMsg: (p: { message: string }) => void;
 }
