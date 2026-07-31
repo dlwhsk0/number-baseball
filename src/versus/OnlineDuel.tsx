@@ -146,9 +146,14 @@ function RevealCard({
   );
 }
 
-/** 입력 칸 + 키패드. 다 채우면 onSubmit. 메모는 부모에서 관리(추측 시에만). */
+/**
+ * 입력 칸 + 키패드. 위치를 고정하려고 항상 렌더한다.
+ * - active(내 차례): 숫자 입력·제출 가능, ✎로 메모 토글.
+ * - !active(상대 차례·발표 중): 입력·제출은 막고 숫자 탭은 메모만 순환(미리 메모용).
+ */
 function OnlineInput({
   digits,
+  active = true,
   submitLabel,
   onSubmit,
   onChange,
@@ -159,6 +164,7 @@ function OnlineInput({
   showMemo = false,
 }: {
   digits: number;
+  active?: boolean;
   submitLabel: string;
   onSubmit: (value: string) => void;
   onChange?: (value: string) => void;
@@ -176,10 +182,12 @@ function OnlineInput({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   useEffect(() => {
-    onChangeRef.current?.(state.slots.join(''));
-  }, [state.slots]);
+    if (active) onChangeRef.current?.(state.slots.join(''));
+  }, [state.slots, active]);
+  // 비활성이면 입력칸은 비운 채 잠그고, 키패드는 메모 전용.
+  const kpMode = active ? (memoMode ? 'memo' : 'input') : 'memo';
   return (
-    <section className="board">
+    <section className={`board${active ? '' : ' memo-only'}`}>
       <div
         className="input-display"
         aria-label="현재 입력"
@@ -189,27 +197,27 @@ function OnlineInput({
           <button
             key={i}
             type="button"
-            className={`slot cell${d ? ' filled' : ''}`}
-            disabled={!d}
+            className={`slot cell${active && d ? ' filled' : ''}`}
+            disabled={!active || !d}
             aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
-            onClick={() => dispatch({ type: 'clearSlot', index: i })}
+            onClick={() => active && dispatch({ type: 'clearSlot', index: i })}
           >
-            <Seg7 char={d} />
+            <Seg7 char={active ? d : ''} />
           </button>
         ))}
       </div>
       <Keypad
-        slots={state.slots}
+        slots={active ? state.slots : Array(digits).fill('')}
         memo={memo}
-        mode={memoMode ? 'memo' : 'input'}
+        mode={kpMode}
         disabled={false}
-        showMemo={showMemo}
+        showMemo={active && showMemo}
         submitLabel={submitLabel}
-        onDigit={(digit) => dispatch({ type: 'push', digit })}
+        onDigit={(digit) => active && dispatch({ type: 'push', digit })}
         onMemo={(d) => onMemo?.(d)}
-        onDelete={() => dispatch({ type: 'pop' })}
-        onSubmit={() => full && onSubmit(state.slots.join(''))}
-        onToggleMemo={onToggleMemo}
+        onDelete={() => active && dispatch({ type: 'pop' })}
+        onSubmit={() => active && full && onSubmit(state.slots.join(''))}
+        onToggleMemo={active ? onToggleMemo : undefined}
       />
     </section>
   );
@@ -273,6 +281,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const [oppInput, setOppInput] = useState('');
   const [oppHistory, setOppHistory] = useState<GuessRecord[]>([]);
   const [oppDisconnected, setOppDisconnected] = useState(false);
+  const [histTab, setHistTab] = useState<'me' | 'opp'>('me');
 
   const [over, setOver] = useState<OverInfo | null>(null);
   const [oppLeft, setOppLeft] = useState(false);
@@ -302,6 +311,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setMemo({});
     setMemoMode(false);
     setOppDisconnected(false);
+    setHistTab('me');
   };
 
   // 재접속 후 서버가 준 현재 상태로 화면을 되돌린다(놓친 진행 동기화).
@@ -336,7 +346,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setMemo((m) => {
       const cur = m[d];
       const next: MemoMark | undefined =
-        cur === undefined ? 'strike' : cur === 'strike' ? 'ball' : cur === 'ball' ? 'out' : undefined;
+        cur === undefined ? 'out' : cur === 'out' ? 'ball' : cur === 'ball' ? 'strike' : undefined;
       const nm = { ...m };
       if (next === undefined) delete nm[d];
       else nm[d] = next;
@@ -713,6 +723,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
   if (phase === 'playing') {
     const firstNick = myIndex === 0 ? nick.trim() || '나' : opponentNick;
+    // 내 차례이고 발표/개시 중이 아니면 입력 활성. 그 외엔 키패드를 메모 전용으로 항상 띄운다.
+    const inputActive = myTurn && !reveal && !startAnnounce;
     return (
       <div className="versus">
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
@@ -731,77 +743,91 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
         {mySecret && <SecretPeek secret={mySecret} />}
 
-        {startAnnounce ? (
-          <div className="versus versus-center announce">
-            <p className="announce-line">모두 숫자를 골랐어요!</p>
-            <p className="announce-first">
-              {myIndex === 0 ? '내가' : <Nick>{firstNick}</Nick>} 먼저 시작!
-            </p>
-          </div>
-        ) : reveal ? (
-          <RevealCard
-            reveal={reveal}
-            digits={digits}
-            mine={reveal.by === myIndex}
-            opponentNick={opponentNick}
-          />
-        ) : myTurn ? (
-          <>
-            {oppSolved && <div className="tension reverse">역전 찬스! 맞히면 무승부</div>}
-            <OnlineInput
-              key={history.length}
-              digits={digits}
-              submitLabel="추측"
-              onSubmit={submitGuess}
-              onChange={emitInput}
-              memo={memo}
-              memoMode={memoMode}
-              onMemo={cycleMemo}
-              onToggleMemo={() => setMemoMode((v) => !v)}
-              showMemo
-            />
-          </>
-        ) : (
-          <div className="versus versus-center">
-            {mySolved && <div className="tension last">상대의 마지막 기회…</div>}
-            {oppInput ? (
-              <div className="live-input">
-                <span className="live-label">상대 입력 중</span>
-                <span className="num-cells">
-                  {Array.from({ length: digits }, (_, i) => (
-                    <span key={i} className="cell hcell">
-                      <Seg7 char={oppInput[i] ?? ''} />
-                    </span>
-                  ))}
-                </span>
-              </div>
-            ) : (
-              <>
-                <LoadingDots />
-                <WaitingLine />
-              </>
-            )}
-          </div>
-        )}
-
-        <section className="history-section">
-          <div className="history-head">
-            <span>내 기록</span>
-            <span className="attempts">{history.length}회</span>
-          </div>
-          <History guesses={history} />
-        </section>
-        {oppHistory.length > 0 && (
-          <section className="history-section">
-            <div className="history-head">
-              <span>
-                <Nick>{opponentNick}</Nick> 기록
-              </span>
-              <span className="attempts">{oppHistory.length}회</span>
+        {/* 상단 상태 슬롯 — 발표/개시/상대입력·대기가 여기에만 나타나고 아래 키패드·기록은 고정. */}
+        <div className="play-stage">
+          {startAnnounce ? (
+            <div className="announce">
+              <p className="announce-line">모두 숫자를 골랐어요!</p>
+              <p className="announce-first">
+                {myIndex === 0 ? '내가' : <Nick>{firstNick}</Nick>} 먼저 시작!
+              </p>
             </div>
-            <History guesses={oppHistory} />
-          </section>
-        )}
+          ) : reveal ? (
+            <RevealCard
+              reveal={reveal}
+              digits={digits}
+              mine={reveal.by === myIndex}
+              opponentNick={opponentNick}
+            />
+          ) : myTurn ? (
+            oppSolved ? (
+              <div className="tension reverse">역전 찬스! 맞히면 무승부</div>
+            ) : (
+              <p className="stage-hint">숫자를 눌러 추측하세요</p>
+            )
+          ) : (
+            <>
+              {mySolved && <div className="tension last">상대의 마지막 기회…</div>}
+              {oppInput ? (
+                <div className="live-input">
+                  <span className="live-label">상대 입력 중</span>
+                  <span className="num-cells">
+                    {Array.from({ length: digits }, (_, i) => (
+                      <span key={i} className="cell hcell">
+                        <Seg7 char={oppInput[i] ?? ''} />
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <LoadingDots />
+                  <WaitingLine />
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* 키패드 — 항상 같은 자리. 내 차례엔 입력, 아니면 메모 전용. */}
+        <OnlineInput
+          key={`${history.length}-${inputActive ? 'in' : 'memo'}`}
+          digits={digits}
+          active={inputActive}
+          submitLabel="추측"
+          onSubmit={submitGuess}
+          onChange={emitInput}
+          memo={memo}
+          memoMode={memoMode}
+          onMemo={cycleMemo}
+          onToggleMemo={() => setMemoMode((v) => !v)}
+          showMemo
+        />
+
+        {/* 기록 — 내/상대 탭으로 분리(헷갈림 방지), 자리 고정. */}
+        <section className="history-section">
+          <div className="hist-tabs" role="tablist" aria-label="기록">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={histTab === 'me'}
+              className={`hist-tab${histTab === 'me' ? ' active' : ''}`}
+              onClick={() => setHistTab('me')}
+            >
+              내 기록 <span className="ht-count">{history.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={histTab === 'opp'}
+              className={`hist-tab${histTab === 'opp' ? ' active' : ''}`}
+              onClick={() => setHistTab('opp')}
+            >
+              <Nick>{opponentNick}</Nick> <span className="ht-count">{oppHistory.length}</span>
+            </button>
+          </div>
+          <History guesses={histTab === 'me' ? history : oppHistory} />
+        </section>
         {error && <p className="online-error">{error}</p>}
       </div>
     );

@@ -88,8 +88,8 @@ export function RulesModal({ onClose }: Props) {
             <li>
               <strong>메모 모드</strong>를 켜고 숫자를 누르면 표시가 순환해요:
               <br />
-              없음 → <span className="mark-s">○ 스트라이크</span> →{' '}
-              <span className="mark-b">△ 볼</span> → <span className="mark-o">✕ 아웃</span> → 없음
+              없음 → <span className="mark-o">✕ 아웃</span> →{' '}
+              <span className="mark-b">△ 볼</span> → <span className="mark-s">○ 스트라이크</span> → 없음
             </li>
             <li>표시는 <strong>참고용</strong>이라 실제 입력을 막지 않아요.</li>
             <li>새 게임을 시작하면 메모는 초기화돼요.</li>

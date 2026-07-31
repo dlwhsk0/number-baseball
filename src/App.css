@@ -1212,8 +1212,11 @@
 
 /* 시작 발표(모두 골랐어요! 누구 먼저) */
 .announce {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 8px;
-  padding: 30px 12px;
+  padding: 20px 12px;
 }
 .announce-line {
   margin: 0;
@@ -1234,6 +1237,88 @@
   to {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* 플레이 상단 상태 슬롯 — 발표/개시/상대입력·대기만 여기 표시.
+   아래 키패드·기록 탭은 항상 같은 자리(위치 고정). */
+.play-stage {
+  min-height: 136px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.stage-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+/* 상대 차례엔 키패드가 메모 전용 — 살짝 눌러 구분 */
+.board.memo-only {
+  opacity: 0.94;
+}
+
+/* 기록 탭 — 내/상대 분리(누구 기록인지 헷갈림 방지) */
+.hist-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.hist-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.hist-tab.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.hist-tab .nick {
+  color: inherit;
+}
+.hist-tab .ht-count {
+  font-family: var(--font-digit);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.hist-tab.active .ht-count {
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+
+/* 첫 방문 유도 — 게임 방법(?) 버튼 반짝임 */
+.help-btn.pulse-hint {
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: help-pulse 1.6s ease-in-out infinite;
+}
+@keyframes help-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 

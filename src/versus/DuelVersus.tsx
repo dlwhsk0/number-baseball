@@ -36,7 +36,7 @@ export function DuelVersus({ onExit }: Props) {
     setMemos((ms) => {
       const cur = ms[player][d];
       const next: MemoMark | undefined =
-        cur === undefined ? 'strike' : cur === 'strike' ? 'ball' : cur === 'ball' ? 'out' : undefined;
+        cur === undefined ? 'out' : cur === 'out' ? 'ball' : cur === 'ball' ? 'strike' : undefined;
       const nm = { ...ms[player] };
       if (next === undefined) delete nm[d];
       else nm[d] = next;

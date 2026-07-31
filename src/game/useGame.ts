@@ -81,9 +81,10 @@ export function initGame(
 
 /** 메모 표시 순환: 기본 → ○스트라이크 → △볼 → ✕아웃 → 기본. */
 function nextMark(cur: MemoMark | undefined): MemoMark | undefined {
-  if (cur === undefined) return 'strike';
-  if (cur === 'strike') return 'ball';
-  if (cur === 'ball') return 'out';
+  // 순환 순서: 기본 → 아웃 → 볼 → 스트라이크 → 기본 (배제부터 좁혀가는 흐름).
+  if (cur === undefined) return 'out';
+  if (cur === 'out') return 'ball';
+  if (cur === 'ball') return 'strike';
   return undefined;
 }
 

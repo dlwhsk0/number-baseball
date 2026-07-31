@@ -71,6 +71,25 @@ export default function App() {
   }, [online, multiMode]);
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  // 첫 방문이면 게임 방법(?) 버튼을 반짝여 규칙을 보게 유도. 한 번 열면 localStorage에 기록.
+  const [seenRules, setSeenRules] = useState(() => {
+    try {
+      return !!localStorage.getItem('nb_seen_rules');
+    } catch {
+      return true;
+    }
+  });
+  const openRules = () => {
+    setShowRules(true);
+    if (!seenRules) {
+      setSeenRules(true);
+      try {
+        localStorage.setItem('nb_seen_rules', '1');
+      } catch {
+        /* 저장 불가 환경 무시 */
+      }
+    }
+  };
   const [showIntro, setShowIntro] = useState(() => {
     try {
       return !sessionStorage.getItem('nb_intro');
@@ -216,8 +235,8 @@ export default function App() {
         <div className="controls-row">
           <button
             type="button"
-            className="help-btn"
-            onClick={() => setShowRules(true)}
+            className={`help-btn${seenRules ? '' : ' pulse-hint'}`}
+            onClick={openRules}
             aria-label="게임 방법"
             title="게임 방법"
           >
