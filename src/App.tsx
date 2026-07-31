@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useGame, LEVELS, type Level } from './game/useGame';
 import { Keypad } from './components/Keypad';
@@ -55,6 +55,38 @@ export default function App() {
       /* 저장 불가 환경 무시 */
     }
     setShowIntro(false);
+  };
+
+  // 이스터에그: 라이트('주간') 모드. 다크가 무조건 기본 — 세션 한정이라 새로고침하면 다시 다크.
+  // 'history' 라벨을 길게 눌러 전환.
+  const [dayMode, setDayMode] = useState(false);
+  const [eggMsg, setEggMsg] = useState<string | null>(null);
+  const holdRef = useRef<number | undefined>(undefined);
+  const firstThemeRef = useRef(true);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (dayMode) root.setAttribute('data-theme', 'light');
+    else root.removeAttribute('data-theme');
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', dayMode ? '#eef1f5' : '#000000');
+    if (firstThemeRef.current) {
+      firstThemeRef.current = false;
+      return;
+    }
+    setEggMsg(dayMode ? '☀️ 주간 모드' : '🌙 야간 모드');
+    const t = window.setTimeout(() => setEggMsg(null), 1500);
+    return () => window.clearTimeout(t);
+  }, [dayMode]);
+
+  const startHold = () => {
+    holdRef.current = window.setTimeout(() => setDayMode((v) => !v), 800);
+  };
+  const cancelHold = () => {
+    if (holdRef.current !== undefined) {
+      window.clearTimeout(holdRef.current);
+      holdRef.current = undefined;
+    }
   };
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
   const finished = state.status !== 'playing';
@@ -258,7 +290,15 @@ export default function App() {
 
       <section className="history-section">
         <div className="history-head">
-          <span>history</span>
+          <span
+            className="egg-trigger"
+            onPointerDown={startHold}
+            onPointerUp={cancelHold}
+            onPointerLeave={cancelHold}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            history
+          </span>
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
@@ -286,6 +326,8 @@ export default function App() {
           <GitHubIcon />
         </a>
       </footer>
+
+      {eggMsg && <div className="egg-toast">{eggMsg}</div>}
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
 
