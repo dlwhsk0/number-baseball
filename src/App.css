@@ -520,6 +520,16 @@
 .footer-link:active {
   transform: scale(0.92);
 }
+/* 푸터 야구공(이스터에그 트리거) — 은은하게 */
+.footer-ball {
+  font-size: 1.4rem;
+  line-height: 1;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+.footer-link:hover .footer-ball {
+  opacity: 0.7;
+}
 
 /* 새 버전 알림 토스트 — 하단 고정, 게임을 가리지 않음. 눌러야만 새로고침. */
 .update-toast {
@@ -887,6 +897,10 @@
   background: var(--accent);
   color: var(--on-accent);
 }
+/* 비활성(예: 오프라인의 온라인 탭) */
+.seg-btn.disabled {
+  opacity: 0.4;
+}
 .versus-primary,
 .versus-secondary {
   width: 100%;
@@ -995,11 +1009,11 @@
   color: var(--muted);
 }
 .live-input .num-cells .hcell {
-  width: 34px;
-  height: 46px;
+  width: 46px;
+  height: 62px;
 }
 .live-input .num-cells .seg7 {
-  font-size: 30px;
+  font-size: 44px;
 }
 
 /* 개발자 모드(이스터에그 2) 토스트는 조금 아래에 */
@@ -1049,13 +1063,20 @@
   line-height: 1.5;
 }
 .dev-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-digit);
   color: var(--accent);
   font-weight: 700;
   text-decoration: none;
-  padding: 8px 14px;
+  padding: 8px 16px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
   border-radius: 999px;
+}
+.dev-link svg {
+  width: 18px;
+  height: 18px;
 }
 .dev-link:active {
   transform: scale(0.97);
@@ -1070,25 +1091,31 @@
   cursor: pointer;
 }
 
-/* 준비 현황(비밀 고르는 중) */
-.ready-row {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
+/* 준비 현황(숫자 고르는 중) — 상대가 정하면 강조 */
+.ready-count {
+  display: inline-block;
+  animation: ready-pop 0.3s ease-out;
 }
-.ready-chip {
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-.ready-chip.on {
-  border-color: var(--accent);
+.ready-count.hot {
   color: var(--accent);
-  box-shadow: var(--glow-accent);
+  text-shadow: var(--glow-text);
+  font-weight: 800;
+}
+@keyframes ready-pop {
+  from {
+    transform: scale(1.5);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.ready-note {
+  margin: 0;
+  text-align: center;
+  color: var(--accent);
+  font-weight: 800;
+  text-shadow: var(--glow-text);
+  animation: announce-pop 0.35s ease-out;
 }
 
 /* 로딩 점 애니메이션(상대 대기) */
@@ -1510,6 +1537,21 @@
 }
 .turn-who {
   font-weight: 800;
+}
+/* 내 차례=그린 / 상대 차례=앰버 로 확실히 구분 */
+.turn-bar.my-turn {
+  border-color: var(--accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.turn-bar.my-turn .turn-who {
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+.turn-bar.opp-turn {
+  border-color: color-mix(in srgb, var(--strike) 45%, var(--border));
+}
+.turn-bar.opp-turn .turn-who {
+  color: var(--strike);
 }
 .turn-timer {
   font-family: var(--font-digit);

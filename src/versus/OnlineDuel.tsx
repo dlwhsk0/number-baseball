@@ -518,12 +518,19 @@ export function OnlineDuel({ onExit }: Props) {
 
   if (phase === 'secret') {
     const readyCount = secretReady.filter(Boolean).length;
+    const oppReady = secretReady[1 - myIndex];
     return (
       <div className="versus">
         <div className="turn-bar">
           <span className="turn-who">숫자 정하기</span>
-          <span className="turn-hint">준비 {readyCount}/2</span>
+          <span
+            key={readyCount}
+            className={`turn-hint ready-count${oppReady ? ' hot' : ''}`}
+          >
+            준비 {readyCount}/2
+          </span>
         </div>
+        {oppReady && <p className="ready-note">상대가 숫자를 정했어요!</p>}
         {mySecretSet ? (
           <div className="versus versus-center">
             <LoadingDots />
@@ -547,7 +554,11 @@ export function OnlineDuel({ onExit }: Props) {
     const firstNick = myIndex === 0 ? nick.trim() || '나' : opponentNick;
     return (
       <div className="versus">
-        <div className="turn-bar">
+        <div
+          className={`turn-bar${
+            reveal || startAnnounce ? '' : myTurn ? ' my-turn' : ' opp-turn'
+          }`}
+        >
           <span className="turn-who">
             {reveal ? '결과 발표' : startAnnounce ? '플레이 볼!' : myTurn ? '내 차례' : '상대 차례'}
           </span>

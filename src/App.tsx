@@ -38,7 +38,38 @@ export default function App() {
   const [level, setLevel] = useState<Level>(getInitialLevel);
   const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame(level);
   const [section, setSection] = useState<Section>('solo');
-  const [multiMode, setMultiMode] = useState<MultiMode>('speed');
+  const [online, setOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  );
+  // 멀티 기본값은 온라인(연결 없으면 스피드).
+  const [multiMode, setMultiMode] = useState<MultiMode>(() =>
+    typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'speed',
+  );
+  const [netMsg, setNetMsg] = useState<string | null>(null);
+  const netTimerRef = useRef<number | undefined>(undefined);
+  const showNet = (m: string) => {
+    setNetMsg(m);
+    if (netTimerRef.current) window.clearTimeout(netTimerRef.current);
+    netTimerRef.current = window.setTimeout(() => setNetMsg(null), 1900);
+  };
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+  // 연결이 끊기면 온라인 모드에서 스피드로 폴백.
+  useEffect(() => {
+    if (!online && multiMode === 'online') {
+      setMultiMode('speed');
+      showNet('네트워크 연결이 필요해요');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, multiMode]);
   const [memoMode, setMemoMode] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showIntro, setShowIntro] = useState(() => {
@@ -252,17 +283,27 @@ export default function App() {
             </>
           ) : (
             <div className="seg" role="group" aria-label="대결 선택">
-              {MULTI_TABS.map((m) => (
-                <button
-                  key={m.key}
-                  type="button"
-                  className={`seg-btn${multiMode === m.key ? ' active' : ''}`}
-                  aria-pressed={multiMode === m.key}
-                  onClick={() => setMultiMode(m.key)}
-                >
-                  {m.label}
-                </button>
-              ))}
+              {MULTI_TABS.map((m) => {
+                const off = m.key === 'online' && !online;
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    className={`seg-btn${multiMode === m.key ? ' active' : ''}${off ? ' disabled' : ''}`}
+                    aria-pressed={multiMode === m.key}
+                    aria-disabled={off}
+                    onClick={() => {
+                      if (off) {
+                        showNet('온라인은 네트워크 연결이 필요해요');
+                        return;
+                      }
+                      setMultiMode(m.key);
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -350,14 +391,16 @@ export default function App() {
           type="button"
           className="footer-link"
           onClick={tapGithub}
-          aria-label="GitHub"
-          title="GitHub @dlwhsk0"
+          aria-label="야구공"
         >
-          <GitHubIcon />
+          <span className="footer-ball" aria-hidden="true">
+            ⚾
+          </span>
         </button>
       </footer>
 
       {eggMsg && <div className="egg-toast">{eggMsg}</div>}
+      {netMsg && <div className="egg-toast">{netMsg}</div>}
       {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
 
       {devUnlocked && (
@@ -369,17 +412,15 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="dev-emblem">⚾</div>
-            <h3 className="dev-title">개발자 모드 해금!</h3>
-            <p className="dev-text">
-              여기까지 찾아줘서 고마워요. 이 게임을 만든 사람이에요 :)
-            </p>
+            <h3 className="dev-title">저를 찾아내셨군요!</h3>
             <a
               className="dev-link"
               href="https://github.com/dlwhsk0"
               target="_blank"
               rel="noopener noreferrer"
             >
-              github.com/dlwhsk0
+              <GitHubIcon />
+              <span>dlwhsk0</span>
             </a>
             <button type="button" className="dev-close" onClick={() => setDevUnlocked(false)}>
               닫기
