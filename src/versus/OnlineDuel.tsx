@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
 import { getSocket } from '../net/socket';
-import { gameReducer, initGame, type GuessRecord } from '../game/useGame';
+import { gameReducer, initGame, type GuessRecord, type MemoMark } from '../game/useGame';
 import type { Judgement } from '../game/logic';
 import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
@@ -9,6 +9,8 @@ import type { Outcome } from '../net/protocol';
 
 interface Props {
   onExit: () => void;
+  /** 대결이 진행 중(비밀 설정~플레이)인지 App에 알림 — 이탈 확인창용. */
+  onActiveChange?: (active: boolean) => void;
 }
 
 type Phase = 'menu' | 'lobby' | 'secret' | 'playing' | 'over';
@@ -111,7 +113,11 @@ function RevealCard({
   const react = eventReaction(reveal.judgement, digits, reveal.solved);
 
   return (
-    <div className={`reveal-card${reveal.solved ? ' solved' : ''}${mine ? ' mine' : ' theirs'}`}>
+    <div
+      className={`reveal-card${reveal.solved ? ' solved' : ''}${mine ? ' mine' : ' theirs'}${
+        react ? ` event-${react.kind}` : ''
+      }`}
+    >
       <p className="reveal-who">
         {mine ? '내 결과' : <><Nick>{opponentNick}</Nick>의 결과</>}
       </p>
@@ -133,17 +139,27 @@ function RevealCard({
   );
 }
 
-/** 입력 칸 + 키패드(메모 없음). 다 채우면 onSubmit. */
+/** 입력 칸 + 키패드. 다 채우면 onSubmit. 메모는 부모에서 관리(추측 시에만). */
 function OnlineInput({
   digits,
   submitLabel,
   onSubmit,
   onChange,
+  memo = {},
+  memoMode = false,
+  onMemo,
+  onToggleMemo,
+  showMemo = false,
 }: {
   digits: number;
   submitLabel: string;
   onSubmit: (value: string) => void;
   onChange?: (value: string) => void;
+  memo?: Record<string, MemoMark>;
+  memoMode?: boolean;
+  onMemo?: (d: string) => void;
+  onToggleMemo?: () => void;
+  showMemo?: boolean;
 }) {
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame('', Infinity, digits, false),
@@ -177,15 +193,16 @@ function OnlineInput({
       </div>
       <Keypad
         slots={state.slots}
-        memo={{}}
-        mode="input"
+        memo={memo}
+        mode={memoMode ? 'memo' : 'input'}
         disabled={false}
-        showMemo={false}
+        showMemo={showMemo}
         submitLabel={submitLabel}
         onDigit={(digit) => dispatch({ type: 'push', digit })}
-        onMemo={() => {}}
+        onMemo={(d) => onMemo?.(d)}
         onDelete={() => dispatch({ type: 'pop' })}
         onSubmit={() => full && onSubmit(state.slots.join(''))}
+        onToggleMemo={onToggleMemo}
       />
     </section>
   );
@@ -212,7 +229,7 @@ function SecretPeek({ secret }: { secret: string }) {
 }
 
 /** 온라인 턴제 대결(방 코드). 서버가 정답을 쥐고 판정한다. */
-export function OnlineDuel({ onExit }: Props) {
+export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
   const myIndexRef = useRef<0 | 1>(0);
   const announceRef = useRef<number | undefined>(undefined);
@@ -252,6 +269,9 @@ export function OnlineDuel({ onExit }: Props) {
   const [oppLeft, setOppLeft] = useState(false);
   const [rematchWait, setRematchWait] = useState(false);
   const [oppWantsRematch, setOppWantsRematch] = useState(false);
+  // 메모(내 추측용) — 게임 내내 유지, 새 판마다 초기화.
+  const [memo, setMemo] = useState<Record<string, MemoMark>>({});
+  const [memoMode, setMemoMode] = useState(false);
 
   const resetRound = () => {
     setHistory([]);
@@ -267,7 +287,20 @@ export function OnlineDuel({ onExit }: Props) {
     setRematchWait(false);
     setOppWantsRematch(false);
     setStartAnnounce(false);
+    setMemo({});
+    setMemoMode(false);
   };
+
+  const cycleMemo = (d: string) =>
+    setMemo((m) => {
+      const cur = m[d];
+      const next: MemoMark | undefined =
+        cur === undefined ? 'strike' : cur === 'strike' ? 'ball' : cur === 'ball' ? 'out' : undefined;
+      const nm = { ...m };
+      if (next === undefined) delete nm[d];
+      else nm[d] = next;
+      return nm;
+    });
 
   useEffect(() => {
     const s = socketRef.current;
@@ -347,6 +380,22 @@ export function OnlineDuel({ onExit }: Props) {
     };
   }, []);
 
+  // 대결 진행 중(비밀 설정~플레이) 알림 + 브라우저 이탈(뒤로가기·새로고침·닫기) 경고.
+  const active = phase === 'secret' || phase === 'playing';
+  const onActiveRef = useRef(onActiveChange);
+  onActiveRef.current = onActiveChange;
+  useEffect(() => {
+    onActiveRef.current?.(active);
+    if (!active) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [active]);
+  useEffect(() => () => onActiveRef.current?.(false), []);
+
   const saveNick = () => {
     try {
       localStorage.setItem('nb_nick', nick.trim());
@@ -424,6 +473,20 @@ export function OnlineDuel({ onExit }: Props) {
   const exit = () => {
     socketRef.current.disconnect();
     onExit();
+  };
+
+  // 방/게임에서 나가되 온라인 메뉴로 복귀(멀티 유지). 서버 방은 정리되고 상대에겐 알림.
+  const backToMenu = () => {
+    socketRef.current.disconnect();
+    resetRound();
+    setCode('');
+    setJoinCode('');
+    setOpponentNick('상대');
+    setMyIndex(0);
+    myIndexRef.current = 0;
+    setError(null);
+    setPhase('menu');
+    socketRef.current.connect();
   };
 
   // ---------- 렌더 ----------
@@ -509,7 +572,7 @@ export function OnlineDuel({ onExit }: Props) {
         </div>
         <LoadingDots />
         <p className="versus-desc">이 코드를 상대에게 알려주세요. 상대가 입장하면 시작돼요.</p>
-        <button type="button" className="versus-secondary" onClick={exit}>
+        <button type="button" className="versus-secondary" onClick={backToMenu}>
           나가기
         </button>
       </div>
@@ -592,6 +655,11 @@ export function OnlineDuel({ onExit }: Props) {
               submitLabel="추측"
               onSubmit={submitGuess}
               onChange={emitInput}
+              memo={memo}
+              memoMode={memoMode}
+              onMemo={cycleMemo}
+              onToggleMemo={() => setMemoMode((v) => !v)}
+              showMemo
             />
           </>
         ) : (
@@ -635,7 +703,7 @@ export function OnlineDuel({ onExit }: Props) {
       <div className="versus">
         <h2 className="versus-title">상대가 나갔어요</h2>
         <p className="versus-desc">대결이 종료됐어요.</p>
-        <button type="button" className="versus-primary" onClick={exit}>
+        <button type="button" className="versus-primary" onClick={backToMenu}>
           나가기
         </button>
       </div>
@@ -685,7 +753,7 @@ export function OnlineDuel({ onExit }: Props) {
         </p>
       )}
       <div className="versus-actions">
-        <button type="button" className="versus-secondary" onClick={exit}>
+        <button type="button" className="versus-secondary" onClick={backToMenu}>
           나가기
         </button>
         <button

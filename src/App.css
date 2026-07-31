@@ -1,13 +1,13 @@
 /* 색 팔레트(라이트/다크)는 index.css의 :root에 정의됨 */
 .app {
-  max-width: 420px;
+  max-width: 404px;
   margin: 0 auto;
-  padding: max(10px, env(safe-area-inset-top)) 16px
+  padding: max(10px, env(safe-area-inset-top)) 22px
     calc(32px + env(safe-area-inset-bottom));
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   color: var(--text);
 }
 
@@ -15,7 +15,7 @@
 .controls {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .controls-row {
   display: flex;
@@ -28,7 +28,7 @@
   font-size: 0.82rem;
 }
 .controls .level-caption {
-  margin: -2px 0 0;
+  margin: 2px 0 0;
 }
 
 /* (구) 헤더 — 일부 스타일 재사용 */
@@ -1009,11 +1009,11 @@
   color: var(--muted);
 }
 .live-input .num-cells .hcell {
-  width: 46px;
-  height: 62px;
+  width: 56px;
+  height: 74px;
 }
 .live-input .num-cells .seg7 {
-  font-size: 44px;
+  font-size: 54px;
 }
 
 /* 개발자 모드(이스터에그 2) 토스트는 조금 아래에 */
@@ -1333,6 +1333,39 @@
   font-size: 2rem;
   color: var(--strike);
   text-shadow: 0 0 18px color-mix(in srgb, var(--strike) 60%, transparent);
+}
+/* 발표 카드 숫자 크게 */
+.reveal-card .num-cells .hcell {
+  width: 42px;
+  height: 56px;
+}
+.reveal-card .num-cells .seg7 {
+  font-size: 42px;
+}
+/* 특이 이벤트(쓰리아웃/올볼/한 끗) — 카드 보더색 강조 + 반짝임 */
+.reveal-card.event-out {
+  --event: var(--out);
+}
+.reveal-card.event-ball {
+  --event: var(--ball);
+}
+.reveal-card.event-near {
+  --event: var(--strike);
+}
+.reveal-card.event-out,
+.reveal-card.event-ball,
+.reveal-card.event-near {
+  border-color: var(--event);
+  animation: reveal-in 0.25s ease-out, event-glow 0.85s ease-in-out 2;
+}
+@keyframes event-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 12px color-mix(in srgb, var(--event) 30%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 34px color-mix(in srgb, var(--event) 62%, transparent);
+  }
 }
 
 /* 긴장감 배너(역전 찬스 / 마지막 기회) */

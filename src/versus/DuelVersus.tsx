@@ -1,5 +1,5 @@
 import { useReducer, useState } from 'react';
-import { gameReducer, initGame, type GuessRecord } from '../game/useGame';
+import { gameReducer, initGame, type GuessRecord, type MemoMark } from '../game/useGame';
 import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
@@ -29,11 +29,27 @@ export function DuelVersus({ onExit }: Props) {
   const [secrets, setSecrets] = useState<[string, string]>(['', '']);
   const [histories, setHistories] = useState<[GuessRecord[], GuessRecord[]]>([[], []]);
   const [solved, setSolved] = useState<[boolean, boolean]>([false, false]);
+  // 플레이어별 메모(추측용). 핸드오프로 서로 안 보이게 각자 유지.
+  const [memos, setMemos] = useState<[Record<string, MemoMark>, Record<string, MemoMark>]>([{}, {}]);
+
+  const cycleMemo = (player: number, d: string) =>
+    setMemos((ms) => {
+      const cur = ms[player][d];
+      const next: MemoMark | undefined =
+        cur === undefined ? 'strike' : cur === 'strike' ? 'ball' : cur === 'ball' ? 'out' : undefined;
+      const nm = { ...ms[player] };
+      if (next === undefined) delete nm[d];
+      else nm[d] = next;
+      const out: [Record<string, MemoMark>, Record<string, MemoMark>] = [ms[0], ms[1]];
+      out[player] = nm;
+      return out;
+    });
 
   const startMatch = () => {
     setSecrets(['', '']);
     setHistories([[], []]);
     setSolved([false, false]);
+    setMemos([{}, {}]);
     setPhase({ kind: 'secret-intro', player: 0 });
   };
 
@@ -157,6 +173,8 @@ export function DuelVersus({ onExit }: Props) {
         digits={digits}
         opponentSecret={secrets[1 - p]}
         history={histories[p]}
+        memo={memos[p]}
+        onMemo={(d) => cycleMemo(p, d)}
         onDone={(record) => finishTurn(p, record)}
       />
     );
@@ -259,17 +277,22 @@ function DuelTurn({
   digits,
   opponentSecret,
   history,
+  memo,
+  onMemo,
   onDone,
 }: {
   player: number;
   digits: number;
   opponentSecret: string;
   history: GuessRecord[];
+  memo: Record<string, MemoMark>;
+  onMemo: (d: string) => void;
   onDone: (record: GuessRecord) => void;
 }) {
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame(opponentSecret, Infinity, digits, false),
   );
+  const [memoMode, setMemoMode] = useState(false);
   const record = state.guesses[0] ?? null;
   const solved = record ? record.judgement.strikes === digits : false;
   const outCount = record ? digits - record.judgement.strikes - record.judgement.balls : 0;
@@ -309,25 +332,26 @@ function DuelTurn({
                 <button
                   key={i}
                   type="button"
-                  className={`slot${d ? ' filled' : ''}`}
+                  className={`slot cell${d ? ' filled' : ''}`}
                   disabled={!d}
                   onClick={() => dispatch({ type: 'clearSlot', index: i })}
                 >
-                  {d || '·'}
+                  <Seg7 char={d} />
                 </button>
               ))}
             </div>
             <Keypad
               slots={state.slots}
-              memo={{}}
-              mode="input"
+              memo={memo}
+              mode={memoMode ? 'memo' : 'input'}
               disabled={false}
-              showMemo={false}
+              showMemo
               submitLabel="추측"
               onDigit={(digit) => dispatch({ type: 'push', digit })}
-              onMemo={() => {}}
+              onMemo={(d) => onMemo(d)}
               onDelete={() => dispatch({ type: 'pop' })}
               onSubmit={() => dispatch({ type: 'submit' })}
+              onToggleMemo={() => setMemoMode((v) => !v)}
             />
           </>
         )}

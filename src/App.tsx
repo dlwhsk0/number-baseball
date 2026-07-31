@@ -222,6 +222,14 @@ export default function App() {
     doChangeLevel(lv);
   };
 
+  // 온라인 대결 진행 중 이탈 방지 — 모드 전환 시 확인창.
+  const [onlineActive, setOnlineActive] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const guardedSwitch = (fn: () => void) => {
+    if (onlineActive) setPendingLeave(() => fn);
+    else fn();
+  };
+
   return (
     <main className="app">
       {showIntro && <Intro onDone={dismissIntro} />}
@@ -246,7 +254,7 @@ export default function App() {
               type="button"
               className={`seg-btn${section === 'solo' ? ' active' : ''}`}
               aria-pressed={section === 'solo'}
-              onClick={() => setSection('solo')}
+              onClick={() => guardedSwitch(() => setSection('solo'))}
             >
               혼자
             </button>
@@ -297,7 +305,8 @@ export default function App() {
                         showNet('온라인은 네트워크 연결이 필요해요');
                         return;
                       }
-                      setMultiMode(m.key);
+                      if (m.key === multiMode) return;
+                      guardedSwitch(() => setMultiMode(m.key));
                     }}
                   >
                     {m.label}
@@ -383,7 +392,7 @@ export default function App() {
       ) : multiMode === 'duel' ? (
         <DuelVersus onExit={() => setSection('solo')} />
       ) : (
-        <OnlineDuel onExit={() => setSection('solo')} />
+        <OnlineDuel onExit={() => setSection('solo')} onActiveChange={setOnlineActive} />
       )}
 
       <footer className="app-footer">
@@ -442,6 +451,21 @@ export default function App() {
             doChangeLevel(lv);
           }}
           onCancel={() => setPendingLevel(null)}
+        />
+      )}
+
+      {pendingLeave && (
+        <ConfirmDialog
+          message="온라인 대결이 진행 중이에요. 나가면 게임이 종료돼요. 나갈까요?"
+          confirmLabel="나가기"
+          cancelLabel="계속하기"
+          onConfirm={() => {
+            const fn = pendingLeave;
+            setPendingLeave(null);
+            setOnlineActive(false);
+            fn();
+          }}
+          onCancel={() => setPendingLeave(null)}
         />
       )}
     </main>
