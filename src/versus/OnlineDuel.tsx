@@ -284,6 +284,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setMySecretSet(false);
     setSecretReady([false, false]);
     setOver(null);
+    setOppLeft(false);
     setRematchWait(false);
     setOppWantsRematch(false);
     setStartAnnounce(false);
@@ -697,8 +698,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     );
   }
 
-  // over
-  if (oppLeft) {
+  // over — 결과가 없는데 상대가 나갔으면(중도 이탈) 전용 화면.
+  if (oppLeft && !over) {
     return (
       <div className="versus">
         <h2 className="versus-title">상대가 나갔어요</h2>
@@ -747,10 +748,15 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         ))}
       </div>
 
-      {oppWantsRematch && !rematchWait && (
-        <p className="rematch-notice">
-          <Nick>{opponentNick}</Nick>가 재대결을 신청했어요!
-        </p>
+      {oppLeft ? (
+        <p className="rematch-notice">상대가 나갔어요. 재대결할 수 없어요.</p>
+      ) : (
+        oppWantsRematch &&
+        !rematchWait && (
+          <p className="rematch-notice">
+            <Nick>{opponentNick}</Nick>가 재대결을 신청했어요!
+          </p>
+        )
       )}
       <div className="versus-actions">
         <button type="button" className="versus-secondary" onClick={backToMenu}>
@@ -758,8 +764,10 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         </button>
         <button
           type="button"
-          className={`versus-primary${oppWantsRematch && !rematchWait ? ' pulse' : ''}`}
-          disabled={rematchWait}
+          className={`versus-primary${
+            oppWantsRematch && !rematchWait && !oppLeft ? ' pulse' : ''
+          }`}
+          disabled={rematchWait || oppLeft}
           onClick={rematch}
         >
           {rematchWait ? '상대 대기…' : oppWantsRematch ? '재대결 수락' : '재대결'}
