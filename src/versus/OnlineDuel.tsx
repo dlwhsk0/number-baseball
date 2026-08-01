@@ -828,7 +828,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
               <LoadingDots />
               <p className="wait-line">상대가 숫자를 정하는 중…</p>
             </div>
-            <p className="memo-hint">기다리는 동안 미리 메모해두세요 — 메모 버튼으로 종류 선택</p>
+            <p className="memo-hint">미리 메모해두세요</p>
             <MemoPad digits={digits} memo={memo} onMemo={toggleMemo} />
           </>
         ) : (
@@ -879,8 +879,11 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         <span className="live-label">상대 입력 중</span>
         <span className="num-cells">
           {Array.from({ length: digits }, (_, i) => (
-            // key에 글자 포함 → 그 칸 글자가 바뀔 때만 remount돼 개별 등장 애니메이션 재생.
-            <span key={`${i}-${oppInput[i] ?? ''}`} className="cell hcell">
+            // key에 글자 포함 → 그 칸 글자가 바뀔 때만 remount. 애니메이션은 글자 든 칸('lit')만.
+            <span
+              key={`${i}-${oppInput[i] ?? ''}`}
+              className={`cell hcell${oppInput[i] ? ' lit' : ''}`}
+            >
               <Seg7 char={oppInput[i] ?? ''} />
             </span>
           ))}
@@ -948,9 +951,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           stage={stageContent}
         />
         {!inputActive && !startAnnounce && (
-          <p className="memo-hint under-keypad">
-            상대가 추측하는 동안 숫자를 메모해둘 수 있어요
-          </p>
+          <p className="memo-hint under-keypad">미리 메모해두세요</p>
         )}
 
         {/* 기록 — 내/상대 탭으로 분리(헷갈림 방지), 자리 고정. */}

@@ -1118,7 +1118,9 @@
 .live-input .num-cells .hcell {
   width: clamp(62px, 18vw, 78px);
   height: clamp(82px, 24vw, 104px);
-  /* 각 세그먼트 칸이 개별로 '탁' 흔들리며 등장(라벨은 가만히). 상대가 한 글자 칠 때마다 그 칸만. */
+}
+/* 글자가 든 칸만 개별로 '탁' 흔들리며 등장(빈 칸·라벨은 가만히). 상대가 한 글자 칠 때마다 그 칸만. */
+.live-input .num-cells .hcell.lit {
   animation: seg-shake-in 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 .live-input .num-cells .seg7 {
@@ -1147,7 +1149,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .live-input .num-cells .hcell {
+  .live-input .num-cells .hcell.lit {
     animation: none;
   }
 }
