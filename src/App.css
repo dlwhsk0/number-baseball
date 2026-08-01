@@ -1352,7 +1352,26 @@
   font-size: 0.85rem;
 }
 .memo-hint.under-keypad {
-  margin-top: -4px;
+  margin: 0;
+}
+/* 전환 문구/배너가 나타나도 아래 요소가 안 밀리게 자리를 미리 확보하는 슬롯들. */
+.note-slot {
+  min-height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hint-slot {
+  min-height: 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tension-slot {
+  min-height: 2.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 준비 현황(숫자 고르는 중) — 상대가 정하면 강조 */

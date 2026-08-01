@@ -832,7 +832,10 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
             {matchExitBtn}
           </div>
         </div>
-        {oppReady && <p className="ready-note">상대가 숫자를 정했어요!</p>}
+        {/* 공간 고정 — 문구가 떠도 아래 입력칸이 안 밀리게. */}
+        <div className="note-slot">
+          {oppReady && <p className="ready-note">상대가 숫자를 정했어요!</p>}
+        </div>
         {mySecretSet ? (
           <>
             <div className="versus versus-center">
@@ -951,8 +954,13 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
         {mySecret && <SecretPeek secret={mySecret} />}
 
-        {tension && (
-          <div className={`tension ${myTurn ? 'reverse' : 'last'}`}>{tension}</div>
+        {/* 종반(누군가 맞힘)에만 긴장 배너 자리 확보 — 문구가 떠도 스테이지가 안 밀리게. */}
+        {(oppSolved || mySolved) && (
+          <div className="tension-slot">
+            {tension && (
+              <div className={`tension ${myTurn ? 'reverse' : 'last'}`}>{tension}</div>
+            )}
+          </div>
         )}
 
         {/* 스테이지 박스 + 고정 키패드 — 하나의 박스에서 내 차례=입력칸 / 결과·대기가 전환. */}
@@ -969,9 +977,12 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           showMemo
           stage={stageContent}
         />
-        {!inputActive && !startAnnounce && (
-          <p className="memo-hint under-keypad">미리 메모해두세요</p>
-        )}
+        {/* 자리 고정 — 턴 바뀔 때 문구 유무로 기록이 안 밀리게. */}
+        <div className="hint-slot">
+          {!inputActive && !startAnnounce && (
+            <p className="memo-hint under-keypad">미리 메모해두세요</p>
+          )}
+        </div>
 
         {/* 기록 — 내/상대 탭으로 분리(헷갈림 방지), 자리 고정. */}
         <section className="history-section">
