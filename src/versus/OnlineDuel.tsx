@@ -13,6 +13,7 @@ import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
 import { RevealCard } from '../components/RevealCard';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Outcome } from '../net/protocol';
 
 interface Props {
@@ -288,6 +289,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const [rematchWait, setRematchWait] = useState(false);
   const [oppWantsRematch, setOppWantsRematch] = useState(false);
   const [copied, setCopied] = useState(false);
+  // 대결(비밀·플레이) 중 나가기 확인창.
+  const [confirmLeave, setConfirmLeave] = useState(false);
   // 메모(내 추측용) — 게임 내내 유지, 새 판마다 초기화.
   const [memo, setMemo] = useState<Record<string, MemoMark>>({});
 
@@ -311,6 +314,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setMemo({});
     setOppDisconnected(false);
     setHistTab('me');
+    setConfirmLeave(false);
   };
 
   // 재접속 후 서버가 준 현재 상태로 화면을 되돌린다(놓친 진행 동기화).
@@ -602,6 +606,27 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setPhase('menu');
   };
 
+  // 대결 중 나가기(비밀·플레이). 상대 끊김으로 대기에 갇혔을 때도 빠져나갈 길.
+  const matchExitBar = (
+    <div className="match-bar">
+      <button type="button" className="match-exit" onClick={() => setConfirmLeave(true)}>
+        ← 나가기
+      </button>
+    </div>
+  );
+  const leaveConfirm = confirmLeave && (
+    <ConfirmDialog
+      message="대결에서 나갈까요? 상대에게 알리고 온라인 메뉴로 돌아가요."
+      confirmLabel="나가기"
+      cancelLabel="계속하기"
+      onConfirm={() => {
+        setConfirmLeave(false);
+        backToMenu();
+      }}
+      onCancel={() => setConfirmLeave(false)}
+    />
+  );
+
   // ---------- 렌더 ----------
   // 저장된 세션으로 복귀 시도 중(리로드 직후) — 메뉴 대신 재접속 화면.
   if (resuming && phase === 'menu') {
@@ -746,6 +771,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const oppReady = secretReady[1 - myIndex];
     return (
       <div className="versus">
+        {matchExitBar}
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <div className="turn-bar">
           <span className="turn-who">숫자 정하기</span>
@@ -776,6 +802,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           </>
         )}
         {error && <p className="online-error">{error}</p>}
+        {leaveConfirm}
       </div>
     );
   }
@@ -786,6 +813,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const inputActive = myTurn && !reveal && !startAnnounce;
     return (
       <div className="versus">
+        {matchExitBar}
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <div
           className={`turn-bar${
@@ -896,6 +924,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           <History guesses={histTab === 'me' ? history : oppHistory} />
         </section>
         {error && <p className="online-error">{error}</p>}
+        {leaveConfirm}
       </div>
     );
   }
