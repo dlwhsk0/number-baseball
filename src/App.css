@@ -2089,8 +2089,29 @@
     0 0 24px var(--glow),
     0 0 60px var(--accent-glow),
     0 0 90px var(--accent-glow);
-  animation: vs-slam 0.55s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+  /* 슬램 등장 후 계속 번쩍번쩍. */
+  animation: vs-slam 0.55s cubic-bezier(0.2, 1.5, 0.35, 1) both,
+    vs-flash 1.5s ease-in-out 0.6s infinite;
   z-index: 1;
+}
+@keyframes vs-flash {
+  0%,
+  100% {
+    filter: brightness(1);
+    text-shadow: 0 0 24px var(--glow), 0 0 60px var(--accent-glow),
+      0 0 90px var(--accent-glow);
+  }
+  25%,
+  75% {
+    filter: brightness(1.5);
+    text-shadow: 0 0 46px var(--led), 0 0 100px var(--accent-glow),
+      0 0 150px var(--accent-glow);
+  }
+  50% {
+    filter: brightness(1.02);
+    text-shadow: 0 0 24px var(--glow), 0 0 60px var(--accent-glow),
+      0 0 90px var(--accent-glow);
+  }
 }
 .vs-core span {
   display: inline-block;
@@ -2155,14 +2176,42 @@
   left: 2%;
   border-color: var(--accent);
   box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 28%, transparent);
-  animation: vs-in-tl 0.6s 0.12s cubic-bezier(0.18, 1.3, 0.4, 1) both;
+  /* 대각선 등장 후 둥실둥실 떠다님. */
+  animation: vs-in-tl 0.6s 0.12s cubic-bezier(0.18, 1.3, 0.4, 1) both,
+    vs-float-top 3s ease-in-out 0.85s infinite;
 }
 .vs-name.bottom {
   bottom: 2%;
   right: 2%;
   border-color: color-mix(in srgb, var(--out) 60%, var(--border));
   box-shadow: 0 0 26px color-mix(in srgb, var(--out) 20%, transparent);
-  animation: vs-in-br 0.6s 0.26s cubic-bezier(0.18, 1.3, 0.4, 1) both;
+  animation: vs-in-br 0.6s 0.26s cubic-bezier(0.18, 1.3, 0.4, 1) both,
+    vs-float-bottom 3.4s ease-in-out 1s infinite;
+}
+@keyframes vs-float-top {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(1.5deg);
+  }
+}
+@keyframes vs-float-bottom {
+  0%,
+  100% {
+    transform: translateY(0) rotate(1deg);
+  }
+  50% {
+    transform: translateY(10px) rotate(-1.5deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vs-core,
+  .vs-name.top,
+  .vs-name.bottom {
+    animation: none;
+  }
 }
 @keyframes vs-in-tl {
   from {
