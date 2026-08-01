@@ -299,6 +299,10 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
   const [over, setOver] = useState<OverInfo | null>(null);
   const [oppLeft, setOppLeft] = useState(false);
+  // 상대 이탈 종류: 자발적 나가기 vs 연결 끊김(유예 초과). 결과 문구용.
+  const [leftKind, setLeftKind] = useState<'left' | 'disconnected'>('left');
+  // oppDisconnected 최신값(콜백에서 stale 없이 읽으려고 ref로 동기화).
+  const oppDisconnectedRef = useRef(false);
   const [rematchWait, setRematchWait] = useState(false);
   const [oppWantsRematch, setOppWantsRematch] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -320,6 +324,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setSecretReady([false, false]);
     setOver(null);
     setOppLeft(false);
+    setLeftKind('left');
     setRematchWait(false);
     setOppWantsRematch(false);
     setStartAnnounce(false);
@@ -443,6 +448,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     s.on('opponentLeft', () => {
       sessionRef.current = null;
       saveSession(null);
+      // 끊김(유예 중)에서 넘어온 이탈이면 '연결 끊김', 아니면 '나감'.
+      setLeftKind(oppDisconnectedRef.current ? 'disconnected' : 'left');
       setOppDisconnected(false);
       setOppLeft(true);
       setPhase('over');
@@ -482,6 +489,11 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
       s.disconnect();
     };
   }, []);
+
+  // oppDisconnected 최신값을 ref에 동기화(opponentLeft 콜백에서 끊김 여부 판별용).
+  useEffect(() => {
+    oppDisconnectedRef.current = oppDisconnected;
+  }, [oppDisconnected]);
 
   // 대결 진행 중(비밀 설정~플레이) 알림 + 브라우저 이탈(뒤로가기·새로고침·닫기) 경고.
   const active = phase === 'secret' || phase === 'playing';
@@ -971,13 +983,23 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     );
   }
 
-  // over — 결과가 없는데 상대가 나갔으면(중도 이탈) 전용 화면.
+  // over — 결과가 없는데 상대가 나갔으면(중도 이탈) 전용 결과 발표 화면.
   if (oppLeft && !over) {
+    const disc = leftKind === 'disconnected';
     return (
-      <div className="versus">
-        <h2 className="versus-title">상대가 나갔어요</h2>
-        <p className="versus-desc">대결이 종료됐어요.</p>
-        <button type="button" className="versus-primary" onClick={backToMenu}>
+      <div className="online-result forfeit">
+        <div className="forfeit-emblem">{disc ? '🔌' : '🚪'}</div>
+        <h2 className="result-headline">{disc ? '상대 연결 끊김' : '상대가 나갔어요'}</h2>
+        <p className="forfeit-desc">
+          {disc
+            ? '상대방의 연결이 끊겨 대결이 종료됐어요.'
+            : '상대가 대결에서 나가 종료됐어요.'}
+        </p>
+        <button
+          type="button"
+          className="versus-primary result-restart"
+          onClick={backToMenu}
+        >
           나가기
         </button>
       </div>
