@@ -24,7 +24,8 @@ const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*
 // 결과 발표 텀(ms) — 이 시간 동안 양쪽에 결과를 보여준 뒤 턴을 넘긴다. 테스트에선 짧게.
 const REVEAL_MS = Number(process.env.REVEAL_MS) || 1900;
 // 끊긴 뒤 재접속 유예(ms). 이 사이 재접속하면 게임 이어감. 모바일 백그라운드/네트워크 전환 대비.
-const GRACE_MS = Number(process.env.GRACE_MS) || 30000;
+// 모바일은 백그라운드로 오래(수십 초) 잠들 수 있어 넉넉히 준다.
+const GRACE_MS = Number(process.env.GRACE_MS) || 90000;
 
 const httpServer = createServer((req, res) => {
   if (req.url === '/health') {

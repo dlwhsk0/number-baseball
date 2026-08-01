@@ -272,13 +272,41 @@ function SecretPeek({ secret }: { secret: string }) {
   );
 }
 
+type Session = { code: string; index: 0 | 1; token: string };
+// 세션을 sessionStorage에 저장 → 모바일 백그라운드로 탭이 리로드돼도 방으로 자동 복귀.
+const SESSION_KEY = 'nb_online_session';
+function loadSession(): Session | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (s && typeof s.code === 'string' && (s.index === 0 || s.index === 1) && typeof s.token === 'string') {
+      return s;
+    }
+  } catch {
+    /* 무시 */
+  }
+  return null;
+}
+function saveSession(s: Session | null) {
+  try {
+    if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* 무시 */
+  }
+}
+
 /** 온라인 턴제 대결(방 코드). 서버가 정답을 쥐고 판정한다. */
 export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
   const myIndexRef = useRef<0 | 1>(0);
   const announceRef = useRef<number | undefined>(undefined);
   // 재접속용 세션(코드·자리·토큰). 소켓이 끊겼다 붙으면 이걸로 다시 합류한다.
-  const sessionRef = useRef<{ code: string; index: 0 | 1; token: string } | null>(null);
+  // 저장돼 있으면(리로드 직후) 마운트 시 복원해 자동 rejoin.
+  const sessionRef = useRef<Session | null>(loadSession());
+  // 저장된 세션으로 복귀 시도 중 — 메뉴 대신 "재접속 중" 화면을 잠깐 보여준다.
+  const [resuming, setResuming] = useState<boolean>(() => sessionRef.current !== null);
 
   const [phase, setPhase] = useState<Phase>('menu');
   const [connected, setConnected] = useState(false);
@@ -378,15 +406,19 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const s = socketRef.current;
     const onConnect = () => {
       setConnected(true);
-      // 세션이 있으면(게임 중 재연결) 저장한 코드·자리·토큰으로 다시 합류.
+      // 세션이 있으면(게임 중 재연결·리로드 복귀) 저장한 코드·자리·토큰으로 다시 합류.
       const sess = sessionRef.current;
       if (!sess) return;
+      myIndexRef.current = sess.index;
+      setMyIndex(sess.index);
       s.emit('rejoin', { code: sess.code, index: sess.index, token: sess.token }, (r) => {
+        setResuming(false);
         if (r.ok && r.resume) {
           applyResume(r.resume);
         } else {
           // 방이 만료(유예 초과)·삭제됨 → 대기 상태에 갇히지 않게 메뉴로.
           sessionRef.current = null;
+          saveSession(null);
           setOppDisconnected(false);
           setError('방이 만료됐어요. 다시 만들거나 코드로 입장해주세요.');
           setPhase('menu');
@@ -447,6 +479,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     s.on('rematchRequested', () => setOppWantsRematch(true));
     s.on('opponentLeft', () => {
       sessionRef.current = null;
+      saveSession(null);
       setOppDisconnected(false);
       setOppLeft(true);
       setPhase('over');
@@ -454,7 +487,18 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     s.on('errorMsg', ({ message }) => setError(message));
 
     s.connect();
+    // 저장된 세션으로 복귀 시도가 너무 오래 걸리면(연결 실패 등) 메뉴로 풀어준다.
+    let resumeTimer: number | undefined;
+    if (sessionRef.current) {
+      resumeTimer = window.setTimeout(() => {
+        setResuming((was) => {
+          if (was) setError('방에 다시 연결하지 못했어요. 코드로 다시 입장해주세요.');
+          return false;
+        });
+      }, 9000);
+    }
     return () => {
+      if (resumeTimer) window.clearTimeout(resumeTimer);
       if (announceRef.current) window.clearTimeout(announceRef.current);
       s.off('connect', onConnect);
       s.off('disconnect', onDisconnect);
@@ -507,6 +551,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
       setBusy(false);
       if (r.ok) {
         sessionRef.current = { code: r.code, index: 0, token: r.token };
+        saveSession(sessionRef.current);
         setCode(r.code);
         myIndexRef.current = 0;
         setMyIndex(0);
@@ -531,6 +576,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         return;
       }
       sessionRef.current = { code: r.code ?? c, index: 1, token: r.token ?? '' };
+      saveSession(sessionRef.current);
       setCode(r.code ?? c);
       myIndexRef.current = 1;
       setMyIndex(1);
@@ -579,6 +625,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
   const exit = () => {
     sessionRef.current = null;
+    saveSession(null);
     socketRef.current.disconnect();
     onExit();
   };
@@ -586,6 +633,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   // 방/게임에서 나가되 온라인 메뉴로 복귀(멀티 유지). 서버 방은 정리되고 상대에겐 알림.
   const backToMenu = () => {
     sessionRef.current = null;
+    saveSession(null);
+    setResuming(false);
     socketRef.current.disconnect();
     resetRound();
     setCode('');
@@ -599,6 +648,19 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   };
 
   // ---------- 렌더 ----------
+  // 저장된 세션으로 복귀 시도 중(리로드 직후) — 메뉴 대신 재접속 화면.
+  if (resuming && phase === 'menu') {
+    return (
+      <div className="versus versus-center">
+        <NetStatus connected={connected} oppDisconnected={false} />
+        <LoadingDots />
+        <p className="wait-line">방에 다시 연결하는 중…</p>
+        <button type="button" className="versus-secondary" onClick={backToMenu}>
+          취소
+        </button>
+      </div>
+    );
+  }
   if (phase === 'menu') {
     return (
       <div className="versus">

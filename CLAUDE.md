@@ -44,8 +44,9 @@
     턴제 규칙을 **서버 권위**로. 방 코드로 1:1 입장 → 비밀 설정 → 턴 동기화 → 결과·재대결. 로컬 상태는 서버 이벤트로만 전이.
     서버는 `server/`(Node+Socket.IO, 정답 보관·판정). 접속 주소는 `VITE_SERVER_URL`(개발 기본 `http://localhost:3001`, 배포 `wss://도메인`).
     `protocol.ts`는 `server/src/types.ts`와 동일하게 유지. 규칙 로직 `logic.ts`는 프론트·서버 양쪽에 복제(함께 수정).
-    **재접속 복구**: 끊겨도 서버가 방을 바로 안 지우고 유예(`GRACE_MS` 기본 30s). 클라는 세션(코드·자리·토큰)을 저장했다가
-    소켓 재연결 시 `rejoin`으로 다시 합류하고 `resume`으로 상태 동기화. 모바일 백그라운드/네트워크 전환 대비(`opponentDisconnected/Reconnected` 알림, `NetStatus` 배너).
+    **재접속 복구**: 끊겨도 서버가 방을 바로 안 지우고 유예(`GRACE_MS` 기본 90s — 모바일 백그라운드 대비 넉넉히).
+    클라는 세션(코드·자리·토큰)을 **`sessionStorage`(`nb_online_session`)에 저장** → 탭이 리로드/백그라운드 복귀해도 마운트 시 복원해 자동 `rejoin`(그동안 "방에 다시 연결하는 중" 화면, 9s 타임아웃 폴백).
+    소켓 재연결 시 `rejoin`으로 다시 합류하고 `resume`으로 상태 동기화. 나가기·방 만료·상대 이탈 시 세션 삭제. (`opponentDisconnected/Reconnected` 알림, `NetStatus` 배너.)
     Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **서버 코드 바꾸면 VM 재배포 필요**(`git pull && pnpm build && pm2 restart nb-server`).
     연출: 추측 후 **결과 발표 텀**(서버 `reveal` → `REVEAL_MS` 뒤 turn/over, 그동안 `pending`으로 입력 차단), 특이 이벤트 리액션,
     선공이 맞히면 후공 **역전 찬스**, 시작 발표, 상대 대기 랜덤 멘트, **내 숫자 peek**(블러+눌러서 토글 확인/숨김),
