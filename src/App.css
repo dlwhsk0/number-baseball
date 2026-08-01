@@ -169,6 +169,36 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: relative;
+}
+
+/* 혼자 모드: 추측 직후 결과 발표 카드가 입력 영역 위로 팝업(입력 방해 안 하게 통과). */
+.solo-reveal {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 320px);
+  pointer-events: none;
+  z-index: 5;
+  animation: solo-reveal-out 1.5s ease forwards;
+}
+.solo-reveal .reveal-card {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+@keyframes solo-reveal-out {
+  0%,
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .solo-reveal {
+    animation: none;
+  }
 }
 
 .input-display {
@@ -1421,7 +1451,9 @@
   padding: 22px 16px;
   border-radius: var(--r-lg);
   background: var(--panel);
-  border: 1px solid var(--border);
+  /* 일반 결과 — 하얀 테두리 + 은은한 흰 발광. 이벤트 카드는 아래에서 색 테두리로 덮어씀. */
+  border: 2px solid color-mix(in srgb, var(--led) 62%, var(--border));
+  box-shadow: 0 0 22px color-mix(in srgb, var(--led) 12%, transparent);
   animation: reveal-in 0.25s ease-out;
 }
 @keyframes reveal-in {
@@ -1435,7 +1467,8 @@
   }
 }
 .reveal-card.mine {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-color: var(--accent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .reveal-card.solved {
   border-color: var(--strike);
@@ -1474,11 +1507,51 @@
   width: 15px;
   height: 15px;
 }
-/* 특이 이벤트에만 강조 멘트 */
+.reveal-sbo .bulb.on {
+  animation: bulb-pop 0.4s cubic-bezier(0.34, 1.6, 0.64, 1) both;
+}
+@keyframes bulb-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+  70% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-sbo .bulb.on {
+    animation: none;
+  }
+}
+/* 특이 이벤트에만 강조 멘트 — 등장할 때 팡 튀어나오게 */
 .reveal-reaction {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.5rem;
   font-weight: 800;
+  animation: reaction-pop 0.5s 0.12s cubic-bezier(0.34, 1.7, 0.5, 1) both;
+}
+@keyframes reaction-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(6px);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-reaction {
+    animation: none;
+  }
 }
 .react-out {
   color: var(--out);
@@ -1516,15 +1589,41 @@
 .reveal-card.event-ball,
 .reveal-card.event-near {
   border-color: var(--event);
-  animation: reveal-in 0.25s ease-out, event-glow 0.85s ease-in-out 2;
+  border-width: 3px;
+  /* 일반 결과와 확연히 다르게 — 색 테두리 + 슬램 등장 + 강한 색 발광 펄스 */
+  animation: event-slam 0.5s cubic-bezier(0.2, 1.5, 0.35, 1) both,
+    event-glow 0.9s 0.4s ease-in-out 2;
+}
+@keyframes event-slam {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-3deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.08) rotate(1.5deg);
+  }
+  78% {
+    transform: scale(0.97) rotate(-0.5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
 }
 @keyframes event-glow {
   0%,
   100% {
-    box-shadow: 0 0 12px color-mix(in srgb, var(--event) 30%, transparent);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--event) 38%, transparent);
   }
   50% {
-    box-shadow: 0 0 34px color-mix(in srgb, var(--event) 62%, transparent);
+    box-shadow: 0 0 48px color-mix(in srgb, var(--event) 78%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-card.event-out,
+  .reveal-card.event-ball,
+  .reveal-card.event-near {
+    animation: none;
   }
 }
 
@@ -1698,12 +1797,14 @@
   max-width: 340px;
 }
 
-/* 매치업(VS) 연출 — 상대 입장 직후 잠깐. */
+/* 매치업(VS) 연출 — 상대 입장 직후. 크게·과장, 닉네임 대각선 등장, '시작하기'로 진행. */
 .vs-intro {
-  gap: 18px;
+  gap: 16px;
+  overflow: hidden;
 }
 .vs-ready {
   margin: 0;
+  font-size: 1.1rem;
   color: var(--accent);
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -1720,86 +1821,158 @@
     transform: none;
   }
 }
-.vs-matchup {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+/* 대각선 무대 — 내(위-왼쪽) vs 상대(아래-오른쪽)가 가운데 VS로 모인다. */
+.vs-stage {
+  position: relative;
   width: 100%;
+  min-height: clamp(300px, 62vw, 400px);
+  display: grid;
+  place-items: center;
 }
-.vs-side {
-  flex: 1;
+.vs-core {
   display: flex;
-  padding: 18px 12px;
+  gap: 0.02em;
+  font-family: var(--font-digit);
+  font-weight: 900;
+  font-size: clamp(6rem, 34vw, 11rem);
+  line-height: 0.9;
+  color: var(--led);
+  text-shadow:
+    0 0 24px var(--glow),
+    0 0 60px var(--accent-glow),
+    0 0 90px var(--accent-glow);
+  animation: vs-slam 0.55s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+  z-index: 1;
+}
+.vs-core span {
+  display: inline-block;
+}
+.vs-core span:first-child {
+  transform-origin: bottom right;
+  animation: vs-tilt-l 0.55s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+}
+.vs-core span:last-child {
+  transform-origin: top left;
+  animation: vs-tilt-r 0.55s cubic-bezier(0.2, 1.5, 0.35, 1) both;
+}
+@keyframes vs-slam {
+  0% {
+    opacity: 0;
+    transform: scale(2.7);
+    filter: blur(8px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  70% {
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes vs-tilt-l {
+  from {
+    transform: translateY(6px) rotate(0deg);
+  }
+  to {
+    transform: translateY(6px) rotate(-8deg);
+  }
+}
+@keyframes vs-tilt-r {
+  from {
+    transform: translateY(-6px) rotate(0deg);
+  }
+  to {
+    transform: translateY(-6px) rotate(8deg);
+  }
+}
+.vs-name {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 18px;
   border-radius: var(--r-lg);
   background: var(--panel-2);
   border: 1px solid var(--border);
-  min-width: 0;
+  max-width: 62%;
+  z-index: 2;
 }
-.vs-side.left {
-  justify-content: flex-end;
+.vs-name.top {
+  top: 2%;
+  left: 2%;
   border-color: var(--accent);
-  box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
-  animation: vs-slide-l 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 28%, transparent);
+  animation: vs-in-tl 0.6s 0.12s cubic-bezier(0.18, 1.3, 0.4, 1) both;
 }
-.vs-side.right {
-  justify-content: flex-start;
-  animation: vs-slide-r 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+.vs-name.bottom {
+  bottom: 2%;
+  right: 2%;
+  border-color: color-mix(in srgb, var(--out) 60%, var(--border));
+  box-shadow: 0 0 26px color-mix(in srgb, var(--out) 20%, transparent);
+  animation: vs-in-br 0.6s 0.26s cubic-bezier(0.18, 1.3, 0.4, 1) both;
 }
-@keyframes vs-slide-l {
+@keyframes vs-in-tl {
   from {
     opacity: 0;
-    transform: translateX(-40px);
+    transform: translate(-130%, -140%) rotate(-8deg) scale(0.7);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-@keyframes vs-slide-r {
+@keyframes vs-in-br {
   from {
     opacity: 0;
-    transform: translateX(40px);
+    transform: translate(130%, 140%) rotate(-8deg) scale(0.7);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-.vs-nick {
+.vs-name-tag {
+  font-size: 0.66rem;
   font-weight: 800;
-  font-size: 1.1rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.vs-name.top .vs-name-tag {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.vs-name.bottom .vs-name-tag {
+  color: var(--on-accent, #fff);
+  background: color-mix(in srgb, var(--out) 80%, #000);
+}
+.vs-name-text {
+  font-weight: 800;
+  font-size: clamp(1.3rem, 6vw, 2rem);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.vs-side.left .vs-nick {
+.vs-name.top .vs-name-text {
   color: var(--accent);
-}
-.vs-spark {
-  flex: none;
-  font-family: var(--font-digit);
-  font-weight: 900;
-  font-size: 1.5rem;
-  color: var(--led);
-  text-shadow: 0 0 18px var(--glow);
-  animation: vs-pop 0.5s 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-@keyframes vs-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.2) rotate(-14deg);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 .vs-sub {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  animation: vs-ready-in 0.4s 0.5s ease both;
+}
+.vs-go {
+  width: 100%;
+  max-width: 320px;
+  animation: vs-ready-in 0.4s 0.6s ease both;
 }
 
 .rematch-notice {

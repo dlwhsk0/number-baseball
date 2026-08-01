@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { useGame, LEVELS, cycleMemoMark, type Level, type MemoMark } from './game/useGame';
+import {
+  useGame,
+  LEVELS,
+  cycleMemoMark,
+  type Level,
+  type MemoMark,
+  type GuessRecord,
+} from './game/useGame';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
+import { RevealCard } from './components/RevealCard';
 import { Seg7 } from './components/Seg7';
 import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
@@ -70,6 +78,19 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, multiMode]);
   const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
+  // 추측할 때마다 잠깐 뜨는 결과 발표 카드(승리/패배 아닌 진행 중 추측만).
+  const [soloReveal, setSoloReveal] = useState<GuessRecord | null>(null);
+  const prevGuessCountRef = useRef(0);
+  const revealTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const n = state.guesses.length;
+    if (n > prevGuessCountRef.current && state.status === 'playing') {
+      setSoloReveal(state.guesses[n - 1]);
+      if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = window.setTimeout(() => setSoloReveal(null), 1500);
+    }
+    prevGuessCountRef.current = n;
+  }, [state.guesses, state.status]);
   const [showRules, setShowRules] = useState(false);
   // 첫 방문이면 게임 방법(?) 버튼을 반짝여 규칙을 보게 유도. 한 번 열면 localStorage에 기록.
   const [seenRules, setSeenRules] = useState(() => {
@@ -193,8 +214,14 @@ export default function App() {
     state.slots.every((s) => s === '') &&
     Object.keys(state.memo).length === 0;
 
+  const clearReveal = () => {
+    if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
+    setSoloReveal(null);
+  };
+
   const newGame = () => {
     setMemoMark(null);
+    clearReveal();
     reset(level);
   };
 
@@ -206,6 +233,7 @@ export default function App() {
       /* 저장 불가 환경 무시 */
     }
     setMemoMark(null);
+    clearReveal();
     reset(lv);
   };
 
@@ -321,25 +349,6 @@ export default function App() {
       {section === 'solo' ? (
         <>
       <section className="board">
-        <div
-          className="input-display"
-          aria-label="현재 입력"
-          style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-        >
-          {state.slots.map((d, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`slot cell${d ? ' filled' : ''}`}
-              disabled={finished || !d}
-              aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
-              onClick={() => clearSlot(i)}
-            >
-              <Seg7 char={d} />
-            </button>
-          ))}
-        </div>
-
         {finished ? (
           <ResultBanner
             status={state.status}
@@ -348,17 +357,49 @@ export default function App() {
             onRestart={newGame}
           />
         ) : (
-          <Keypad
-            slots={state.slots}
-            memo={state.memo}
-            memoMark={memoMark}
-            disabled={finished}
-            onDigit={pushDigit}
-            onMemo={(d) => memoMark && toggleMemo(d, memoMark)}
-            onDelete={popDigit}
-            onSubmit={submit}
-            onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m))}
-          />
+          <>
+            <div
+              className="input-display"
+              aria-label="현재 입력"
+              style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
+            >
+              {state.slots.map((d, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`slot cell${d ? ' filled' : ''}`}
+                  disabled={!d}
+                  aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
+                  onClick={() => clearSlot(i)}
+                >
+                  <Seg7 char={d} />
+                </button>
+              ))}
+            </div>
+
+            <Keypad
+              slots={state.slots}
+              memo={state.memo}
+              memoMark={memoMark}
+              disabled={finished}
+              onDigit={pushDigit}
+              onMemo={(d) => memoMark && toggleMemo(d, memoMark)}
+              onDelete={popDigit}
+              onSubmit={submit}
+              onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m))}
+            />
+
+            {/* 추측 직후 잠깐 뜨는 결과 발표 카드(입력 영역 위로 팝업, 입력은 계속 가능). */}
+            {soloReveal && (
+              <div className="solo-reveal" aria-live="polite">
+                <RevealCard
+                  guess={soloReveal.guess}
+                  judgement={soloReveal.judgement}
+                  digits={state.digits}
+                />
+              </div>
+            )}
+          </>
         )}
       </section>
 

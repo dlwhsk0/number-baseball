@@ -12,6 +12,7 @@ import type { Judgement } from '../game/logic';
 import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
+import { RevealCard } from '../components/RevealCard';
 import type { Outcome } from '../net/protocol';
 
 interface Props {
@@ -43,19 +44,6 @@ const WAIT_PHRASES = [
   '상대가 타석을 살피는 중...',
   '상대의 한 수를 기다리는 중...',
 ];
-
-/** 특이 이벤트에만 강조 멘트(평범하면 null → 멘트 없음). */
-function eventReaction(
-  j: Judgement,
-  digits: number,
-  solved: boolean,
-): { text: string; kind: string } | null {
-  if (solved) return { text: '정답!', kind: 'win' };
-  if (j.isOut) return { text: digits >= 4 ? '포 아웃' : '쓰리 아웃', kind: 'out' };
-  if (j.balls === digits) return { text: '올 볼', kind: 'ball' };
-  if (j.strikes === digits - 1) return { text: '한 끗 차이!', kind: 'near' };
-  return null;
-}
 
 function Nick({ children }: { children: ReactNode }) {
   return <span className="nick">{children}</span>;
@@ -101,56 +89,6 @@ function WaitingLine() {
     return () => window.clearInterval(t);
   }, []);
   return <p className="wait-line">{WAIT_PHRASES[i]}</p>;
-}
-
-const SBO = [
-  { key: 'strike', letter: 'S' },
-  { key: 'ball', letter: 'B' },
-  { key: 'out', letter: 'O' },
-] as const;
-
-/** 추측 발표 카드 — 큰 S/B/O + 특이 이벤트 강조. */
-function RevealCard({
-  reveal,
-  digits,
-  mine,
-  opponentNick,
-}: {
-  reveal: Reveal;
-  digits: number;
-  mine: boolean;
-  opponentNick: string;
-}) {
-  const s = reveal.judgement.strikes;
-  const b = reveal.judgement.balls;
-  const counts: Record<string, number> = { strike: s, ball: b, out: digits - s - b };
-  const react = eventReaction(reveal.judgement, digits, reveal.solved);
-
-  return (
-    <div
-      className={`reveal-card${reveal.solved ? ' solved' : ''}${mine ? ' mine' : ' theirs'}${
-        react ? ` event-${react.kind}` : ''
-      }`}
-    >
-      <p className="reveal-who">
-        {mine ? '내 결과' : <><Nick>{opponentNick}</Nick>의 결과</>}
-      </p>
-      <NumCells value={reveal.guess} />
-      <div className="sbo reveal-sbo">
-        {SBO.map(({ key, letter }) => (
-          <span key={key} className={`hsbo lamp-${key}${counts[key] === 0 ? ' zero' : ''}`}>
-            <span className="hsbo-letter">{letter}</span>
-            <span className="bulbs">
-              {Array.from({ length: digits }, (_, k) => (
-                <span key={k} className={`bulb${k < counts[key] ? ' on' : ''}`} />
-              ))}
-            </span>
-          </span>
-        ))}
-      </div>
-      {react && <p className={`reveal-reaction react-${react.kind}`}>{react.text}</p>}
-    </div>
-  );
 }
 
 /**
@@ -439,10 +377,10 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     s.on('phase', ({ digits: d }) => {
       setDigits(d);
       resetRound();
-      // 매치업(VS) 연출 잠깐 → 비밀 정하기.
+      // 매치업(VS) 연출 → '시작하기' 버튼으로 넘어감(안 누르면 안전장치로 오래 뒤 자동).
       setVsIntro(true);
       if (vsTimerRef.current) window.clearTimeout(vsTimerRef.current);
-      vsTimerRef.current = window.setTimeout(() => setVsIntro(false), 2400);
+      vsTimerRef.current = window.setTimeout(() => setVsIntro(false), 12000);
       setPhase('secret');
     });
     s.on('secretProgress', ({ ready }) => setSecretReady(ready));
@@ -773,20 +711,32 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
   if (phase === 'secret' && vsIntro) {
     const myNick = nick.trim() || '나';
+    const dismissVs = () => {
+      if (vsTimerRef.current) window.clearTimeout(vsTimerRef.current);
+      setVsIntro(false);
+    };
     return (
       <div className="versus versus-center vs-intro">
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
-        <p className="vs-ready">상대가 입장했어요!</p>
-        <div className="vs-matchup">
-          <div className="vs-side left">
-            <span className="vs-nick">{myNick}</span>
+        <p className="vs-ready">대결 상대를 만났어요!</p>
+        <div className="vs-stage">
+          <div className="vs-name top">
+            <span className="vs-name-tag">나</span>
+            <span className="vs-name-text">{myNick}</span>
           </div>
-          <div className="vs-spark">VS</div>
-          <div className="vs-side right">
-            <span className="vs-nick">{opponentNick}</span>
+          <div className="vs-core" aria-label="VS">
+            <span>V</span>
+            <span>S</span>
+          </div>
+          <div className="vs-name bottom">
+            <span className="vs-name-tag">상대</span>
+            <span className="vs-name-text">{opponentNick}</span>
           </div>
         </div>
-        <p className="vs-sub">{digits}자리 숫자 대결</p>
+        <p className="vs-sub">{digits}자리 · 서로의 숫자를 맞혀라</p>
+        <button type="button" className="versus-primary vs-go" onClick={dismissVs}>
+          시작하기 ▶
+        </button>
       </div>
     );
   }
@@ -863,10 +813,20 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
             </div>
           ) : reveal ? (
             <RevealCard
-              reveal={reveal}
+              guess={reveal.guess}
+              judgement={reveal.judgement}
               digits={digits}
-              mine={reveal.by === myIndex}
-              opponentNick={opponentNick}
+              solved={reveal.solved}
+              tone={reveal.by === myIndex ? 'mine' : 'theirs'}
+              who={
+                reveal.by === myIndex ? (
+                  '내 결과'
+                ) : (
+                  <>
+                    <Nick>{opponentNick}</Nick>의 결과
+                  </>
+                )
+              }
             />
           ) : myTurn ? (
             oppSolved ? (
