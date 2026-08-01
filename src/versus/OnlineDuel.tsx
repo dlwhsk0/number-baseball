@@ -105,6 +105,7 @@ function OnlineInput({
   onChange,
   memo = {},
   onMemo,
+  onClearMemo,
   showMemo = false,
   stage,
 }: {
@@ -115,6 +116,7 @@ function OnlineInput({
   onChange?: (value: string) => void;
   memo?: Record<string, MemoMark>;
   onMemo?: (d: string, mark: MemoMark) => void;
+  onClearMemo?: () => void;
   showMemo?: boolean;
   /** 있으면 상단 '스테이지' 박스를 쓴다: 내 차례=입력 세그먼트, 아니면 이 노드(결과/대기 등). */
   stage?: ReactNode;
@@ -173,6 +175,9 @@ function OnlineInput({
         onDelete={() => active && dispatch({ type: 'pop' })}
         onSubmit={() => active && full && onSubmit(state.slots.join(''))}
         onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m, active))}
+        markButtons={!active}
+        onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
+        onClearMemo={onClearMemo}
       />
     </section>
   );
@@ -183,10 +188,12 @@ function MemoPad({
   digits,
   memo,
   onMemo,
+  onClearMemo,
 }: {
   digits: number;
   memo: Record<string, MemoMark>;
   onMemo: (d: string, mark: MemoMark) => void;
+  onClearMemo: () => void;
 }) {
   const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   return (
@@ -202,6 +209,9 @@ function MemoPad({
       onDelete={() => {}}
       onSubmit={() => {}}
       onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m, false))}
+      markButtons
+      onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
+      onClearMemo={onClearMemo}
     />
   );
 }
@@ -365,6 +375,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
   const toggleMemo = (d: string, mark: MemoMark) =>
     setMemo((m) => toggleMemoMark(m, d, mark));
+  const clearMemo = () => setMemo({});
 
   useEffect(() => {
     const s = socketRef.current;
@@ -829,7 +840,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
               <p className="wait-line">상대가 숫자를 정하는 중…</p>
             </div>
             <p className="memo-hint">미리 메모해두세요</p>
-            <MemoPad digits={digits} memo={memo} onMemo={toggleMemo} />
+            <MemoPad digits={digits} memo={memo} onMemo={toggleMemo} onClearMemo={clearMemo} />
           </>
         ) : (
           <>
@@ -954,6 +965,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           onChange={emitInput}
           memo={memo}
           onMemo={toggleMemo}
+          onClearMemo={clearMemo}
           showMemo
           stage={stageContent}
         />
