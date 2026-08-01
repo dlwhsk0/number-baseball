@@ -1752,29 +1752,71 @@
 /* 긴장감 배너(역전 찬스 / 마지막 기회) */
 .tension {
   text-align: center;
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: var(--r-md);
-  font-weight: 800;
-  font-size: 0.95rem;
+  font-weight: 900;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+  /* 슬램 등장 */
+  animation: tension-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
+@keyframes tension-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* 역전 찬스(내 마지막 한 방) — 강하게 고동친다(스케일+발광). */
 .tension.reverse {
   color: var(--strike);
-  background: color-mix(in srgb, var(--strike) 14%, transparent);
-  border: 1px solid var(--strike);
-  animation: tension-pulse 0.9s ease-in-out infinite;
+  background: color-mix(in srgb, var(--strike) 16%, transparent);
+  border: 2px solid var(--strike);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--strike) 55%, transparent);
+  animation: tension-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) both,
+    reverse-throb 0.8s ease-in-out 0.4s infinite;
 }
-.tension.last {
-  color: var(--out);
-  background: color-mix(in srgb, var(--out) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--out) 60%, transparent);
-}
-@keyframes tension-pulse {
+@keyframes reverse-throb {
   0%,
   100% {
-    box-shadow: 0 0 0 transparent;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--strike) 30%, transparent);
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 18px color-mix(in srgb, var(--strike) 45%, transparent);
+    box-shadow: 0 0 30px color-mix(in srgb, var(--strike) 75%, transparent);
+    transform: scale(1.035);
+  }
+}
+/* 상대의 마지막 기회(내가 이미 맞힘) — 초조하게 은은히 고동친다. */
+.tension.last {
+  color: var(--out);
+  background: color-mix(in srgb, var(--out) 14%, transparent);
+  border: 2px solid color-mix(in srgb, var(--out) 70%, transparent);
+  animation: tension-in 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) both,
+    last-throb 1s ease-in-out 0.4s infinite;
+}
+@keyframes last-throb {
+  0%,
+  100% {
+    box-shadow: 0 0 6px color-mix(in srgb, var(--out) 22%, transparent);
+    opacity: 0.9;
+  }
+  50% {
+    box-shadow: 0 0 24px color-mix(in srgb, var(--out) 58%, transparent);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tension,
+  .tension.reverse,
+  .tension.last {
+    animation: none;
   }
 }
 

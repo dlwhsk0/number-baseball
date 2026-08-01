@@ -906,9 +906,9 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const tension =
       !reveal && !startAnnounce
         ? myTurn && oppSolved
-          ? '역전 찬스! 맞히면 무승부'
+          ? '⚡ 역전 찬스! 맞히면 무승부'
           : !myTurn && mySolved
-          ? '상대의 마지막 기회…'
+          ? '⏳ 상대의 마지막 기회…'
           : null
         : null;
     return (
