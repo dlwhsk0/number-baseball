@@ -119,8 +119,8 @@ function OnlineInput({
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame('', Infinity, digits, false),
   );
-  // 활성 메모 표시. 내 차례엔 없음(입력)에서 시작, 상대 차례(메모 전용)엔 아웃부터.
-  const [memoMark, setMemoMark] = useState<MemoMark | null>(active ? null : 'out');
+  // 활성 메모 표시. 시작은 항상 '없음'(메모 버튼 안 눌린 상태) — 눌러서 표시 종류를 고른다.
+  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   const full = !state.slots.includes('');
   // 입력 변화를 부모에 알림(실시간 미리보기 중계용). 콜백 identity와 무관하게 최신값 사용.
   const onChangeRef = useRef(onChange);
@@ -175,7 +175,7 @@ function MemoPad({
   memo: Record<string, MemoMark>;
   onMemo: (d: string, mark: MemoMark) => void;
 }) {
-  const [memoMark, setMemoMark] = useState<MemoMark | null>('out');
+  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   return (
     <Keypad
       slots={Array(digits).fill('')}
@@ -803,7 +803,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
               <LoadingDots />
               <p className="wait-line">상대가 숫자를 정하는 중…</p>
             </div>
-            <p className="memo-hint">미리 메모해둘 수 있어요 — 메모 버튼으로 ✕△○ 골라 숫자 탭</p>
+            <p className="memo-hint">기다리는 동안 미리 메모해두세요 — 메모 버튼으로 종류 선택</p>
             <MemoPad digits={digits} memo={memo} onMemo={toggleMemo} />
           </>
         ) : (
@@ -834,12 +834,20 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           }`}
         >
           <span className="turn-who">
-            {reveal ? '결과 발표' : startAnnounce ? '플레이 볼!' : myTurn ? '내 차례' : '상대 차례'}
+            {reveal
+              ? '결과 발표'
+              : startAnnounce
+              ? '플레이 볼!'
+              : myTurn
+              ? '내 차례'
+              : `${opponentNick} 차례`}
           </span>
           <div className="turn-right">
-            <span className="turn-hint">
-              상대 {oppAttempts}회{oppSolved ? ' · 맞힘!' : ''}
-            </span>
+            {(oppSolved || oppAttempts > 0) && (
+              <span className="turn-hint">
+                {oppSolved ? `${opponentNick} 맞힘!` : `${opponentNick} ${oppAttempts}회`}
+              </span>
+            )}
             {matchExitBtn}
           </div>
         </div>

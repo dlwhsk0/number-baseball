@@ -114,7 +114,11 @@ export function Keypad({
 
       {isMemo && (
         <p className="keypad-hint">
-          숫자를 눌러 <span className={`mark-${memoMark}`}>{BADGE[memoMark!]}{MARK_LABEL[memoMark!]}</span> 표시·해제 · 메모 버튼으로 아웃·볼·스트라이크 전환
+          숫자를 눌러{' '}
+          <span className={`mark-${memoMark}`}>
+            {BADGE[memoMark!]} {MARK_LABEL[memoMark!]}
+          </span>{' '}
+          표시 · 다시 눌러 해제
         </p>
       )}
     </div>

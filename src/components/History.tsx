@@ -17,9 +17,7 @@ function counts({ strikes, balls }: GuessRecord['judgement'], digits: number) {
 }
 
 export function History({ guesses }: Props) {
-  if (guesses.length === 0) {
-    return <p className="history-empty">첫 추측을 입력해보세요.</p>;
-  }
+  if (guesses.length === 0) return null;
 
   return (
     <ol className="history">

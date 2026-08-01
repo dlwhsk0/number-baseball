@@ -1348,25 +1348,23 @@
 /* 기록 탭 — 내/상대 분리(누구 기록인지 헷갈림 방지) */
 .hist-tabs {
   display: flex;
+  justify-content: flex-start;
   gap: 6px;
   margin-bottom: 10px;
 }
 .hist-tab {
-  flex: 1;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 10px;
-  min-height: 40px;
+  gap: 5px;
+  padding: 5px 11px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
-  border-radius: 10px;
+  border-radius: 8px;
   font-family: inherit;
-  font-size: 0.86rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
