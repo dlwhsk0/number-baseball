@@ -130,24 +130,27 @@ function OnlineInput({
   }, [state.slots, active]);
   return (
     <section className={`board${active ? '' : ' memo-only'}`}>
-      <div
-        className="input-display"
-        aria-label="현재 입력"
-        style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-      >
-        {state.slots.map((d, i) => (
-          <button
-            key={i}
-            type="button"
-            className={`slot cell${active && d ? ' filled' : ''}`}
-            disabled={!active || !d}
-            aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
-            onClick={() => active && dispatch({ type: 'clearSlot', index: i })}
-          >
-            <Seg7 char={active ? d : ''} />
-          </button>
-        ))}
-      </div>
+      {/* 내 차례에만 입력칸(세그먼트) 표시. 상대 차례엔 키패드만(메모용). */}
+      {active && (
+        <div
+          className="input-display"
+          aria-label="현재 입력"
+          style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
+        >
+          {state.slots.map((d, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`slot cell${d ? ' filled' : ''}`}
+              disabled={!d}
+              aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
+              onClick={() => dispatch({ type: 'clearSlot', index: i })}
+            >
+              <Seg7 char={d} />
+            </button>
+          ))}
+        </div>
+      )}
       <Keypad
         slots={active ? state.slots : Array(digits).fill('')}
         memo={memo}
@@ -869,7 +872,6 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
               judgement={reveal.judgement}
               digits={digits}
               solved={reveal.solved}
-              tone={reveal.by === myIndex ? 'mine' : 'theirs'}
               who={
                 reveal.by === myIndex ? (
                   '내 결과'
@@ -910,18 +912,23 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           )}
         </div>
 
-        {/* 키패드 — 항상 같은 자리. 내 차례엔 입력, 아니면 메모 전용. */}
+        {/* 키패드 — 내 차례엔 입력, 아니면 메모 전용(제출은 '대기'로 비활성). */}
         <OnlineInput
           key={`${history.length}-${inputActive ? 'in' : 'memo'}`}
           digits={digits}
           active={inputActive}
-          submitLabel="추측"
+          submitLabel={inputActive ? '추측' : '대기'}
           onSubmit={submitGuess}
           onChange={emitInput}
           memo={memo}
           onMemo={toggleMemo}
           showMemo
         />
+        {!inputActive && !startAnnounce && (
+          <p className="memo-hint under-keypad">
+            상대가 추측하는 동안 숫자를 메모해둘 수 있어요
+          </p>
+        )}
 
         {/* 기록 — 내/상대 탭으로 분리(헷갈림 방지), 자리 고정. */}
         <section className="history-section">
