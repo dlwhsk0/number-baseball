@@ -106,6 +106,7 @@ function OnlineInput({
   memo = {},
   onMemo,
   showMemo = false,
+  stage,
 }: {
   digits: number;
   active?: boolean;
@@ -115,6 +116,8 @@ function OnlineInput({
   memo?: Record<string, MemoMark>;
   onMemo?: (d: string, mark: MemoMark) => void;
   showMemo?: boolean;
+  /** 있으면 상단 '스테이지' 박스를 쓴다: 내 차례=입력 세그먼트, 아니면 이 노드(결과/대기 등). */
+  stage?: ReactNode;
 }) {
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame('', Infinity, digits, false),
@@ -128,28 +131,35 @@ function OnlineInput({
   useEffect(() => {
     if (active) onChangeRef.current?.(state.slots.join(''));
   }, [state.slots, active]);
+
+  const inputDisplay = (
+    <div
+      className="input-display"
+      aria-label="현재 입력"
+      style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
+    >
+      {state.slots.map((d, i) => (
+        <button
+          key={i}
+          type="button"
+          className={`slot cell${d ? ' filled' : ''}`}
+          disabled={!d}
+          aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
+          onClick={() => dispatch({ type: 'clearSlot', index: i })}
+        >
+          <Seg7 char={d} />
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <section className={`board${active ? '' : ' memo-only'}`}>
-      {/* 내 차례에만 입력칸(세그먼트) 표시. 상대 차례엔 키패드만(메모용). */}
-      {active && (
-        <div
-          className="input-display"
-          aria-label="현재 입력"
-          style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-        >
-          {state.slots.map((d, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`slot cell${d ? ' filled' : ''}`}
-              disabled={!d}
-              aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
-              onClick={() => dispatch({ type: 'clearSlot', index: i })}
-            >
-              <Seg7 char={d} />
-            </button>
-          ))}
-        </div>
+      {/* 스테이지 모드: 하나의 박스에서 내 차례=입력칸 / 아니면 결과·대기 노드가 전환. */}
+      {stage !== undefined ? (
+        <div className="play-stage">{active ? inputDisplay : stage}</div>
+      ) : (
+        active && inputDisplay
       )}
       <Keypad
         slots={active ? state.slots : Array(digits).fill('')}
@@ -828,6 +838,56 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const firstNick = myIndex === 0 ? nick.trim() || '나' : opponentNick;
     // 내 차례이고 발표/개시 중이 아니면 입력 활성. 그 외엔 키패드를 메모 전용으로 항상 띄운다.
     const inputActive = myTurn && !reveal && !startAnnounce;
+    // 스테이지 박스에 내 차례가 아닐 때 보여줄 내용(발표/개시/상대입력·대기).
+    const stageContent = startAnnounce ? (
+      <div className="announce">
+        <p className="announce-line">모두 숫자를 골랐어요!</p>
+        <p className="announce-first">
+          {myIndex === 0 ? '내가' : <Nick>{firstNick}</Nick>} 먼저 시작!
+        </p>
+      </div>
+    ) : reveal ? (
+      <RevealCard
+        guess={reveal.guess}
+        judgement={reveal.judgement}
+        digits={digits}
+        solved={reveal.solved}
+        who={
+          reveal.by === myIndex ? (
+            '내 결과'
+          ) : (
+            <>
+              <Nick>{opponentNick}</Nick>의 결과
+            </>
+          )
+        }
+      />
+    ) : oppInput ? (
+      <div className="live-input">
+        <span className="live-label">상대 입력 중</span>
+        <span className="num-cells">
+          {Array.from({ length: digits }, (_, i) => (
+            <span key={i} className="cell hcell">
+              <Seg7 char={oppInput[i] ?? ''} />
+            </span>
+          ))}
+        </span>
+      </div>
+    ) : (
+      <>
+        <LoadingDots />
+        <WaitingLine />
+      </>
+    );
+    // 긴장 배너(역전 찬스 / 마지막 기회) — 스테이지 위에 별도로.
+    const tension =
+      !reveal && !startAnnounce
+        ? myTurn && oppSolved
+          ? '역전 찬스! 맞히면 무승부'
+          : !myTurn && mySolved
+          ? '상대의 마지막 기회…'
+          : null
+        : null;
     return (
       <div className="versus">
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
@@ -857,62 +917,11 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
 
         {mySecret && <SecretPeek secret={mySecret} />}
 
-        {/* 상단 상태 슬롯 — 발표/개시/상대입력·대기가 여기에만 나타나고 아래 키패드·기록은 고정. */}
-        <div className="play-stage">
-          {startAnnounce ? (
-            <div className="announce">
-              <p className="announce-line">모두 숫자를 골랐어요!</p>
-              <p className="announce-first">
-                {myIndex === 0 ? '내가' : <Nick>{firstNick}</Nick>} 먼저 시작!
-              </p>
-            </div>
-          ) : reveal ? (
-            <RevealCard
-              guess={reveal.guess}
-              judgement={reveal.judgement}
-              digits={digits}
-              solved={reveal.solved}
-              who={
-                reveal.by === myIndex ? (
-                  '내 결과'
-                ) : (
-                  <>
-                    <Nick>{opponentNick}</Nick>의 결과
-                  </>
-                )
-              }
-            />
-          ) : myTurn ? (
-            oppSolved ? (
-              <div className="tension reverse">역전 찬스! 맞히면 무승부</div>
-            ) : (
-              <p className="stage-hint">숫자를 눌러 추측하세요</p>
-            )
-          ) : (
-            <>
-              {mySolved && <div className="tension last">상대의 마지막 기회…</div>}
-              {oppInput ? (
-                <div className="live-input">
-                  <span className="live-label">상대 입력 중</span>
-                  <span className="num-cells">
-                    {Array.from({ length: digits }, (_, i) => (
-                      <span key={i} className="cell hcell">
-                        <Seg7 char={oppInput[i] ?? ''} />
-                      </span>
-                    ))}
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <LoadingDots />
-                  <WaitingLine />
-                </>
-              )}
-            </>
-          )}
-        </div>
+        {tension && (
+          <div className={`tension ${myTurn ? 'reverse' : 'last'}`}>{tension}</div>
+        )}
 
-        {/* 키패드 — 내 차례엔 입력, 아니면 메모 전용(제출은 '대기'로 비활성). */}
+        {/* 스테이지 박스 + 고정 키패드 — 하나의 박스에서 내 차례=입력칸 / 결과·대기가 전환. */}
         <OnlineInput
           key={`${history.length}-${inputActive ? 'in' : 'memo'}`}
           digits={digits}
@@ -923,6 +932,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           memo={memo}
           onMemo={toggleMemo}
           showMemo
+          stage={stageContent}
         />
         {!inputActive && !startAnnounce && (
           <p className="memo-hint under-keypad">

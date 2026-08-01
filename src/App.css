@@ -1360,6 +1360,10 @@
   justify-content: center;
   gap: 8px;
 }
+/* 스테이지 안의 입력칸(내 차례)은 박스 폭을 꽉 채운다. */
+.play-stage .input-display {
+  width: 100%;
+}
 .stage-hint {
   margin: 0;
   color: var(--muted);
