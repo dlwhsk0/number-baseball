@@ -876,7 +876,14 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
       />
     ) : oppInput ? (
       <div className="live-input">
-        <span className="live-label">상대 입력 중</span>
+        <span className="live-label">
+          상대 입력 중
+          <span className="live-dots" aria-hidden="true">
+            <i>.</i>
+            <i>.</i>
+            <i>.</i>
+          </span>
+        </span>
         <span className="num-cells">
           {Array.from({ length: digits }, (_, i) => (
             // key에 글자 포함 → 그 칸 글자가 바뀔 때만 remount. 애니메이션은 글자 든 칸('lit')만.
