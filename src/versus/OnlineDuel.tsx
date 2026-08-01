@@ -302,6 +302,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
   const myIndexRef = useRef<0 | 1>(0);
   const announceRef = useRef<number | undefined>(undefined);
+  const vsTimerRef = useRef<number | undefined>(undefined);
   // 재접속용 세션(코드·자리·토큰). 소켓이 끊겼다 붙으면 이걸로 다시 합류한다.
   // 저장돼 있으면(리로드 직후) 마운트 시 복원해 자동 rejoin.
   const sessionRef = useRef<Session | null>(loadSession());
@@ -330,6 +331,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const [mySecretSet, setMySecretSet] = useState(false);
   const [secretReady, setSecretReady] = useState<boolean[]>([false, false]);
 
+  // 상대가 다 입장하면 잠깐 VS 대결 화면(매치업) 연출 후 비밀 정하기로.
+  const [vsIntro, setVsIntro] = useState(false);
   const [startAnnounce, setStartAnnounce] = useState(false);
   const [myTurn, setMyTurn] = useState(false);
   const [history, setHistory] = useState<GuessRecord[]>([]);
@@ -366,6 +369,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setRematchWait(false);
     setOppWantsRematch(false);
     setStartAnnounce(false);
+    setVsIntro(false);
     setMemo({});
     setOppDisconnected(false);
     setHistTab('me');
@@ -435,6 +439,10 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     s.on('phase', ({ digits: d }) => {
       setDigits(d);
       resetRound();
+      // 매치업(VS) 연출 잠깐 → 비밀 정하기.
+      setVsIntro(true);
+      if (vsTimerRef.current) window.clearTimeout(vsTimerRef.current);
+      vsTimerRef.current = window.setTimeout(() => setVsIntro(false), 2400);
       setPhase('secret');
     });
     s.on('secretProgress', ({ ready }) => setSecretReady(ready));
@@ -500,6 +508,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     return () => {
       if (resumeTimer) window.clearTimeout(resumeTimer);
       if (announceRef.current) window.clearTimeout(announceRef.current);
+      if (vsTimerRef.current) window.clearTimeout(vsTimerRef.current);
       s.off('connect', onConnect);
       s.off('disconnect', onDisconnect);
       s.off('opponentDisconnected');
@@ -758,6 +767,26 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         <button type="button" className="versus-secondary" onClick={backToMenu}>
           나가기
         </button>
+      </div>
+    );
+  }
+
+  if (phase === 'secret' && vsIntro) {
+    const myNick = nick.trim() || '나';
+    return (
+      <div className="versus versus-center vs-intro">
+        <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
+        <p className="vs-ready">상대가 입장했어요!</p>
+        <div className="vs-matchup">
+          <div className="vs-side left">
+            <span className="vs-nick">{myNick}</span>
+          </div>
+          <div className="vs-spark">VS</div>
+          <div className="vs-side right">
+            <span className="vs-nick">{opponentNick}</span>
+          </div>
+        </div>
+        <p className="vs-sub">{digits}자리 숫자 대결</p>
       </div>
     );
   }

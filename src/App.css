@@ -195,9 +195,12 @@
   background: transparent;
   box-shadow: none;
   transition: transform 0.08s ease;
+  /* 칸을 컨테이너로 — 세그먼트 크기를 뷰포트가 아니라 '이 칸' 너비에 맞춘다.
+     그래야 4자리처럼 칸이 좁아져도 숫자가 칸 밖으로 밀려나지 않는다. */
+  container-type: inline-size;
 }
 .slot .seg7 {
-  font-size: clamp(64px, 24vw, 104px);
+  font-size: min(104px, 88cqw);
   --led: var(--accent);
   filter: drop-shadow(0 0 0.06em var(--accent-glow));
 }
@@ -1678,6 +1681,127 @@
 .rp-card.winner .num-cells .seg7 {
   font-size: clamp(48px, 15vw, 62px);
 }
+/* 혼자 모드 결과 — 멀티 카드 재사용. 카드가 하나뿐이라 여백/정답 가독성만 조정. */
+.solo-result {
+  margin-top: 12px;
+}
+.solo-result .result-players {
+  max-width: 340px;
+}
+/* 진 판이라도 정답은 또렷하게(멀티의 흐림 처리 해제). */
+.solo-result.lose .rp-card {
+  opacity: 1;
+  filter: none;
+  border-color: color-mix(in srgb, var(--out) 55%, var(--border));
+}
+.solo-result .result-restart {
+  max-width: 340px;
+}
+
+/* 매치업(VS) 연출 — 상대 입장 직후 잠깐. */
+.vs-intro {
+  gap: 18px;
+}
+.vs-ready {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 16px var(--accent-glow);
+  animation: vs-ready-in 0.4s ease both;
+}
+@keyframes vs-ready-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.vs-matchup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+.vs-side {
+  flex: 1;
+  display: flex;
+  padding: 18px 12px;
+  border-radius: var(--r-lg);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+.vs-side.left {
+  justify-content: flex-end;
+  border-color: var(--accent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 22%, transparent);
+  animation: vs-slide-l 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+.vs-side.right {
+  justify-content: flex-start;
+  animation: vs-slide-r 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+@keyframes vs-slide-l {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes vs-slide-r {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.vs-nick {
+  font-weight: 800;
+  font-size: 1.1rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vs-side.left .vs-nick {
+  color: var(--accent);
+}
+.vs-spark {
+  flex: none;
+  font-family: var(--font-digit);
+  font-weight: 900;
+  font-size: 1.5rem;
+  color: var(--led);
+  text-shadow: 0 0 18px var(--glow);
+  animation: vs-pop 0.5s 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes vs-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-14deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.vs-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .rematch-notice {
   margin: 0;
   text-align: center;
