@@ -867,7 +867,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
         <span className="live-label">상대 입력 중</span>
         <span className="num-cells">
           {Array.from({ length: digits }, (_, i) => (
-            <span key={i} className="cell hcell">
+            // key에 글자 포함 → 그 칸 글자가 바뀔 때만 remount돼 개별 등장 애니메이션 재생.
+            <span key={`${i}-${oppInput[i] ?? ''}`} className="cell hcell">
               <Seg7 char={oppInput[i] ?? ''} />
             </span>
           ))}

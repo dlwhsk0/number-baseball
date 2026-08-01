@@ -1106,38 +1106,6 @@
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  animation: live-shake-in 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-/* 상대 입력이 '탁' 하고 흔들리며 등장. */
-@keyframes live-shake-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  35% {
-    opacity: 1;
-    transform: scale(1.06);
-  }
-  48% {
-    transform: translateX(-7px) rotate(-2deg);
-  }
-  62% {
-    transform: translateX(6px) rotate(1.6deg);
-  }
-  75% {
-    transform: translateX(-4px) rotate(-1deg);
-  }
-  88% {
-    transform: translateX(2px) rotate(0.5deg);
-  }
-  100% {
-    transform: translateX(0) rotate(0) scale(1);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .live-input {
-    animation: none;
-  }
 }
 .live-label {
   font-size: 0.82rem;
@@ -1150,9 +1118,38 @@
 .live-input .num-cells .hcell {
   width: clamp(62px, 18vw, 78px);
   height: clamp(82px, 24vw, 104px);
+  /* 각 세그먼트 칸이 개별로 '탁' 흔들리며 등장(라벨은 가만히). 상대가 한 글자 칠 때마다 그 칸만. */
+  animation: seg-shake-in 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 .live-input .num-cells .seg7 {
   font-size: clamp(62px, 18vw, 78px);
+}
+@keyframes seg-shake-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.16);
+  }
+  55% {
+    transform: translateX(-4px) rotate(-5deg);
+  }
+  70% {
+    transform: translateX(3px) rotate(4deg);
+  }
+  85% {
+    transform: translateX(-2px) rotate(-1.5deg);
+  }
+  100% {
+    transform: translateX(0) rotate(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-input .num-cells .hcell {
+    animation: none;
+  }
 }
 
 /* 개발자 모드(이스터에그 2) 토스트는 조금 아래에 */
