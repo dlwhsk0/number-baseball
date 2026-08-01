@@ -486,6 +486,20 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   }, [active]);
   useEffect(() => () => onActiveRef.current?.(false), []);
 
+  // 브라우저 뒤로가기를 잡아 확인창을 띄운다(진짜로 페이지를 벗어나지 않게 다시 상태를 쌓음).
+  // 대결(비밀·플레이) 중에만. 확인창에서 '나가기'를 눌러야 backToMenu로 실제 이탈.
+  const inMatch = phase === 'secret' || phase === 'playing';
+  useEffect(() => {
+    if (!inMatch) return;
+    window.history.pushState({ nbGuard: true }, '');
+    const onPop = () => {
+      setConfirmLeave(true);
+      window.history.pushState({ nbGuard: true }, '');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [inMatch]);
+
   const saveNick = () => {
     try {
       localStorage.setItem('nb_nick', nick.trim());
@@ -607,12 +621,10 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   };
 
   // 대결 중 나가기(비밀·플레이). 상대 끊김으로 대기에 갇혔을 때도 빠져나갈 길.
-  const matchExitBar = (
-    <div className="match-bar">
-      <button type="button" className="match-exit" onClick={() => setConfirmLeave(true)}>
-        ← 나가기
-      </button>
-    </div>
+  const matchExitBtn = (
+    <button type="button" className="turn-exit" onClick={() => setConfirmLeave(true)}>
+      나가기
+    </button>
   );
   const leaveConfirm = confirmLeave && (
     <ConfirmDialog
@@ -771,16 +783,18 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const oppReady = secretReady[1 - myIndex];
     return (
       <div className="versus">
-        {matchExitBar}
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <div className="turn-bar">
           <span className="turn-who">숫자 정하기</span>
-          <span
-            key={readyCount}
-            className={`turn-hint ready-count${oppReady ? ' hot' : ''}`}
-          >
-            준비 {readyCount}/2
-          </span>
+          <div className="turn-right">
+            <span
+              key={readyCount}
+              className={`turn-hint ready-count${oppReady ? ' hot' : ''}`}
+            >
+              준비 {readyCount}/2
+            </span>
+            {matchExitBtn}
+          </div>
         </div>
         {oppReady && <p className="ready-note">상대가 숫자를 정했어요!</p>}
         {mySecretSet ? (
@@ -813,7 +827,6 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     const inputActive = myTurn && !reveal && !startAnnounce;
     return (
       <div className="versus">
-        {matchExitBar}
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <div
           className={`turn-bar${
@@ -823,9 +836,12 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           <span className="turn-who">
             {reveal ? '결과 발표' : startAnnounce ? '플레이 볼!' : myTurn ? '내 차례' : '상대 차례'}
           </span>
-          <span className="turn-hint">
-            상대 {oppAttempts}회{oppSolved ? ' · 맞힘!' : ''}
-          </span>
+          <div className="turn-right">
+            <span className="turn-hint">
+              상대 {oppAttempts}회{oppSolved ? ' · 맞힘!' : ''}
+            </span>
+            {matchExitBtn}
+          </div>
         </div>
 
         {mySecret && <SecretPeek secret={mySecret} />}

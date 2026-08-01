@@ -1797,26 +1797,28 @@
   max-width: 340px;
 }
 
-/* 대결(비밀·플레이) 중 나가기 바 — 상대 끊김 대기에 갇히지 않게 항상 탈출구 제공. */
-.match-bar {
+/* 대결(비밀·플레이) 중 나가기 — 상단 바(숫자 정하기/차례) 오른쪽. 뒤로가기로도 확인창.
+   상대 끊김 대기에 갇히지 않게 항상 탈출구 제공. */
+.turn-right {
   display: flex;
-  justify-content: flex-start;
-  margin-bottom: 2px;
+  align-items: center;
+  gap: 10px;
 }
-.match-exit {
-  padding: 6px 12px;
+.turn-exit {
+  padding: 5px 11px;
   border-radius: var(--r-md);
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
+  white-space: nowrap;
   transition: transform 0.05s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.match-exit:active {
+.turn-exit:active {
   transform: scale(0.96);
 }
-.match-exit:hover {
+.turn-exit:hover {
   color: var(--text);
   border-color: color-mix(in srgb, var(--led) 40%, var(--border));
 }
