@@ -41,6 +41,8 @@
     번갈아 한 번씩 상대 숫자를 추측. 공정성: 선공(P1)이 맞히면 후공(P2)에게 같은 라운드 마지막 기회 → 둘 다 맞히면 무승부.
     비밀 입력·턴 입력은 `Keypad`의 `showMemo={false}`로 메모 버튼 숨김.
   - **온라인 대결**: `src/versus/OnlineDuel.tsx` + `src/net/`(`socket.ts` 단일 소켓, `protocol.ts` 이벤트 타입).
+    (기획·아키텍처·트러블슈팅 상세: [`docs/online-multiplayer-design.md`](docs/online-multiplayer-design.md),
+    [`docs/online-troubleshooting.md`](docs/online-troubleshooting.md).)
     턴제 규칙을 **서버 권위**로. 방 코드로 1:1 입장 → 비밀 설정 → 턴 동기화 → 결과·재대결. 로컬 상태는 서버 이벤트로만 전이.
     서버는 `server/`(Node+Socket.IO, 정답 보관·판정). 접속 주소는 `VITE_SERVER_URL`(개발 기본 `http://localhost:3001`, 배포 `wss://도메인`).
     `protocol.ts`는 `server/src/types.ts`와 동일하게 유지. 규칙 로직 `logic.ts`는 프론트·서버 양쪽에 복제(함께 수정).
