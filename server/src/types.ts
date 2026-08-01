@@ -61,6 +61,8 @@ export interface ClientToServerEvents {
   /** 추측 입력 중간 상태(실시간 미리보기용). 내 차례에만 상대에게 중계된다. */
   input: (p: { value: string }) => void;
   rematch: () => void;
+  /** 의도적으로 방을 떠남(백그라운드 이탈과 구분). 서버가 상대에게 즉시 알리고 방을 정리. */
+  leave: (ack: () => void) => void;
   /** 재접속: 저장한 방 코드·자리·토큰으로 다시 합류. */
   rejoin: (p: { code: string; index: 0 | 1; token: string }, ack: (r: RejoinAck) => void) => void;
 }

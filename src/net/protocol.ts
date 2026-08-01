@@ -51,6 +51,8 @@ export interface ClientToServerEvents {
   guess: (p: { guess: string }, ack: (r: OkAck) => void) => void;
   input: (p: { value: string }) => void;
   rematch: () => void;
+  /** 의도적으로 방을 떠남(백그라운드 이탈과 구분). 서버가 상대에게 즉시 알리고 방을 정리. */
+  leave: (ack: () => void) => void;
   rejoin: (p: { code: string; index: 0 | 1; token: string }, ack: (r: RejoinAck) => void) => void;
 }
 

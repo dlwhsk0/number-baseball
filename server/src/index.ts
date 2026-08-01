@@ -253,17 +253,41 @@ io.on('connection', (socket) => {
     socket.to(room.code).emit('opponentReconnected');
   });
 
+  // 의도적 나가기 — 백그라운드 이탈(disconnect)과 구분. 즉시 상대에게 알리고 방 정리.
+  socket.on('leave', (ack) => {
+    const room = getRoom(data.code);
+    if (room) {
+      room.players.forEach((p) => {
+        if (p.graceTimer) {
+          clearTimeout(p.graceTimer);
+          p.graceTimer = undefined;
+        }
+      });
+      socket.to(room.code).emit('opponentLeft');
+      deleteRoom(room.code);
+    }
+    if (data.code) socket.leave(data.code);
+    data.code = undefined;
+    data.index = undefined;
+    if (typeof ack === 'function') ack();
+  });
+
   socket.on('disconnect', () => {
     const room = getRoom(data.code);
     if (!room || data.index == null) return;
-    const me = room.players[data.index];
+    const idx = data.index;
+    const me = room.players[idx];
     // 이미 다른 소켓이 이 자리에 재접속했으면 옛 소켓의 disconnect는 무시.
     if (!me || me.id !== socket.id) return;
     me.connected = false;
     io.to(room.code).emit('opponentDisconnected');
-    // 유예 시간 내 재접속 안 하면 방 정리 + 상대에게 나감 알림.
+    // 유예 시간 내 재접속하면 이어감. 만료돼도 상대가 아직 자리를 지키고(접속) 있으면
+    // 방을 없애지 않고 계속 기다린다(강제 종료 방지). 둘 다 없을 때만 방을 정리한다.
     me.graceTimer = setTimeout(() => {
       if (getRoom(room.code) !== room) return;
+      me.graceTimer = undefined;
+      const opp = room.players[1 - idx];
+      if (opp && opp.connected) return; // 상대가 남아 있으면 방 유지
       io.to(room.code).emit('opponentLeft');
       deleteRoom(room.code);
     }, GRACE_MS);

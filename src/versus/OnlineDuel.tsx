@@ -626,16 +626,25 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const exit = () => {
     sessionRef.current = null;
     saveSession(null);
-    socketRef.current.disconnect();
-    onExit();
+    // 의도적 나가기를 서버에 알린 뒤(상대에게 즉시 '나감') 종료. ack 못 받아도 폴백으로 진행.
+    const s = socketRef.current;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      onExit(); // 언마운트 정리에서 소켓 disconnect
+    };
+    s.emit('leave', finish);
+    window.setTimeout(finish, 400);
   };
 
-  // 방/게임에서 나가되 온라인 메뉴로 복귀(멀티 유지). 서버 방은 정리되고 상대에겐 알림.
+  // 방/게임에서 나가되 온라인 메뉴로 복귀(멀티 유지). 서버 방은 정리되고 상대에겐 즉시 알림.
+  // 소켓은 끊지 않고 유지(메뉴에서 바로 방 만들기/입장 가능) — leave로 서버 자리만 비운다.
   const backToMenu = () => {
     sessionRef.current = null;
     saveSession(null);
     setResuming(false);
-    socketRef.current.disconnect();
+    socketRef.current.emit('leave', () => {});
     resetRound();
     setCode('');
     setJoinCode('');
@@ -644,7 +653,6 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     myIndexRef.current = 0;
     setError(null);
     setPhase('menu');
-    socketRef.current.connect();
   };
 
   // ---------- 렌더 ----------
