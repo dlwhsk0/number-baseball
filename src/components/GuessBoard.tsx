@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { gameReducer, initGame } from '../game/useGame';
+import { gameReducer, initGame, cycleMemoMark, type MemoMark } from '../game/useGame';
 import { Keypad } from './Keypad';
 import { History } from './History';
 import { Seg7 } from './Seg7';
@@ -22,7 +22,7 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame(secret, maxAttempts, digits, false),
   );
-  const [memoMode, setMemoMode] = useState(false);
+  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   const finished = state.status !== 'playing';
 
   // 승리하면 한 번만 콜백.
@@ -59,13 +59,13 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
         <Keypad
           slots={state.slots}
           memo={state.memo}
-          mode={memoMode ? 'memo' : 'input'}
+          memoMark={memoMark}
           disabled={finished}
           onDigit={(digit) => dispatch({ type: 'push', digit })}
-          onMemo={(digit) => dispatch({ type: 'memo', digit })}
+          onMemo={(digit) => memoMark && dispatch({ type: 'memo', digit, mark: memoMark })}
           onDelete={() => dispatch({ type: 'pop' })}
           onSubmit={() => dispatch({ type: 'submit' })}
-          onToggleMemo={() => setMemoMode((v) => !v)}
+          onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m))}
         />
       </section>
 

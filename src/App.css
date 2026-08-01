@@ -295,11 +295,25 @@
   color: var(--on-accent);
 }
 
-/* 메모 모드 켜짐 표시 */
+/* 메모 버튼 = 활성 표시 선택기. 켜지면 그 표시(✕/△/○) 색으로 발광. */
+.key-memo {
+  font-size: 1.25rem;
+  line-height: 1;
+}
 .key-memo.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  color: var(--mark-c);
+  border-color: var(--mark-c);
+  box-shadow: inset 0 0 0 2px var(--mark-c),
+    0 0 12px color-mix(in srgb, var(--mark-c) 45%, transparent);
+}
+.key-memo.mark-out {
+  --mark-c: var(--out);
+}
+.key-memo.mark-ball {
+  --mark-c: var(--ball);
+}
+.key-memo.mark-strike {
+  --mark-c: var(--strike);
 }
 
 /* 메모 모드일 때 키패드 배경을 살짝 구분 */
@@ -313,6 +327,18 @@
   text-align: center;
   color: var(--muted);
   font-size: 0.82rem;
+}
+.keypad-hint .mark-out {
+  color: var(--out);
+  font-weight: 700;
+}
+.keypad-hint .mark-ball {
+  color: var(--ball);
+  font-weight: 700;
+}
+.keypad-hint .mark-strike {
+  color: var(--strike);
+  font-weight: 700;
 }
 
 /* 키패드 메모 표시 — 키 전체를 덮는 큰 도형(숫자 뒤 워터마크) */

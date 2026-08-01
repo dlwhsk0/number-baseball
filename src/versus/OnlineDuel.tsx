@@ -1,6 +1,13 @@
 import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
 import { getSocket } from '../net/socket';
-import { gameReducer, initGame, type GuessRecord, type MemoMark } from '../game/useGame';
+import {
+  gameReducer,
+  initGame,
+  cycleMemoMark,
+  toggleMemoMark,
+  type GuessRecord,
+  type MemoMark,
+} from '../game/useGame';
 import type { Judgement } from '../game/logic';
 import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
@@ -158,9 +165,7 @@ function OnlineInput({
   onSubmit,
   onChange,
   memo = {},
-  memoMode = false,
   onMemo,
-  onToggleMemo,
   showMemo = false,
 }: {
   digits: number;
@@ -169,14 +174,14 @@ function OnlineInput({
   onSubmit: (value: string) => void;
   onChange?: (value: string) => void;
   memo?: Record<string, MemoMark>;
-  memoMode?: boolean;
-  onMemo?: (d: string) => void;
-  onToggleMemo?: () => void;
+  onMemo?: (d: string, mark: MemoMark) => void;
   showMemo?: boolean;
 }) {
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame('', Infinity, digits, false),
   );
+  // 활성 메모 표시. 내 차례엔 없음(입력)에서 시작, 상대 차례(메모 전용)엔 아웃부터.
+  const [memoMark, setMemoMark] = useState<MemoMark | null>(active ? null : 'out');
   const full = !state.slots.includes('');
   // 입력 변화를 부모에 알림(실시간 미리보기 중계용). 콜백 identity와 무관하게 최신값 사용.
   const onChangeRef = useRef(onChange);
@@ -184,8 +189,6 @@ function OnlineInput({
   useEffect(() => {
     if (active) onChangeRef.current?.(state.slots.join(''));
   }, [state.slots, active]);
-  // 비활성이면 입력칸은 비운 채 잠그고, 키패드는 메모 전용.
-  const kpMode = active ? (memoMode ? 'memo' : 'input') : 'memo';
   return (
     <section className={`board${active ? '' : ' memo-only'}`}>
       <div
@@ -209,17 +212,45 @@ function OnlineInput({
       <Keypad
         slots={active ? state.slots : Array(digits).fill('')}
         memo={memo}
-        mode={kpMode}
+        memoMark={memoMark}
         disabled={false}
-        showMemo={active && showMemo}
+        showMemo={showMemo}
         submitLabel={submitLabel}
         onDigit={(digit) => active && dispatch({ type: 'push', digit })}
-        onMemo={(d) => onMemo?.(d)}
+        onMemo={(d) => memoMark && onMemo?.(d, memoMark)}
         onDelete={() => active && dispatch({ type: 'pop' })}
         onSubmit={() => active && full && onSubmit(state.slots.join(''))}
-        onToggleMemo={active ? onToggleMemo : undefined}
+        onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m, active))}
       />
     </section>
+  );
+}
+
+/** 메모 전용 키패드(입력칸 없음) — 비밀 정하는 동안 미리 메모용. */
+function MemoPad({
+  digits,
+  memo,
+  onMemo,
+}: {
+  digits: number;
+  memo: Record<string, MemoMark>;
+  onMemo: (d: string, mark: MemoMark) => void;
+}) {
+  const [memoMark, setMemoMark] = useState<MemoMark | null>('out');
+  return (
+    <Keypad
+      slots={Array(digits).fill('')}
+      memo={memo}
+      memoMark={memoMark}
+      disabled={false}
+      showMemo
+      submitLabel="확인"
+      onDigit={() => {}}
+      onMemo={(d) => memoMark && onMemo(d, memoMark)}
+      onDelete={() => {}}
+      onSubmit={() => {}}
+      onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m, false))}
+    />
   );
 }
 
@@ -290,7 +321,6 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   const [copied, setCopied] = useState(false);
   // 메모(내 추측용) — 게임 내내 유지, 새 판마다 초기화.
   const [memo, setMemo] = useState<Record<string, MemoMark>>({});
-  const [memoMode, setMemoMode] = useState(false);
 
   const resetRound = () => {
     setHistory([]);
@@ -309,7 +339,6 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     setOppWantsRematch(false);
     setStartAnnounce(false);
     setMemo({});
-    setMemoMode(false);
     setOppDisconnected(false);
     setHistTab('me');
   };
@@ -342,16 +371,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     }
   };
 
-  const cycleMemo = (d: string) =>
-    setMemo((m) => {
-      const cur = m[d];
-      const next: MemoMark | undefined =
-        cur === undefined ? 'out' : cur === 'out' ? 'ball' : cur === 'ball' ? 'strike' : undefined;
-      const nm = { ...m };
-      if (next === undefined) delete nm[d];
-      else nm[d] = next;
-      return nm;
-    });
+  const toggleMemo = (d: string, mark: MemoMark) =>
+    setMemo((m) => toggleMemoMark(m, d, mark));
 
   useEffect(() => {
     const s = socketRef.current;
@@ -693,19 +714,8 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
               <LoadingDots />
               <p className="wait-line">상대가 숫자를 정하는 중…</p>
             </div>
-            <p className="memo-hint">미리 메모해둘 수 있어요 — 숫자를 눌러 ○△✕ 표시</p>
-            <Keypad
-              slots={Array(digits).fill('')}
-              memo={memo}
-              mode="memo"
-              disabled={false}
-              showMemo={false}
-              submitLabel="확인"
-              onDigit={() => {}}
-              onMemo={cycleMemo}
-              onDelete={() => {}}
-              onSubmit={() => {}}
-            />
+            <p className="memo-hint">미리 메모해둘 수 있어요 — 메모 버튼으로 ✕△○ 골라 숫자 탭</p>
+            <MemoPad digits={digits} memo={memo} onMemo={toggleMemo} />
           </>
         ) : (
           <>
@@ -798,9 +808,7 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
           onSubmit={submitGuess}
           onChange={emitInput}
           memo={memo}
-          memoMode={memoMode}
-          onMemo={cycleMemo}
-          onToggleMemo={() => setMemoMode((v) => !v)}
+          onMemo={toggleMemo}
           showMemo
         />
 

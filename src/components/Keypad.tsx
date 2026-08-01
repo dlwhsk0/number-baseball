@@ -6,15 +6,16 @@ interface Props {
   slots: string[];
   /** 숫자별 메모 표시. */
   memo: Record<string, MemoMark>;
-  /** 'input'=숫자 입력, 'memo'=탭하면 메모 표시 순환. */
-  mode: 'input' | 'memo';
+  /** 활성 메모 표시. null이면 숫자 입력 모드, 값이 있으면 그 표시를 탭으로 토글. */
+  memoMark?: MemoMark | null;
   disabled: boolean;
   onDigit: (digit: string) => void;
   onMemo: (digit: string) => void;
   onDelete: () => void;
   onSubmit: () => void;
-  onToggleMemo?: () => void;
-  /** 메모 버튼 노출 여부. 대결의 숫자 입력에선 끈다. 기본 true. */
+  /** 메모 버튼을 눌러 활성 표시를 순환(아웃→볼→스트라이크→끄기). */
+  onCycleMemo?: () => void;
+  /** 메모 버튼 노출 여부. 대결의 숫자 입력(비밀 설정)에선 끈다. 기본 true. */
   showMemo?: boolean;
   /** 확인 버튼 라벨(기본 '확인'). */
   submitLabel?: string;
@@ -24,21 +25,22 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
 /** 메모 표시 기호(키 전체에 크게 겹쳐 보인다). */
 const BADGE: Record<MemoMark, string> = { strike: '○', ball: '△', out: '✕' };
+const MARK_LABEL: Record<MemoMark, string> = { strike: '스트라이크', ball: '볼', out: '아웃' };
 
 export function Keypad({
   slots,
   memo,
-  mode,
+  memoMark = null,
   disabled,
   onDigit,
   onMemo,
   onDelete,
   onSubmit,
-  onToggleMemo,
+  onCycleMemo,
   showMemo = true,
   submitLabel = '확인',
 }: Props) {
-  const isMemo = mode === 'memo';
+  const isMemo = memoMark !== null;
   const firstEmpty = slots.indexOf('');
   const isFull = firstEmpty === -1;
   const canSubmit = !disabled && isFull;
@@ -78,14 +80,16 @@ export function Keypad({
         {showMemo && (
           <button
             type="button"
-            className={`key key-icon key-memo${isMemo ? ' active' : ''}`}
+            className={`key key-icon key-memo${isMemo ? ` active mark-${memoMark}` : ''}`}
             aria-pressed={isMemo}
-            aria-label="메모 모드"
-            title="메모 모드"
+            aria-label={
+              memoMark ? `메모: ${MARK_LABEL[memoMark]} (눌러서 전환)` : '메모 (아웃/볼/스트라이크)'
+            }
+            title="메모 표시 전환"
             disabled={disabled}
-            onClick={onToggleMemo}
+            onClick={onCycleMemo}
           >
-            ✎
+            {memoMark ? BADGE[memoMark] : '✎'}
           </button>
         )}
         <button
@@ -109,7 +113,9 @@ export function Keypad({
       </div>
 
       {isMemo && (
-        <p className="keypad-hint">숫자를 눌러 ○스트라이크 · △볼 · ✕아웃 표시</p>
+        <p className="keypad-hint">
+          숫자를 눌러 <span className={`mark-${memoMark}`}>{BADGE[memoMark!]}{MARK_LABEL[memoMark!]}</span> 표시·해제 · 메모 버튼으로 아웃·볼·스트라이크 전환
+        </p>
       )}
     </div>
   );

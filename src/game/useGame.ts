@@ -43,7 +43,7 @@ export type GameAction =
   | { type: 'pop' }
   | { type: 'clearSlot'; index: number }
   | { type: 'submit' }
-  | { type: 'memo'; digit: string }
+  | { type: 'memo'; digit: string; mark: MemoMark }
   | { type: 'reset'; secret: string; maxAttempts: number; digits?: number; beginner?: boolean };
 
 function emptySlots(digits: number): string[] {
@@ -80,12 +80,25 @@ export function initGame(
 }
 
 /** 메모 표시 순환: 기본 → ○스트라이크 → △볼 → ✕아웃 → 기본. */
-function nextMark(cur: MemoMark | undefined): MemoMark | undefined {
-  // 순환 순서: 기본 → 아웃 → 볼 → 스트라이크 → 기본 (배제부터 좁혀가는 흐름).
-  if (cur === undefined) return 'out';
+/** 메모 표시 선택기 순환: 없음(입력) → 아웃 → 볼 → 스트라이크 → 없음.
+ *  allowOff=false면 메모 전용 화면용으로 '없음' 없이 아웃↔볼↔스트라이크만 돈다. */
+export function cycleMemoMark(cur: MemoMark | null, allowOff = true): MemoMark | null {
+  if (cur === null) return 'out';
   if (cur === 'out') return 'ball';
   if (cur === 'ball') return 'strike';
-  return undefined;
+  return allowOff ? null : 'out';
+}
+
+/** 숫자에 선택된 표시를 토글: 같은 표시면 떼고, 아니면 그 표시로 붙인다. */
+export function toggleMemoMark(
+  memo: Record<string, MemoMark>,
+  digit: string,
+  mark: MemoMark,
+): Record<string, MemoMark> {
+  const next = { ...memo };
+  if (next[digit] === mark) delete next[digit];
+  else next[digit] = mark;
+  return next;
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -136,11 +149,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case 'memo': {
       if (state.status !== 'playing') return state;
-      const memo = { ...state.memo };
-      const mark = nextMark(memo[action.digit]);
-      if (mark === undefined) delete memo[action.digit];
-      else memo[action.digit] = mark;
-      return { ...state, memo };
+      return { ...state, memo: toggleMemoMark(state.memo, action.digit, action.mark) };
     }
     case 'reset':
       return initGame(
@@ -166,7 +175,7 @@ export function useGame(initialLevel: Level = 'intermediate', maxAttempts = 10) 
     popDigit: () => dispatch({ type: 'pop' }),
     clearSlot: (index: number) => dispatch({ type: 'clearSlot', index }),
     submit: () => dispatch({ type: 'submit' }),
-    cycleMemo: (digit: string) => dispatch({ type: 'memo', digit }),
+    toggleMemo: (digit: string, mark: MemoMark) => dispatch({ type: 'memo', digit, mark }),
     /** 지정 난이도로 새 게임. */
     reset: (level: Level) => {
       const { digits, beginner } = LEVELS[level];

@@ -111,35 +111,38 @@ describe('gameReducer — reset', () => {
 });
 
 describe('gameReducer — 메모', () => {
-  it('메모는 기본→스트라이크→볼→아웃→기본 순으로 순환한다', () => {
+  it('같은 표시를 다시 누르면 토글로 떼어진다', () => {
     let s = start('123');
     expect(s.memo['7']).toBeUndefined();
-    s = gameReducer(s, { type: 'memo', digit: '7' });
-    expect(s.memo['7']).toBe('strike');
-    s = gameReducer(s, { type: 'memo', digit: '7' });
-    expect(s.memo['7']).toBe('ball');
-    s = gameReducer(s, { type: 'memo', digit: '7' });
+    s = gameReducer(s, { type: 'memo', digit: '7', mark: 'out' });
     expect(s.memo['7']).toBe('out');
-    s = gameReducer(s, { type: 'memo', digit: '7' });
+    s = gameReducer(s, { type: 'memo', digit: '7', mark: 'out' });
     expect(s.memo['7']).toBeUndefined();
   });
 
+  it('다른 표시를 누르면 그 표시로 바뀐다', () => {
+    let s = gameReducer(start('123'), { type: 'memo', digit: '7', mark: 'out' });
+    s = gameReducer(s, { type: 'memo', digit: '7', mark: 'strike' });
+    expect(s.memo['7']).toBe('strike');
+    s = gameReducer(s, { type: 'memo', digit: '7', mark: 'ball' });
+    expect(s.memo['7']).toBe('ball');
+  });
+
   it('숫자별로 독립적으로 표시된다', () => {
-    let s = gameReducer(start('123'), { type: 'memo', digit: '0' }); // strike
-    s = gameReducer(s, { type: 'memo', digit: '9' });
-    s = gameReducer(s, { type: 'memo', digit: '9' }); // ball
+    let s = gameReducer(start('123'), { type: 'memo', digit: '0', mark: 'strike' });
+    s = gameReducer(s, { type: 'memo', digit: '9', mark: 'ball' });
     expect(s.memo).toEqual({ '0': 'strike', '9': 'ball' });
   });
 
   it('reset(새 게임)하면 메모가 초기화된다', () => {
-    let s = gameReducer(start('123'), { type: 'memo', digit: '4' });
+    let s = gameReducer(start('123'), { type: 'memo', digit: '4', mark: 'out' });
     s = gameReducer(s, { type: 'reset', secret: '567', maxAttempts: 10 });
     expect(s.memo).toEqual({});
   });
 
   it('게임이 끝나면 메모를 바꿀 수 없다', () => {
     let s = gameReducer(type(start('123'), '123'), { type: 'submit' }); // won
-    s = gameReducer(s, { type: 'memo', digit: '5' });
+    s = gameReducer(s, { type: 'memo', digit: '5', mark: 'out' });
     expect(s.memo['5']).toBeUndefined();
   });
 });

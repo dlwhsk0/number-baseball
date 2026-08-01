@@ -86,10 +86,13 @@ export function RulesModal({ onClose }: Props) {
           <p>추리한 내용을 키패드 위에 표시해두는 기능이에요.</p>
           <ul>
             <li>
-              <strong>메모 모드</strong>를 켜고 숫자를 누르면 표시가 순환해요:
+              <strong>메모 버튼</strong>을 눌러 표시를 골라요:
               <br />
-              없음 → <span className="mark-o">✕ 아웃</span> →{' '}
-              <span className="mark-b">△ 볼</span> → <span className="mark-s">○ 스트라이크</span> → 없음
+              <span className="mark-o">✕ 아웃</span> → <span className="mark-b">△ 볼</span> →{' '}
+              <span className="mark-s">○ 스트라이크</span> → 끄기 (보통 아웃을 많이 써요)
+            </li>
+            <li>
+              고른 표시로 <strong>숫자를 누르면 붙고, 다시 누르면 떼어져요</strong>(토글).
             </li>
             <li>표시는 <strong>참고용</strong>이라 실제 입력을 막지 않아요.</li>
             <li>새 게임을 시작하면 메모는 초기화돼요.</li>

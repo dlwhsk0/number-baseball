@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { useGame, LEVELS, type Level } from './game/useGame';
+import { useGame, LEVELS, cycleMemoMark, type Level, type MemoMark } from './game/useGame';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
@@ -35,7 +35,7 @@ function getInitialLevel(): Level {
 
 export default function App() {
   const [level, setLevel] = useState<Level>(getInitialLevel);
-  const { state, pushDigit, popDigit, clearSlot, submit, cycleMemo, reset } = useGame(level);
+  const { state, pushDigit, popDigit, clearSlot, submit, toggleMemo, reset } = useGame(level);
   const [section, setSection] = useState<Section>('solo');
   const [online, setOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -69,7 +69,7 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, multiMode]);
-  const [memoMode, setMemoMode] = useState(false);
+  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   const [showRules, setShowRules] = useState(false);
   // 첫 방문이면 게임 방법(?) 버튼을 반짝여 규칙을 보게 유도. 한 번 열면 localStorage에 기록.
   const [seenRules, setSeenRules] = useState(() => {
@@ -194,7 +194,7 @@ export default function App() {
     Object.keys(state.memo).length === 0;
 
   const newGame = () => {
-    setMemoMode(false);
+    setMemoMark(null);
     reset(level);
   };
 
@@ -205,7 +205,7 @@ export default function App() {
     } catch {
       /* 저장 불가 환경 무시 */
     }
-    setMemoMode(false);
+    setMemoMark(null);
     reset(lv);
   };
 
@@ -351,13 +351,13 @@ export default function App() {
           <Keypad
             slots={state.slots}
             memo={state.memo}
-            mode={memoMode ? 'memo' : 'input'}
+            memoMark={memoMark}
             disabled={finished}
             onDigit={pushDigit}
-            onMemo={cycleMemo}
+            onMemo={(d) => memoMark && toggleMemo(d, memoMark)}
             onDelete={popDigit}
             onSubmit={submit}
-            onToggleMemo={() => setMemoMode((v) => !v)}
+            onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m))}
           />
         )}
       </section>
