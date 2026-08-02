@@ -1,13 +1,17 @@
-// 온라인 턴제 대결 서버 — Socket.IO. 방 코드로 1:1 입장, 서버가 정답을 쥐고 판정한다.
+// 온라인 대결 서버 — Socket.IO. 방 코드로 입장, 서버가 정답을 쥐고 판정.
+// 턴제(duel, 1:1) + 스피드(speed, 2~4명 동시 레이스).
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import { isValidGuess, judge, isWin } from './logic.js';
+import { isValidGuess, judge, isWin, generateSecret } from './logic.js';
 import {
   createRoom,
   joinRoom,
   getRoom,
   deleteRoom,
   bothSecretsSet,
+  speedStandings,
+  allSpeedSolved,
+  activeCount,
   type Room,
 } from './rooms.js';
 import type {
@@ -19,12 +23,8 @@ import type {
 } from './types.js';
 
 const PORT = Number(process.env.PORT) || 3001;
-// 배포 시 프론트 도메인만 허용(예: https://number-baseball-chi.vercel.app). 기본은 전체 허용(개발).
 const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
-// 결과 발표 텀(ms) — 이 시간 동안 양쪽에 결과를 보여준 뒤 턴을 넘긴다. 테스트에선 짧게.
 const REVEAL_MS = Number(process.env.REVEAL_MS) || 1900;
-// 끊긴 뒤 재접속 유예(ms). 이 사이 재접속하면 게임 이어감. 모바일 백그라운드/네트워크 전환 대비.
-// 모바일은 백그라운드로 오래(수십 초) 잠들 수 있어 넉넉히 준다.
 const GRACE_MS = Number(process.env.GRACE_MS) || 90000;
 
 const httpServer = createServer((req, res) => {
@@ -41,7 +41,6 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string,
   httpServer,
   {
     cors: { origin: ORIGIN },
-    // 모바일 백그라운드/스로틀에 관대하게 — 잠깐 멈춰도 바로 끊기지 않도록.
     pingInterval: 25000,
     pingTimeout: 40000,
   },
@@ -52,6 +51,7 @@ function sanitizeNick(nick: unknown): string {
   return n || '플레이어';
 }
 
+// ---------- 턴제(duel) ----------
 function endGame(room: Room, outcome: Outcome): void {
   room.phase = 'over';
   const payload = {
@@ -59,11 +59,10 @@ function endGame(room: Room, outcome: Outcome): void {
     secrets: [room.players[0]?.secret ?? null, room.players[1]?.secret ?? null],
     attempts: [room.histories[0].length, room.histories[1].length],
   };
-  room.lastOver = payload; // 재접속 시 결과 복원용
+  room.lastOver = payload;
   io.to(room.code).emit('over', payload);
 }
 
-// 결과 발표 텀 뒤 턴/종료로 진행. 발표 중(pending) 방이 사라지거나 바뀌면 무시.
 function advanceAfterReveal(room: Room, guesser: 0 | 1): void {
   setTimeout(() => {
     if (getRoom(room.code) !== room || room.phase !== 'playing' || !room.pending) return;
@@ -83,40 +82,111 @@ function advanceAfterReveal(room: Room, guesser: 0 | 1): void {
   }, REVEAL_MS);
 }
 
+// ---------- 스피드(speed) ----------
+function speedRoster(room: Room): { index: number; nick: string; connected: boolean }[] {
+  return room.players
+    .map((p, i) => ({ index: i, nick: p.nick, connected: p.connected, gone: p.gone }))
+    .filter((p) => !p.gone)
+    .map(({ index, nick, connected }) => ({ index, nick, connected }));
+}
+function broadcastSpeedRoster(room: Room): void {
+  io.to(room.code).emit('speedRoster', { players: speedRoster(room) });
+}
+function broadcastSpeedProgress(room: Room): void {
+  io.to(room.code).emit('speedProgress', { standings: speedStandings(room) });
+}
+function maybeEndSpeed(room: Room): void {
+  if (room.phase !== 'playing' || !allSpeedSolved(room)) return;
+  room.phase = 'over';
+  io.to(room.code).emit('speedOver', {
+    standings: speedStandings(room),
+    secret: room.speedSecret ?? '',
+  });
+}
+
 io.on('connection', (socket) => {
   const data = socket.data;
 
-  socket.on('create', ({ nick, digits }, ack) => {
+  socket.on('create', ({ nick, digits, mode }, ack) => {
     const d = digits === 4 ? 4 : 3;
-    const room = createRoom(socket.id, sanitizeNick(nick), d);
+    const m = mode === 'speed' ? 'speed' : 'duel';
+    const room = createRoom(socket.id, sanitizeNick(nick), d, m);
     data.code = room.code;
     data.index = 0;
     socket.join(room.code);
-    ack({ ok: true, code: room.code, index: 0, digits: d, token: room.players[0].token });
+    ack({ ok: true, code: room.code, index: 0, digits: d, mode: m, token: room.players[0].token });
   });
 
   socket.on('join', ({ nick, code }, ack) => {
     const c = String(code ?? '').toUpperCase().trim();
     const res = joinRoom(c, socket.id, sanitizeNick(nick));
-    if (res.error || !res.room) {
+    if (res.error || !res.room || res.index == null) {
       ack({ ok: false, error: res.error });
       return;
     }
+    const room = res.room;
     data.code = c;
-    data.index = 1;
+    data.index = res.index;
     socket.join(c);
+
+    if (room.mode === 'speed') {
+      ack({
+        ok: true,
+        code: c,
+        index: res.index,
+        digits: room.digits,
+        mode: 'speed',
+        players: speedRoster(room).map(({ index, nick: n }) => ({ index, nick: n })),
+        token: room.players[res.index].token,
+      });
+      broadcastSpeedRoster(room);
+      return;
+    }
+
+    // 턴제: 둘 다 입장 → 비밀 정하기
     ack({
       ok: true,
       code: c,
       index: 1,
-      digits: res.room.digits,
-      opponentNick: res.room.players[0].nick,
-      token: res.room.players[1].token,
+      digits: room.digits,
+      mode: 'duel',
+      opponentNick: room.players[0].nick,
+      token: room.players[1].token,
     });
-    socket.to(c).emit('opponentJoined', { nick: res.room.players[1].nick });
-    // 둘 다 입장 → 비밀 숫자 정하기 단계
-    res.room.phase = 'secret';
-    io.to(c).emit('phase', { phase: 'secret', digits: res.room.digits });
+    socket.to(c).emit('opponentJoined', { nick: room.players[1].nick });
+    room.phase = 'secret';
+    io.to(c).emit('phase', { phase: 'secret', digits: room.digits });
+  });
+
+  socket.on('startSpeed', (ack) => {
+    if (typeof ack !== 'function') return;
+    const room = getRoom(data.code);
+    if (!room || data.index == null) {
+      ack({ ok: false, error: '방이 없어요.' });
+      return;
+    }
+    if (room.mode !== 'speed') {
+      ack({ ok: false, error: '스피드 방이 아니에요.' });
+      return;
+    }
+    if (data.index !== 0) {
+      ack({ ok: false, error: '방장만 시작할 수 있어요.' });
+      return;
+    }
+    if (room.phase !== 'waiting') {
+      ack({ ok: false, error: '이미 시작했어요.' });
+      return;
+    }
+    if (activeCount(room) < 2) {
+      ack({ ok: false, error: '2명 이상이어야 시작해요.' });
+      return;
+    }
+    room.speedSecret = generateSecret(room.digits);
+    room.startedAt = Date.now();
+    room.phase = 'playing';
+    ack({ ok: true });
+    io.to(room.code).emit('speedStart', { startAt: room.startedAt, digits: room.digits });
+    broadcastSpeedProgress(room);
   });
 
   socket.on('setSecret', ({ secret }, ack) => {
@@ -149,11 +219,46 @@ io.on('connection', (socket) => {
       ack({ ok: false, error: '방이 없어요.' });
       return;
     }
+
+    // 스피드: 공통 숫자를 각자 푼다.
+    if (room.mode === 'speed') {
+      if (room.phase !== 'playing') {
+        ack({ ok: false, error: '지금은 추측할 수 없어요.' });
+        return;
+      }
+      const me = room.players[data.index];
+      if (!me || me.gone) {
+        ack({ ok: false, error: '참가 상태가 아니에요.' });
+        return;
+      }
+      if (me.solved) {
+        ack({ ok: false, error: '이미 맞혔어요.' });
+        return;
+      }
+      const g = String(guess ?? '');
+      if (!isValidGuess(g, room.digits) || room.speedSecret == null) {
+        ack({ ok: false, error: '유효하지 않은 추측이에요.' });
+        return;
+      }
+      const judgement = judge(room.speedSecret, g);
+      me.history.push({ guess: g, judgement });
+      me.attempts = me.history.length;
+      if (isWin(judgement, room.digits)) {
+        me.solved = true;
+        me.solveMs = Date.now() - room.startedAt;
+      }
+      ack({ ok: true, judgement });
+      broadcastSpeedProgress(room);
+      maybeEndSpeed(room);
+      return;
+    }
+
+    // 턴제
     if (room.phase !== 'playing' || room.pending) {
       ack({ ok: false, error: '지금은 추측할 수 없어요.' });
       return;
     }
-    const p = data.index;
+    const p = (data.index === 1 ? 1 : 0) as 0 | 1;
     if (room.turn !== p) {
       ack({ ok: false, error: '상대 차례예요.' });
       return;
@@ -172,8 +277,6 @@ io.on('connection', (socket) => {
     room.histories[p].push({ guess: g, judgement });
     if (isWin(judgement, room.digits)) room.solved[p] = true;
     ack({ ok: true });
-
-    // 결과를 양쪽에 발표(추측한 사람 숫자는 상대의 비밀과 무관하므로 공개해도 공정성 유지).
     room.pending = true;
     io.to(room.code).emit('reveal', {
       by: p,
@@ -182,13 +285,12 @@ io.on('connection', (socket) => {
       solved: room.solved[p],
       attempts: room.histories[p].length,
     });
-    // 발표 텀 뒤 턴/종료 진행(선공 먼저, 후공에게 같은 라운드 마지막 기회)
     advanceAfterReveal(room, p);
   });
 
   socket.on('input', ({ value }) => {
     const room = getRoom(data.code);
-    if (!room || data.index == null) return;
+    if (!room || data.index == null || room.mode !== 'duel') return;
     if (room.phase !== 'playing' || room.pending || room.turn !== data.index) return;
     const v = String(value ?? '')
       .replace(/[^0-9]/g, '')
@@ -198,9 +300,9 @@ io.on('connection', (socket) => {
 
   socket.on('rematch', () => {
     const room = getRoom(data.code);
-    if (!room || data.index == null) return;
-    room.rematch[data.index] = true;
-    socket.to(room.code).emit('rematchRequested'); // 상대에게 신청 알림
+    if (!room || data.index == null || room.mode !== 'duel') return;
+    room.rematch[data.index === 1 ? 1 : 0] = true;
+    socket.to(room.code).emit('rematchRequested');
     if (room.players.length === 2 && room.rematch[0] && room.rematch[1]) {
       room.histories = [[], []];
       room.solved = [false, false];
@@ -213,16 +315,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 재접속: 저장한 코드·자리·토큰으로 소켓을 다시 자리에 연결하고 현재 상태를 돌려준다.
   socket.on('rejoin', ({ code, index, token }, ack) => {
     const room = getRoom(String(code ?? '').toUpperCase().trim());
     if (!room) {
       ack({ ok: false, error: '방이 사라졌어요.' });
       return;
     }
-    const idx: 0 | 1 = index === 1 ? 1 : 0;
+    const idx = Math.max(0, Math.min(room.players.length - 1, Math.floor(Number(index) || 0)));
     const me = room.players[idx];
-    if (!me || me.token !== token) {
+    if (!me || me.token !== token || me.gone) {
       ack({ ok: false, error: '재접속 정보가 올바르지 않아요.' });
       return;
     }
@@ -235,16 +336,39 @@ io.on('connection', (socket) => {
     data.code = room.code;
     data.index = idx;
     socket.join(room.code);
-    const opp = room.players[1 - idx];
+
+    if (room.mode === 'speed') {
+      const resume: ResumeInfo = {
+        mode: 'speed',
+        phase: room.phase === 'over' ? 'over' : room.phase === 'waiting' ? 'lobby' : 'playing',
+        digits: room.digits,
+        startAt: room.startedAt,
+        myHistory: me.history,
+        standings: speedStandings(room),
+        over:
+          room.phase === 'over'
+            ? { standings: speedStandings(room), secret: room.speedSecret ?? '' }
+            : undefined,
+      };
+      ack({ ok: true, resume });
+      broadcastSpeedRoster(room);
+      broadcastSpeedProgress(room);
+      return;
+    }
+
+    // 턴제
+    const dIdx = (idx === 1 ? 1 : 0) as 0 | 1;
+    const opp = room.players[1 - dIdx];
     const resume: ResumeInfo = {
+      mode: 'duel',
       phase: room.phase === 'waiting' ? 'lobby' : room.phase,
       digits: room.digits,
       turn: room.turn,
       secretReady: room.players.map((p) => p.secret != null),
       mySecretSet: me.secret != null,
-      oppAttempts: room.histories[1 - idx].length,
-      oppSolved: room.solved[1 - idx],
-      oppHistory: room.histories[1 - idx],
+      oppAttempts: room.histories[1 - dIdx].length,
+      oppSolved: room.solved[1 - dIdx],
+      oppHistory: room.histories[1 - dIdx],
       opponentNick: opp?.nick ?? '상대',
       opponentConnected: opp?.connected ?? false,
       over: room.phase === 'over' ? room.lastOver : undefined,
@@ -253,18 +377,33 @@ io.on('connection', (socket) => {
     socket.to(room.code).emit('opponentReconnected');
   });
 
-  // 의도적 나가기 — 백그라운드 이탈(disconnect)과 구분. 즉시 상대에게 알리고 방 정리.
   socket.on('leave', (ack) => {
     const room = getRoom(data.code);
     if (room) {
-      room.players.forEach((p) => {
-        if (p.graceTimer) {
-          clearTimeout(p.graceTimer);
-          p.graceTimer = undefined;
+      if (room.mode === 'speed' && data.index != null && room.players[data.index]) {
+        const me = room.players[data.index];
+        if (me.graceTimer) {
+          clearTimeout(me.graceTimer);
+          me.graceTimer = undefined;
         }
-      });
-      socket.to(room.code).emit('opponentLeft');
-      deleteRoom(room.code);
+        me.gone = true;
+        me.connected = false;
+        if (activeCount(room) === 0) deleteRoom(room.code);
+        else {
+          broadcastSpeedRoster(room);
+          broadcastSpeedProgress(room);
+          maybeEndSpeed(room);
+        }
+      } else {
+        room.players.forEach((p) => {
+          if (p.graceTimer) {
+            clearTimeout(p.graceTimer);
+            p.graceTimer = undefined;
+          }
+        });
+        socket.to(room.code).emit('opponentLeft');
+        deleteRoom(room.code);
+      }
     }
     if (data.code) socket.leave(data.code);
     data.code = undefined;
@@ -277,17 +416,35 @@ io.on('connection', (socket) => {
     if (!room || data.index == null) return;
     const idx = data.index;
     const me = room.players[idx];
-    // 이미 다른 소켓이 이 자리에 재접속했으면 옛 소켓의 disconnect는 무시.
     if (!me || me.id !== socket.id) return;
     me.connected = false;
+
+    if (room.mode === 'speed') {
+      broadcastSpeedRoster(room);
+      broadcastSpeedProgress(room);
+      me.graceTimer = setTimeout(() => {
+        if (getRoom(room.code) !== room) return;
+        me.graceTimer = undefined;
+        if (me.connected) return; // 재접속함
+        me.gone = true;
+        if (activeCount(room) === 0) {
+          deleteRoom(room.code);
+          return;
+        }
+        broadcastSpeedRoster(room);
+        broadcastSpeedProgress(room);
+        maybeEndSpeed(room);
+      }, GRACE_MS);
+      return;
+    }
+
+    // 턴제
     io.to(room.code).emit('opponentDisconnected');
-    // 유예 시간 내 재접속하면 이어감. 만료돼도 상대가 아직 자리를 지키고(접속) 있으면
-    // 방을 없애지 않고 계속 기다린다(강제 종료 방지). 둘 다 없을 때만 방을 정리한다.
     me.graceTimer = setTimeout(() => {
       if (getRoom(room.code) !== room) return;
       me.graceTimer = undefined;
-      const opp = room.players[1 - idx];
-      if (opp && opp.connected) return; // 상대가 남아 있으면 방 유지
+      const opp = room.players[1 - (idx === 1 ? 1 : 0)];
+      if (opp && opp.connected) return;
       io.to(room.code).emit('opponentLeft');
       deleteRoom(room.code);
     }, GRACE_MS);
@@ -295,5 +452,5 @@ io.on('connection', (socket) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`[number-baseball] online duel server listening on :${PORT}`);
+  console.log(`[number-baseball] online server listening on :${PORT}`);
 });
