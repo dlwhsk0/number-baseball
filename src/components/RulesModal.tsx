@@ -68,11 +68,10 @@ export function RulesModal({ onClose }: Props) {
             <li>기회는 <strong>10번</strong>이에요.</li>
           </ul>
 
-          <h3>난이도</h3>
+          <h3>설정 ⚙</h3>
           <ul>
-            <li><strong>초보자</strong> — 3자리. <b>자동 힌트</b>: 추측이 전부 아웃이면 그 숫자들을 자동으로 ✕ 표시.</li>
-            <li><strong>중급</strong> — 3자리, 힌트 없음.</li>
-            <li><strong>고급</strong> — 4자리.</li>
+            <li><strong>자릿수</strong> — <b>3자리</b> 또는 <b>4자리</b>를 골라요.</li>
+            <li><strong>힌트</strong> — 켜면 추측이 전부 아웃일 때 그 숫자들을 자동으로 ✕ 표시해줘요. 3·4자리 모두 적용.</li>
           </ul>
 
           <h3>친구와 대결 🆚</h3>

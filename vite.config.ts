@@ -4,6 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // 개발 전용 — ngrok 등 외부 터널로 모바일 미리보기 허용(빌드엔 영향 없음).
+  server: {
+    allowedHosts: true,
+  },
   plugins: [
     react(),
     VitePWA({

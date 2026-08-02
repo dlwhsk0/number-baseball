@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import {
-  useGame,
-  LEVELS,
-  cycleMemoMark,
-  type Level,
-  type MemoMark,
-  type GuessRecord,
-} from './game/useGame';
+import { useGame, type MemoMark, type GuessRecord } from './game/useGame';
 import { Keypad } from './components/Keypad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
@@ -16,6 +9,7 @@ import { Seg7 } from './components/Seg7';
 import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { FieldBackdrop } from './components/FieldBackdrop';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
@@ -23,27 +17,45 @@ import './App.css';
 
 type Section = 'solo' | 'multi';
 type MultiMode = 'speed' | 'duel' | 'online';
-const MULTI_TABS: { key: MultiMode; label: string }[] = [
-  { key: 'online', label: '온라인' },
-  { key: 'speed', label: '스피드' },
-  { key: 'duel', label: '턴제' },
-];
 
-const LEVEL_ORDER: Level[] = ['beginner', 'intermediate', 'advanced'];
-
-function getInitialLevel(): Level {
+// 자릿수(3/4)와 힌트(개인 기능)는 독립. 예전 'level' 저장값이 있으면 이관.
+function getInitialDigits(): number {
   try {
-    const saved = localStorage.getItem('level');
-    if (saved === 'beginner' || saved === 'intermediate' || saved === 'advanced') return saved;
+    const d = localStorage.getItem('nb_digits');
+    if (d === '3' || d === '4') return Number(d);
+    if (localStorage.getItem('level') === 'advanced') return 4; // 이관
   } catch {
-    /* 저장 불가 환경 무시 */
+    /* 무시 */
   }
-  return 'intermediate';
+  return 3;
+}
+function getInitialHint(): boolean {
+  try {
+    const h = localStorage.getItem('nb_hint');
+    if (h === '1') return true;
+    if (h === '0') return false;
+    if (localStorage.getItem('level') === 'beginner') return true; // 이관
+  } catch {
+    /* 무시 */
+  }
+  return false;
 }
 
 export default function App() {
-  const [level, setLevel] = useState<Level>(getInitialLevel);
-  const { state, pushDigit, popDigit, clearSlot, submit, toggleMemo, reset } = useGame(level);
+  const [digits, setDigitsPref] = useState<number>(getInitialDigits);
+  const [hint, setHintPref] = useState<boolean>(getInitialHint);
+  const {
+    state,
+    pushDigit,
+    popDigit,
+    clearSlot,
+    toggleLock,
+    submit,
+    toggleMemo,
+    clearMemo,
+    setHint,
+    reset,
+  } = useGame(digits, hint);
   const [section, setSection] = useState<Section>('solo');
   const [online, setOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -144,7 +156,7 @@ export default function App() {
       firstThemeRef.current = false;
       return;
     }
-    setEggMsg(dayMode ? '☀️ 주간 모드' : '🌙 야간 모드');
+    setEggMsg(dayMode ? '☀️ 라이트 모드' : '🌙 다크 모드');
     const t = window.setTimeout(() => setEggMsg(null), 1500);
     return () => window.clearTimeout(t);
   }, [dayMode]);
@@ -189,7 +201,8 @@ export default function App() {
       devToastRef.current = window.setTimeout(() => setDevMsg(null), 1100);
     }
   };
-  const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
+  const [pendingDigits, setPendingDigits] = useState<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const finished = state.status !== 'playing';
 
   // PWA: 새 버전은 autoUpdate로 백그라운드 설치 → 다음 실행 때 자동 적용(팝업 없음).
@@ -219,33 +232,70 @@ export default function App() {
     setSoloReveal(null);
   };
 
+  // 입력칸 길게 누르기 → 그 자리 고정(제출해도 유지). 짧게 탭은 기존대로 지우기.
+  const slotHoldRef = useRef<number | undefined>(undefined);
+  const slotHoldFiredRef = useRef(false);
+  const startSlotHold = (index: number) => {
+    slotHoldFiredRef.current = false;
+    slotHoldRef.current = window.setTimeout(() => {
+      slotHoldFiredRef.current = true;
+      toggleLock(index);
+    }, 450);
+  };
+  const cancelSlotHold = () => {
+    if (slotHoldRef.current !== undefined) {
+      window.clearTimeout(slotHoldRef.current);
+      slotHoldRef.current = undefined;
+    }
+  };
+  const onSlotClick = (index: number) => {
+    // 길게 눌러 고정한 직후의 클릭은 무시(지워지지 않게).
+    if (slotHoldFiredRef.current) {
+      slotHoldFiredRef.current = false;
+      return;
+    }
+    clearSlot(index);
+  };
+
   const newGame = () => {
     setMemoMark(null);
     clearReveal();
-    reset(level);
+    reset(digits, hint);
   };
 
-  const doChangeLevel = (lv: Level) => {
-    setLevel(lv);
+  const persist = (key: string, val: string) => {
     try {
-      localStorage.setItem('level', lv);
+      localStorage.setItem(key, val);
     } catch {
       /* 저장 불가 환경 무시 */
     }
+  };
+
+  const doChangeDigits = (d: number) => {
+    setDigitsPref(d);
+    persist('nb_digits', String(d));
     setMemoMark(null);
     clearReveal();
-    reset(lv);
+    reset(d, hint);
   };
 
   // 진행 중인 판(입력·추측·메모가 있는 상태)이면 확인창을 띄우고, 아니면 바로 바꾼다.
   const gameInProgress = state.status === 'playing' && !pristine;
-  const changeLevel = (lv: Level) => {
-    if (lv === level) return;
+  const changeDigits = (d: number) => {
+    if (d === digits) return;
     if (gameInProgress) {
-      setPendingLevel(lv);
+      setPendingDigits(d);
       return;
     }
-    doChangeLevel(lv);
+    doChangeDigits(d);
+  };
+
+  // 힌트는 라이브 토글(새 판 안 함) — 이후 제출부터 적용.
+  const changeHint = (h: boolean) => {
+    if (h === hint) return;
+    setHintPref(h);
+    persist('nb_hint', h ? '1' : '0');
+    setHint(h);
   };
 
   // 온라인 대결 진행 중 이탈 방지 — 모드 전환 시 확인창.
@@ -257,19 +307,28 @@ export default function App() {
   };
 
   return (
-    <main className="app">
+    <>
+      <FieldBackdrop />
+      <main className="app">
       {showIntro && <Intro onDone={dismissIntro} />}
       <header className="controls">
         <div className="controls-row">
-          <button
-            type="button"
-            className={`help-btn${seenRules ? '' : ' pulse-hint'}`}
-            onClick={openRules}
-            aria-label="게임 방법"
-            title="게임 방법"
-          >
-            ?
-          </button>
+          <div className="help-wrap">
+            <button
+              type="button"
+              className={`help-btn${seenRules ? '' : ' pulse-hint'}`}
+              onClick={openRules}
+              aria-label="게임 방법"
+              title="게임 방법"
+            >
+              ?
+            </button>
+            {!seenRules && (
+              <span className="help-callout" role="status">
+                게임 방법 확인! 👆
+              </span>
+            )}
+          </div>
           <div className="seg" role="group" aria-label="모드 선택">
             <button
               type="button"
@@ -277,7 +336,7 @@ export default function App() {
               aria-pressed={section === 'solo'}
               onClick={() => guardedSwitch(() => setSection('solo'))}
             >
-              혼자
+              솔로
             </button>
             <button
               type="button"
@@ -288,122 +347,91 @@ export default function App() {
               멀티
             </button>
           </div>
-        </div>
-
-        <div className="controls-row">
           {section === 'solo' ? (
-            <>
-              <div className="seg" role="group" aria-label="난이도 선택">
-                {LEVEL_ORDER.map((lv) => (
-                  <button
-                    key={lv}
-                    type="button"
-                    className={`seg-btn${lv === level ? ' active' : ''}`}
-                    aria-pressed={lv === level}
-                    onClick={() => changeLevel(lv)}
-                  >
-                    {LEVELS[lv].label}
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="corner-btn" onClick={newGame}>
-                ↻ 새 게임
-              </button>
-            </>
+            <button
+              type="button"
+              className="gear-btn"
+              onClick={() => setShowSettings(true)}
+              aria-label="설정"
+              title="설정"
+            >
+              ⚙
+            </button>
           ) : (
-            <div className="seg" role="group" aria-label="대결 선택">
-              {MULTI_TABS.map((m) => {
-                const off = m.key === 'online' && !online;
-                return (
-                  <button
-                    key={m.key}
-                    type="button"
-                    className={`seg-btn${multiMode === m.key ? ' active' : ''}${off ? ' disabled' : ''}`}
-                    aria-pressed={multiMode === m.key}
-                    aria-disabled={off}
-                    onClick={() => {
-                      if (off) {
-                        showNet('온라인은 네트워크 연결이 필요해요');
-                        return;
-                      }
-                      if (m.key === multiMode) return;
-                      guardedSwitch(() => setMultiMode(m.key));
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                );
-              })}
-            </div>
+            <span className="gear-spacer" aria-hidden="true" />
           )}
         </div>
 
-        {section === 'solo' && (
-          <p className="level-caption">
-            {level === 'advanced' ? '4자리' : '3자리'}
-            {LEVELS[level].beginner ? ' · 자동 힌트(3아웃이면 ✕ 표시)' : ''}
-          </p>
+        {section === 'multi' && (
+          <>
+            {/* 1차: 온라인(기본) vs 오프라인(패스앤플레이) */}
+            <div className="controls-row">
+              <div className="seg" role="group" aria-label="대결 방식">
+                <button
+                  type="button"
+                  className={`seg-btn${multiMode === 'online' ? ' active' : ''}${
+                    online ? '' : ' disabled'
+                  }`}
+                  aria-pressed={multiMode === 'online'}
+                  aria-disabled={!online}
+                  onClick={() => {
+                    if (!online) {
+                      showNet('온라인은 네트워크 연결이 필요해요');
+                      return;
+                    }
+                    if (multiMode === 'online') return;
+                    guardedSwitch(() => setMultiMode('online'));
+                  }}
+                >
+                  🌐 온라인
+                </button>
+                <button
+                  type="button"
+                  className={`seg-btn${multiMode !== 'online' ? ' active' : ''}`}
+                  aria-pressed={multiMode !== 'online'}
+                  onClick={() =>
+                    guardedSwitch(() =>
+                      setMultiMode((m) => (m === 'online' ? 'speed' : m)),
+                    )
+                  }
+                >
+                  오프라인
+                </button>
+              </div>
+            </div>
+
+            {/* 2차: 오프라인일 때만 스피드/턴제 */}
+            {multiMode !== 'online' && (
+              <div className="controls-row">
+                <span className="sub-label">오프라인</span>
+                <div className="seg" role="group" aria-label="오프라인 종류">
+                  <button
+                    type="button"
+                    className={`seg-btn${multiMode === 'speed' ? ' active' : ''}`}
+                    aria-pressed={multiMode === 'speed'}
+                    onClick={() => guardedSwitch(() => setMultiMode('speed'))}
+                  >
+                    스피드
+                  </button>
+                  <button
+                    type="button"
+                    className={`seg-btn${multiMode === 'duel' ? ' active' : ''}`}
+                    aria-pressed={multiMode === 'duel'}
+                    onClick={() => guardedSwitch(() => setMultiMode('duel'))}
+                  >
+                    턴제
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </header>
 
       {section === 'solo' ? (
         <>
-      <section className="board">
-        {finished ? (
-          <ResultBanner
-            status={state.status}
-            secret={state.secret}
-            attempts={state.guesses.length}
-            onRestart={newGame}
-          />
-        ) : (
-          <>
-            <div
-              className="input-display"
-              aria-label="현재 입력"
-              style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-            >
-              {state.slots.map((d, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`slot cell${d ? ' filled' : ''}`}
-                  disabled={!d}
-                  aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
-                  onClick={() => clearSlot(i)}
-                >
-                  <Seg7 char={d} />
-                </button>
-              ))}
-            </div>
-
-            <Keypad
-              slots={state.slots}
-              memo={state.memo}
-              memoMark={memoMark}
-              disabled={finished}
-              onDigit={pushDigit}
-              onMemo={(d) => memoMark && toggleMemo(d, memoMark)}
-              onDelete={popDigit}
-              onSubmit={submit}
-              onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m))}
-            />
-
-            {/* 추측 직후 잠깐 뜨는 결과 발표 카드(입력 영역 위로 팝업, 입력은 계속 가능). */}
-            {soloReveal && (
-              <div className="solo-reveal" aria-live="polite">
-                <RevealCard
-                  guess={soloReveal.guess}
-                  judgement={soloReveal.judgement}
-                  digits={state.digits}
-                />
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      <section className="history-section">
+      {/* 상단: 전광판 — 기록, 게임 종료 시 결과 발표 */}
+      <section className="history-section scoreboard">
         <div className="history-head">
           <span
             className="egg-trigger"
@@ -418,8 +446,85 @@ export default function App() {
             {state.guesses.length} / {state.maxAttempts}
           </span>
         </div>
-        <History guesses={state.guesses} />
+        {finished ? (
+          <div className="score-result">
+            <ResultBanner
+              status={state.status}
+              secret={state.secret}
+              attempts={state.guesses.length}
+              onRestart={newGame}
+            />
+          </div>
+        ) : (
+          <History guesses={state.guesses} />
+        )}
       </section>
+
+      {/* 하단: 타자석 — 입력(게임 중에만) */}
+      {!finished && (
+        <section className="board batter-box">
+          <div
+            className="input-display"
+            aria-label="현재 입력"
+            style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
+          >
+            {state.slots.map((d, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`slot cell${d ? ' filled' : ''}${state.locked[i] ? ' locked' : ''}`}
+                disabled={!d}
+                aria-label={
+                  d
+                    ? state.locked[i]
+                      ? `${i + 1}번째 칸 ${d} 고정됨 — 길게 눌러 해제`
+                      : `${i + 1}번째 칸 ${d} — 탭하면 지우기, 길게 누르면 고정`
+                    : `${i + 1}번째 빈 칸`
+                }
+                onPointerDown={() => d && startSlotHold(i)}
+                onPointerUp={cancelSlotHold}
+                onPointerLeave={cancelSlotHold}
+                onClick={() => onSlotClick(i)}
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                <Seg7 char={d} />
+                {state.locked[i] && (
+                  <span className="slot-lock" aria-hidden="true">
+                    🔒
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <Keypad
+            slots={state.slots}
+            memo={state.memo}
+            memoMark={memoMark}
+            disabled={finished}
+            markButtons
+            showSubmit
+            submitLabel="던지기"
+            onDigit={pushDigit}
+            onMemo={(d) => memoMark && toggleMemo(d, memoMark)}
+            onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
+            onClearMemo={clearMemo}
+            onDelete={popDigit}
+            onSubmit={submit}
+          />
+
+          {/* 추측 직후 잠깐 뜨는 결과 발표 카드(입력 영역 위로 팝업, 입력은 계속 가능). */}
+          {soloReveal && (
+            <div className="solo-reveal" aria-live="polite">
+              <RevealCard
+                guess={soloReveal.guess}
+                judgement={soloReveal.judgement}
+                digits={state.digits}
+              />
+            </div>
+          )}
+        </section>
+      )}
         </>
       ) : multiMode === 'speed' ? (
         <SpeedVersus onExit={() => setSection('solo')} />
@@ -474,17 +579,91 @@ export default function App() {
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
 
-      {pendingLevel && (
+      {showSettings && (
+        <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
+          <div
+            className="settings-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="설정"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="settings-title">설정</h3>
+
+            <div className="settings-row">
+              <span className="settings-label">자릿수</span>
+              <div className="seg" role="group" aria-label="자릿수">
+                {[3, 4].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`seg-btn${digits === d ? ' active' : ''}`}
+                    aria-pressed={digits === d}
+                    onClick={() => changeDigits(d)}
+                  >
+                    {d}자리
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="settings-row">
+              <span className="settings-label">힌트</span>
+              <div className="seg" role="group" aria-label="힌트">
+                <button
+                  type="button"
+                  className={`seg-btn${!hint ? ' active' : ''}`}
+                  aria-pressed={!hint}
+                  onClick={() => changeHint(false)}
+                >
+                  끔
+                </button>
+                <button
+                  type="button"
+                  className={`seg-btn${hint ? ' active' : ''}`}
+                  aria-pressed={hint}
+                  onClick={() => changeHint(true)}
+                >
+                  켬
+                </button>
+              </div>
+            </div>
+            <p className="settings-desc">
+              힌트: 추측이 전부 아웃(3·4아웃)이면 그 숫자들을 자동으로 ✕ 표시해줘요.
+            </p>
+
+            <button
+              type="button"
+              className="versus-primary settings-newgame"
+              onClick={() => {
+                newGame();
+                setShowSettings(false);
+              }}
+            >
+              ↻ 새 게임
+            </button>
+            <button
+              type="button"
+              className="settings-close"
+              onClick={() => setShowSettings(false)}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {pendingDigits !== null && (
         <ConfirmDialog
-          message={`진행 중인 게임이 있어요. '${LEVELS[pendingLevel].label}'(으)로 바꾸면 지금 판은 사라져요. 바꿀까요?`}
+          message={`진행 중인 게임이 있어요. ${pendingDigits}자리로 바꾸면 지금 판은 사라져요. 바꿀까요?`}
           confirmLabel="바꾸기"
           cancelLabel="취소"
           onConfirm={() => {
-            const lv = pendingLevel;
-            setPendingLevel(null);
-            doChangeLevel(lv);
+            const d = pendingDigits;
+            setPendingDigits(null);
+            doChangeDigits(d);
           }}
-          onCancel={() => setPendingLevel(null)}
+          onCancel={() => setPendingDigits(null)}
         />
       )}
 
@@ -502,7 +681,8 @@ export default function App() {
           onCancel={() => setPendingLeave(null)}
         />
       )}
-    </main>
+      </main>
+    </>
   );
 }
 
