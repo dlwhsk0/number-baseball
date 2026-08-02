@@ -6,7 +6,15 @@ import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
 import type { SpeedStanding } from '../net/protocol';
 
+export interface OnlineEntry {
+  action: 'create' | 'join';
+  nick: string;
+  digits: number;
+  code?: string;
+}
 interface Props {
+  entry: OnlineEntry;
+  onExit: () => void;
   onActiveChange?: (active: boolean) => void;
 }
 
@@ -124,26 +132,21 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
 }
 
 /** 온라인 스피드 대전 — 공통 숫자를 2~4명이 동시에 풀어 순위를 겨룬다(서버 권위). */
-export function OnlineSpeed({ onActiveChange }: Props) {
+export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
+  const entryRef = useRef(entry);
+  const autoRanRef = useRef(false);
   const myIndexRef = useRef(0);
   const sessionRef = useRef<Session | null>(loadSession());
   const [resuming, setResuming] = useState<boolean>(() => sessionRef.current !== null);
 
   const [phase, setPhase] = useState<Phase>('menu');
   const [connected, setConnected] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [nick, setNick] = useState(() => {
-    try {
-      return localStorage.getItem('nb_nick') ?? '';
-    } catch {
-      return '';
-    }
-  });
-  const [digits, setDigits] = useState(3);
-  const [joinCode, setJoinCode] = useState('');
+  const [nick] = useState(entry.nick);
+  const [digits, setDigits] = useState(entry.digits);
+  const [joinCode] = useState(entry.code ?? '');
   const [code, setCode] = useState('');
   const [myIndex, setMyIndex] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -268,11 +271,9 @@ export function OnlineSpeed({ onActiveChange }: Props) {
   };
 
   const doCreate = () => {
-    setBusy(true);
     setError(null);
     saveNick();
     socketRef.current.emit('create', { nick, digits, mode: 'speed' }, (r) => {
-      setBusy(false);
       if (r.ok) {
         sessionRef.current = { code: r.code, index: 0, token: r.token };
         saveSession(sessionRef.current);
@@ -291,11 +292,9 @@ export function OnlineSpeed({ onActiveChange }: Props) {
       setError('코드 4자리를 입력해주세요.');
       return;
     }
-    setBusy(true);
     setError(null);
     saveNick();
     socketRef.current.emit('join', { nick, code: c }, (r) => {
-      setBusy(false);
       if (!r.ok || r.index == null) {
         setError(r.error ?? '입장에 실패했어요.');
         return;
@@ -343,100 +342,39 @@ export function OnlineSpeed({ onActiveChange }: Props) {
     }
   };
 
+  // 나가기 = 멀티 메뉴로 복귀(서버에 leave 알리고 언마운트).
   const backToMenu = () => {
     sessionRef.current = null;
     saveSession(null);
-    setResuming(false);
     socketRef.current.emit('leave', () => {});
-    setPhase('menu');
-    setCode('');
-    setJoinCode('');
-    setRoster([]);
-    setStandings([]);
-    setMyHistory([]);
-    setOver(null);
-    setLeft(false);
-    setError(null);
-    setStartAt(0);
-    setMyIndex(0);
-    myIndexRef.current = 0;
+    onExit();
   };
 
+  // 세션 없이 진입하면(신규) 연결되는 대로 App이 준 액션(방 만들기/입장) 자동 실행.
+  useEffect(() => {
+    if (!connected || sessionRef.current || autoRanRef.current) return;
+    autoRanRef.current = true;
+    if (entryRef.current.action === 'create') doCreate();
+    else doJoin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected]);
+
   // ---------- 렌더 ----------
-  if (resuming && phase === 'menu') {
+  // 메뉴(닉네임·옵션)는 App이 담당 — 여기선 방 만들기/입장 진행 중 로딩만.
+  if (phase === 'menu') {
+    const label = resuming
+      ? '방에 다시 연결하는 중…'
+      : entry.action === 'create'
+      ? '방 만드는 중…'
+      : '입장하는 중…';
     return (
       <div className="versus versus-center">
         <LoadingDots />
-        <p className="wait-line">방에 다시 연결하는 중…</p>
+        <p className="wait-line">{connected ? label : '서버 연결 중…'}</p>
+        {error && <p className="online-error">{error}</p>}
         <button type="button" className="versus-secondary" onClick={backToMenu}>
-          취소
+          {error ? '뒤로' : '취소'}
         </button>
-      </div>
-    );
-  }
-
-  if (phase === 'menu') {
-    return (
-      <div className="versus versus-center">
-        <h2 className="versus-title">스피드 온라인 ⚡</h2>
-        <div className="online-menu-card">
-          <p className={`online-status${connected ? ' on' : ''}`}>
-            {connected ? '● 서버 연결됨' : '○ 서버 연결 중…'}
-          </p>
-          <div className="versus-field">
-            <span className="versus-label">닉네임</span>
-            <input
-              className="online-input"
-              value={nick}
-              maxLength={12}
-              placeholder="플레이어"
-              onChange={(e) => setNick(e.target.value)}
-            />
-          </div>
-          <div className="versus-field">
-            <span className="versus-label">자릿수</span>
-            <div className="seg" role="group" aria-label="자릿수">
-              {[3, 4].map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className={`seg-btn${digits === d ? ' active' : ''}`}
-                  onClick={() => setDigits(d)}
-                >
-                  {d}자리
-                </button>
-              ))}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="versus-primary"
-            disabled={!connected || busy}
-            onClick={doCreate}
-          >
-            방 만들기
-          </button>
-          <div className="online-or">또는</div>
-          <div className="online-join">
-            <input
-              className="online-input online-code"
-              value={joinCode}
-              maxLength={4}
-              placeholder="CODE"
-              autoCapitalize="characters"
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            />
-            <button
-              type="button"
-              className="versus-secondary"
-              disabled={!connected || busy}
-              onClick={doJoin}
-            >
-              입장
-            </button>
-          </div>
-          {error && <p className="online-error">{error}</p>}
-        </div>
       </div>
     );
   }

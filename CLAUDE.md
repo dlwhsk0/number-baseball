@@ -36,11 +36,16 @@
 - **컨트롤**(`.controls`): **타이틀·부제 없음**(인트로에서만). 밝기 토글 없음(단일 다크).
   - 1행: `[?]`(좌, 첫 방문 시 `.help-callout` 말풍선) · `[ 솔로 | 멀티 ]` 세그먼트(`section`) · **`[⚙]`**(우, 솔로만 — 설정 시트).
   - **설정 시트**(`⚙` → `.settings-sheet` 모달): **자릿수 [3자리|4자리]** · **힌트 [끔|켬]** · `↻ 새 게임`.
-  - 멀티 2행: **`[🌐 온라인 | 오프라인]`**(온라인 기본). 오프라인 선택 시 3행 `오프라인 [스피드|턴제]`. `multiMode: 'online'|'speed'|'duel'`.
+  - 멀티는 헤더에 별도 세그먼트 없음(아래 **멀티 시작 메뉴** 카드가 전부 담당). `⚙` 자리는 `.gear-spacer`.
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
-- **대결 모드**(App `section='multi'`): **게임 종류 `[스피드 | 턴제]`(`gameType`) × 진행 `[온라인 | 로컬]`(`conn`)** 두 세그먼트로 선택 → 4조합.
+- **대결 모드**(App `section='multi'`): **멀티 시작 메뉴** — 하나의 글라스 카드(`.online-menu-card`)에 위→아래로
+  **닉네임 입력**(`mNick`, `localStorage.nb_nick`) · **자릿수 `[3|4]`**(`mDigits`) · **종류 `[스피드|턴제]`**(`gameType`),
+  그 아래 **버튼 3개**: `[방 만들기]`·`[코드 입력하기]`(CODE 입력칸 동반)·`[로컬 진행하기]`. 앞 둘은 온라인(오프라인이면 `disabled`+토스트), 마지막은 로컬.
+  버튼을 누르면 `launch`(`{conn,gameType,action,code?}`)가 세팅되어 해당 화면으로 진입, 각 화면의 `onExit`가 `launch=null`로 메뉴 복귀.
+  - 온라인 컴포넌트(`OnlineSpeed`/`OnlineDuel`)는 **액션 구동식**: `entry={{action:'create'|'join', nick, digits, code}}` + `onExit`를 받아
+    연결되면 자동으로 `doCreate`/`doJoin` 실행(`autoRanRef` 가드), 자체 메뉴 없이 로딩 화면만. 로컬은 `SpeedVersus`/`DuelVersus`(자체 셋업 유지).
   로컬=한 기기 패스앤플레이(`SpeedVersus`/`DuelVersus`, 서버 없음), 온라인=서버 대전(`OnlineSpeed`/`OnlineDuel`). 온라인은 스피드·턴제 **둘 다** 지원.
   - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. 방 만들기/코드 입장(2~4명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(시도·맞힘·시간) → **전원 맞히면 종료**(적은 횟수→빠른 시간 순위). 세션 재접속 지원(`nb_speed_session`).
     서버: 방 `mode:'duel'|'speed'`, 스피드는 `speedSecret`·플레이어별 `solved/attempts/solveMs/history`·`gone`. 이벤트 `startSpeed`/`speedStart`/`speedRoster`/`speedProgress`/`speedOver`.
@@ -58,7 +63,8 @@
     **재접속 복구**: 끊겨도 서버가 방을 바로 안 지우고 유예(`GRACE_MS` 기본 90s — 모바일 백그라운드 대비 넉넉히).
     클라는 세션(코드·자리·토큰)을 **`sessionStorage`(`nb_online_session`)에 저장** → 탭이 리로드/백그라운드 복귀해도 마운트 시 복원해 자동 `rejoin`(그동안 "방에 다시 연결하는 중" 화면, 9s 타임아웃 폴백).
     소켓 재연결 시 `rejoin`으로 다시 합류하고 `resume`으로 상태 동기화. 나가기·방 만료·상대 이탈 시 세션 삭제. (`opponentDisconnected/Reconnected` 알림, `NetStatus` 배너.)
-    Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **서버 코드 바꾸면 VM 재배포 필요**(`git pull && pnpm build && pm2 restart nb-server`).
+    Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **서버 코드 바꾸면 VM 재배포 필요** — `scripts/redeploy-server.sh`
+    (접속 정보는 `scripts/deploy.env`, gitignore. VM `ubuntu@151.145.75.107`, 도메인 `wss://b-ball.duckdns.org`, pm2 `nb-server`). 수동: `git pull && pnpm -C server build && pm2 restart nb-server`.
     연출: 추측 후 **결과 발표 텀**(서버 `reveal` → `REVEAL_MS` 뒤 turn/over, 그동안 `pending`으로 입력 차단), 특이 이벤트 리액션,
     상대 입장 직후 **VS 매치업 연출**(`vsIntro` — `phase` 이벤트 받으면 양쪽 닉네임 슬라이드+`VS` 팝 ~2.4초 뒤 비밀 정하기로. 재대결도 동일, 재접속 복귀 땐 생략),
     선공이 맞히면 후공 **역전 찬스**, 시작 발표, 상대 대기 랜덤 멘트, **내 숫자 peek**(블러+눌러서 토글 확인/숨김),

@@ -63,3 +63,13 @@ sudo systemctl restart caddy
 ```
 **6) 프론트 연결** — Vercel 프로젝트 env `VITE_SERVER_URL = wss://<HOST>` 설정 후 재배포.
    접속 확인: `https://<HOST>/health` → `ok`.
+
+## 재배포(서버 코드 수정 후)
+서버 코드를 고쳐 `main`에 올렸으면 VM을 다시 배포해야 반영된다. 로컬에서:
+```bash
+cp scripts/deploy.env.example scripts/deploy.env   # 최초 1회, NB_SSH 채우기
+scripts/redeploy-server.sh                          # SSH 접속 → git pull → build → pm2 restart
+```
+`deploy.env`(접속 정보)는 gitignore 되어 커밋되지 않는다. 스크립트는 `git reset --hard origin/<브랜치>` 후
+`pnpm -C server build` → `pm2 restart nb-server` 까지 한 번에 수행한다. 수동으로 하려면 VM에서:
+`git pull && pnpm -C server build && pm2 restart nb-server`.

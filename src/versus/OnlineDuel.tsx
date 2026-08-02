@@ -16,7 +16,17 @@ import { RevealCard } from '../components/RevealCard';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Outcome } from '../net/protocol';
 
+export interface OnlineEntry {
+  action: 'create' | 'join';
+  nick: string;
+  digits: number;
+  code?: string;
+}
 interface Props {
+  /** App 멀티 메뉴가 고른 진입 액션(방 만들기/입장). 연결되는 대로 자동 실행. */
+  entry: OnlineEntry;
+  /** 멀티 메뉴로 복귀. */
+  onExit: () => void;
   /** 대결이 진행 중(비밀 설정~플레이)인지 App에 알림 — 이탈 확인창용. */
   onActiveChange?: (active: boolean) => void;
 }
@@ -259,8 +269,10 @@ function saveSession(s: Session | null) {
 }
 
 /** 온라인 턴제 대결(방 코드). 서버가 정답을 쥐고 판정한다. */
-export function OnlineDuel({ onActiveChange }: Props) {
+export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
+  const entryRef = useRef(entry);
+  const autoRanRef = useRef(false);
   const myIndexRef = useRef<0 | 1>(0);
   const announceRef = useRef<number | undefined>(undefined);
   const vsTimerRef = useRef<number | undefined>(undefined);
@@ -272,18 +284,11 @@ export function OnlineDuel({ onActiveChange }: Props) {
 
   const [phase, setPhase] = useState<Phase>('menu');
   const [connected, setConnected] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [nick, setNick] = useState(() => {
-    try {
-      return localStorage.getItem('nb_nick') ?? '';
-    } catch {
-      return '';
-    }
-  });
-  const [digits, setDigits] = useState(3);
-  const [joinCode, setJoinCode] = useState('');
+  const [nick] = useState(entry.nick);
+  const [digits, setDigits] = useState(entry.digits);
+  const [joinCode] = useState(entry.code ?? '');
   const [code, setCode] = useState('');
   const [myIndex, setMyIndex] = useState<0 | 1>(0);
   const [opponentNick, setOpponentNick] = useState('상대');
@@ -544,11 +549,9 @@ export function OnlineDuel({ onActiveChange }: Props) {
   };
 
   const doCreate = () => {
-    setBusy(true);
     setError(null);
     saveNick();
-    socketRef.current.emit('create', { nick, digits }, (r) => {
-      setBusy(false);
+    socketRef.current.emit('create', { nick, digits, mode: 'duel' }, (r) => {
       if (r.ok) {
         sessionRef.current = { code: r.code, index: 0, token: r.token };
         saveSession(sessionRef.current);
@@ -566,11 +569,9 @@ export function OnlineDuel({ onActiveChange }: Props) {
       setError('코드 4자리를 입력해주세요.');
       return;
     }
-    setBusy(true);
     setError(null);
     saveNick();
     socketRef.current.emit('join', { nick, code: c }, (r) => {
-      setBusy(false);
       if (!r.ok) {
         setError(r.error ?? '입장에 실패했어요.');
         return;
@@ -623,22 +624,22 @@ export function OnlineDuel({ onActiveChange }: Props) {
     }
   };
 
-  // 방/게임에서 나가되 온라인 메뉴로 복귀(멀티 유지). 서버 방은 정리되고 상대에겐 즉시 알림.
-  // 소켓은 끊지 않고 유지(메뉴에서 바로 방 만들기/입장 가능) — leave로 서버 자리만 비운다.
+  // 나가기 = 멀티 메뉴로 복귀. 서버에 leave 알리고 언마운트(App이 메뉴로).
   const backToMenu = () => {
     sessionRef.current = null;
     saveSession(null);
-    setResuming(false);
     socketRef.current.emit('leave', () => {});
-    resetRound();
-    setCode('');
-    setJoinCode('');
-    setOpponentNick('상대');
-    setMyIndex(0);
-    myIndexRef.current = 0;
-    setError(null);
-    setPhase('menu');
+    onExit();
   };
+
+  // 세션 없이 진입하면(신규) 연결되는 대로 App이 준 액션(방 만들기/입장) 자동 실행.
+  useEffect(() => {
+    if (!connected || sessionRef.current || autoRanRef.current) return;
+    autoRanRef.current = true;
+    if (entryRef.current.action === 'create') doCreate();
+    else doJoin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connected]);
 
   // 대결 중 나가기(비밀·플레이). 상대 끊김으로 대기에 갇혔을 때도 빠져나갈 길.
   const matchExitBtn = (
@@ -660,88 +661,22 @@ export function OnlineDuel({ onActiveChange }: Props) {
   );
 
   // ---------- 렌더 ----------
-  // 저장된 세션으로 복귀 시도 중(리로드 직후) — 메뉴 대신 재접속 화면.
-  if (resuming && phase === 'menu') {
+  // 메뉴(닉네임·옵션)는 App이 담당 — 여기선 방 만들기/입장·재접속 진행 중 로딩만.
+  if (phase === 'menu') {
+    const label = resuming
+      ? '방에 다시 연결하는 중…'
+      : entry.action === 'create'
+      ? '방 만드는 중…'
+      : '입장하는 중…';
     return (
       <div className="versus versus-center">
         <NetStatus connected={connected} oppDisconnected={false} />
         <LoadingDots />
-        <p className="wait-line">방에 다시 연결하는 중…</p>
+        <p className="wait-line">{connected ? label : '서버 연결 중…'}</p>
+        {error && <p className="online-error">{error}</p>}
         <button type="button" className="versus-secondary" onClick={backToMenu}>
-          취소
+          {error ? '뒤로' : '취소'}
         </button>
-      </div>
-    );
-  }
-  if (phase === 'menu') {
-    return (
-      <div className="versus versus-center">
-        <h2 className="versus-title">온라인 대결 🌐</h2>
-
-        {/* 시작 폼을 하나의 글라스 카드로 */}
-        <div className="online-menu-card">
-          <p className={`online-status${connected ? ' on' : ''}`}>
-            {connected ? '● 서버 연결됨' : '○ 서버 연결 중…'}
-          </p>
-
-          <div className="versus-field">
-            <span className="versus-label">닉네임</span>
-            <input
-              className="online-input"
-              value={nick}
-              maxLength={12}
-              placeholder="플레이어"
-              onChange={(e) => setNick(e.target.value)}
-            />
-          </div>
-          <div className="versus-field">
-            <span className="versus-label">자릿수</span>
-            <div className="seg" role="group" aria-label="자릿수">
-              {[3, 4].map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className={`seg-btn${digits === d ? ' active' : ''}`}
-                  onClick={() => setDigits(d)}
-                >
-                  {d}자리
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="versus-primary"
-            disabled={!connected || busy}
-            onClick={doCreate}
-          >
-            방 만들기
-          </button>
-
-          <div className="online-or">또는</div>
-
-          <div className="online-join">
-            <input
-              className="online-input online-code"
-              value={joinCode}
-              maxLength={4}
-              placeholder="CODE"
-              autoCapitalize="characters"
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            />
-            <button
-              type="button"
-              className="versus-secondary"
-              disabled={!connected || busy}
-              onClick={doJoin}
-            >
-              입장
-            </button>
-          </div>
-
-          {error && <p className="online-error">{error}</p>}
-        </div>
       </div>
     );
   }

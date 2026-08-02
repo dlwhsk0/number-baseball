@@ -18,7 +18,9 @@ import './App.css';
 
 type Section = 'solo' | 'multi';
 type GameType = 'speed' | 'duel';
-type Conn = 'online' | 'local';
+type Launch =
+  | { conn: 'online'; gameType: GameType; action: 'create' | 'join'; code?: string }
+  | { conn: 'local'; gameType: GameType };
 
 // 자릿수(3/4)와 힌트(개인 기능)는 독립. 예전 'level' 저장값이 있으면 이관.
 function getInitialDigits(): number {
@@ -52,11 +54,25 @@ export default function App() {
   const [online, setOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   );
-  // 멀티: 게임 종류(스피드/턴제) × 진행(온라인/로컬). 기본 턴제·온라인(연결 없으면 로컬).
+  // 멀티 메뉴: 닉네임·자릿수·종류를 정하고 [방 만들기]/[코드 입력]/[로컬 진행] 중 하나로 진입(launch).
   const [gameType, setGameType] = useState<GameType>('duel');
-  const [conn, setConn] = useState<Conn>(() =>
-    typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'local',
-  );
+  const [mNick, setMNick] = useState(() => {
+    try {
+      return localStorage.getItem('nb_nick') ?? '';
+    } catch {
+      return '';
+    }
+  });
+  const [mDigits, setMDigits] = useState(3);
+  const [mCode, setMCode] = useState('');
+  const [launch, setLaunch] = useState<Launch | null>(null);
+  const persistNick = () => {
+    try {
+      localStorage.setItem('nb_nick', mNick.trim());
+    } catch {
+      /* 무시 */
+    }
+  };
   const [netMsg, setNetMsg] = useState<string | null>(null);
   const netTimerRef = useRef<number | undefined>(undefined);
   const showNet = (m: string) => {
@@ -74,14 +90,6 @@ export default function App() {
       window.removeEventListener('offline', off);
     };
   }, []);
-  // 연결이 끊기면 온라인→로컬로 폴백.
-  useEffect(() => {
-    if (!online && conn === 'online') {
-      setConn('local');
-      showNet('네트워크 연결이 필요해요');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, conn]);
   const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   // 자리별 추리 메모(솔로). notes[i] = i번 칸의 후보 숫자들(빈 배열=미정). 새 판·자릿수 변경 시 초기화.
   const [notes, setNotes] = useState<string[][]>(() =>
@@ -377,62 +385,6 @@ export default function App() {
           )}
         </div>
 
-        {section === 'multi' && (
-          <>
-            {/* 게임 종류 */}
-            <div className="controls-row">
-              <div className="seg" role="group" aria-label="게임 종류">
-                <button
-                  type="button"
-                  className={`seg-btn${gameType === 'speed' ? ' active' : ''}`}
-                  aria-pressed={gameType === 'speed'}
-                  onClick={() => guardedSwitch(() => setGameType('speed'))}
-                >
-                  ⚡ 스피드
-                </button>
-                <button
-                  type="button"
-                  className={`seg-btn${gameType === 'duel' ? ' active' : ''}`}
-                  aria-pressed={gameType === 'duel'}
-                  onClick={() => guardedSwitch(() => setGameType('duel'))}
-                >
-                  🔁 턴제
-                </button>
-              </div>
-            </div>
-            {/* 진행 방법 */}
-            <div className="controls-row offline-sub">
-              <div className="seg" role="group" aria-label="진행 방법">
-                <button
-                  type="button"
-                  className={`seg-btn${conn === 'online' ? ' active' : ''}${
-                    online ? '' : ' disabled'
-                  }`}
-                  aria-pressed={conn === 'online'}
-                  aria-disabled={!online}
-                  onClick={() => {
-                    if (!online) {
-                      showNet('온라인은 네트워크 연결이 필요해요');
-                      return;
-                    }
-                    if (conn === 'online') return;
-                    guardedSwitch(() => setConn('online'));
-                  }}
-                >
-                  🌐 온라인
-                </button>
-                <button
-                  type="button"
-                  className={`seg-btn${conn === 'local' ? ' active' : ''}`}
-                  aria-pressed={conn === 'local'}
-                  onClick={() => guardedSwitch(() => setConn('local'))}
-                >
-                  📱 로컬
-                </button>
-              </div>
-            </div>
-          </>
-        )}
       </header>
 
       {section === 'solo' ? (
@@ -569,14 +521,137 @@ export default function App() {
         </section>
       )}
         </>
-      ) : conn === 'online' && gameType === 'speed' ? (
-        <OnlineSpeed onActiveChange={setOnlineActive} />
-      ) : conn === 'online' ? (
-        <OnlineDuel onActiveChange={setOnlineActive} />
-      ) : gameType === 'speed' ? (
-        <SpeedVersus onExit={() => setSection('solo')} />
+      ) : launch === null ? (
+        <div className="versus versus-center">
+          <div className="online-menu-card">
+            <label className="versus-field">
+              <span className="versus-label">닉네임</span>
+              <input
+                className="online-input"
+                value={mNick}
+                maxLength={12}
+                placeholder="플레이어"
+                onChange={(e) => setMNick(e.target.value)}
+              />
+            </label>
+            <div className="versus-field">
+              <span className="versus-label">자릿수</span>
+              <div className="seg" role="group" aria-label="자릿수">
+                {[3, 4].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`seg-btn${mDigits === d ? ' active' : ''}`}
+                    aria-pressed={mDigits === d}
+                    onClick={() => setMDigits(d)}
+                  >
+                    {d}자리
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="versus-field">
+              <span className="versus-label">종류</span>
+              <div className="seg" role="group" aria-label="게임 종류">
+                <button
+                  type="button"
+                  className={`seg-btn${gameType === 'speed' ? ' active' : ''}`}
+                  aria-pressed={gameType === 'speed'}
+                  onClick={() => setGameType('speed')}
+                >
+                  ⚡ 스피드
+                </button>
+                <button
+                  type="button"
+                  className={`seg-btn${gameType === 'duel' ? ' active' : ''}`}
+                  aria-pressed={gameType === 'duel'}
+                  onClick={() => setGameType('duel')}
+                >
+                  🔁 턴제
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className={`versus-primary${online ? '' : ' disabled'}`}
+              aria-disabled={!online}
+              onClick={() => {
+                if (!online) {
+                  showNet('온라인은 네트워크 연결이 필요해요');
+                  return;
+                }
+                persistNick();
+                setLaunch({ conn: 'online', gameType, action: 'create' });
+              }}
+            >
+              🚪 방 만들기
+            </button>
+
+            <div className="online-join">
+              <input
+                className="online-input online-code"
+                value={mCode}
+                maxLength={4}
+                placeholder="CODE"
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                onChange={(e) => setMCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              />
+              <button
+                type="button"
+                className={`versus-secondary${online ? '' : ' disabled'}`}
+                aria-disabled={!online}
+                onClick={() => {
+                  if (!online) {
+                    showNet('온라인은 네트워크 연결이 필요해요');
+                    return;
+                  }
+                  if (mCode.trim().length < 4) {
+                    showNet('코드 4자리를 입력해 주세요');
+                    return;
+                  }
+                  persistNick();
+                  setLaunch({
+                    conn: 'online',
+                    gameType,
+                    action: 'join',
+                    code: mCode.trim().toUpperCase(),
+                  });
+                }}
+              >
+                코드 입력하기
+              </button>
+            </div>
+
+            <div className="online-or" aria-hidden="true"><span>또는</span></div>
+
+            <button
+              type="button"
+              className="versus-secondary"
+              onClick={() => setLaunch({ conn: 'local', gameType })}
+            >
+              📱 로컬 진행하기
+            </button>
+          </div>
+        </div>
+      ) : launch.conn === 'online' && launch.gameType === 'speed' ? (
+        <OnlineSpeed
+          entry={{ action: launch.action, nick: mNick, digits: mDigits, code: launch.code }}
+          onExit={() => setLaunch(null)}
+          onActiveChange={setOnlineActive}
+        />
+      ) : launch.conn === 'online' ? (
+        <OnlineDuel
+          entry={{ action: launch.action, nick: mNick, digits: mDigits, code: launch.code }}
+          onExit={() => setLaunch(null)}
+          onActiveChange={setOnlineActive}
+        />
+      ) : launch.gameType === 'speed' ? (
+        <SpeedVersus onExit={() => setLaunch(null)} />
       ) : (
-        <DuelVersus onExit={() => setSection('solo')} />
+        <DuelVersus onExit={() => setLaunch(null)} />
       )}
 
       <footer className="app-footer">

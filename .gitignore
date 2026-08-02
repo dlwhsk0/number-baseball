@@ -29,3 +29,6 @@ dist-ssr
 # vite-plugin-pwa dev 산출물
 dev-dist
 .vercel
+
+# 서버 재배포 접속 정보(민감) — 커밋 금지
+scripts/deploy.env
