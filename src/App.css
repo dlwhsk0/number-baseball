@@ -9,52 +9,6 @@
   flex-direction: column;
   gap: 18px;
   color: var(--text);
-  /* 배경 필드(.field-bg, z-index:0) 위에 콘텐츠가 오도록 스택 컨텍스트 생성. */
-  position: relative;
-  z-index: 1;
-}
-
-/* 배경 연출 — 타자석에서 본 그라운드 다이아몬드(앱 전체 뒤). 위로 갈수록 페이드. */
-.field-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to top, #000 16%, transparent 66%);
-  mask-image: linear-gradient(to top, #000 16%, transparent 66%);
-}
-.field-bg svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.fb-lines line {
-  stroke: color-mix(in srgb, var(--accent) 62%, #fff);
-  stroke-width: 2;
-  opacity: 0.13;
-}
-.fb-diamond {
-  fill: color-mix(in srgb, var(--accent) 9%, transparent);
-  stroke: color-mix(in srgb, var(--accent) 55%, #fff);
-  stroke-width: 2;
-  opacity: 0.42;
-}
-.fb-base {
-  fill: color-mix(in srgb, #fff 70%, var(--accent));
-  opacity: 0.3;
-}
-.fb-mound {
-  fill: var(--out);
-  opacity: 0.22;
-}
-.fb-plate {
-  fill: #fff;
-  opacity: 0.32;
-}
-:root[data-theme='light'] .fb-lines line,
-:root[data-theme='light'] .fb-diamond {
-  stroke: color-mix(in srgb, var(--accent) 70%, #000);
 }
 
 /* 정답존 위 컨트롤 — 2행: [? · 혼자|멀티] / [난이도 · ↻새 게임] */
@@ -531,67 +485,6 @@
   color: var(--muted);
   letter-spacing: 0.06em;
   margin-bottom: 8px;
-}
-
-/* ===== 전광판(상단 기록) 프레이밍 ===== */
-.history-section.scoreboard {
-  position: relative;
-  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
-  border: 2px solid color-mix(in srgb, var(--led) 22%, #16171b);
-  border-radius: 16px;
-  box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.7),
-    0 0 0 3px color-mix(in srgb, #000 65%, transparent),
-    0 8px 24px rgba(0, 0, 0, 0.5);
-  padding: 14px 14px 16px;
-}
-/* 상단 전구 램프 줄(전광판 상단 조명 느낌) */
-.scoreboard::before {
-  content: '';
-  position: absolute;
-  top: 7px;
-  left: 14px;
-  right: 14px;
-  height: 4px;
-  border-radius: 999px;
-  background: repeating-linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--accent) 70%, transparent) 0 4px,
-    transparent 4px 12px
-  );
-  opacity: 0.5;
-}
-.scoreboard .history-head {
-  margin-top: 8px;
-  text-transform: uppercase;
-  font-weight: 800;
-}
-
-/* ===== 타자석(하단 입력) 프레이밍 — 홈플레이트 위 다이아몬드존 ===== */
-.board.batter-box {
-  position: relative;
-  padding: 20px 14px 16px;
-  border-radius: 16px 16px 22px 22px;
-  background: radial-gradient(
-    120% 90% at 50% 118%,
-    color-mix(in srgb, var(--accent) 12%, transparent) 0%,
-    transparent 62%
-  );
-  border: 1px solid color-mix(in srgb, var(--led) 12%, transparent);
-  border-bottom: none;
-}
-/* 홈플레이트(하단 중앙 꼭짓점) */
-.board.batter-box::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -9px;
-  width: 34px;
-  height: 26px;
-  transform: translateX(-50%);
-  background: color-mix(in srgb, #fff 82%, var(--accent));
-  opacity: 0.85;
-  clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 /* 이스터에그 트리거(길게 누르면 주간/야간 전환) — 티 안 나게 평범한 라벨처럼 */
 .egg-trigger {
