@@ -29,7 +29,8 @@ if [[ -f "$HERE/deploy.env" ]]; then
 fi
 
 : "${NB_SSH:?NB_SSH가 필요합니다 (예: ubuntu@<공인IP>.sslip.io). scripts/deploy.env 참고}"
-NB_REMOTE_DIR="${NB_REMOTE_DIR:-~/number-baseball}"
+# 원격 홈 기준 상대 경로가 기본(ssh 로그인 셸은 홈에서 시작). ~ 는 로컬에서 확장되니 쓰지 말 것.
+NB_REMOTE_DIR="${NB_REMOTE_DIR:-number-baseball}"
 NB_BRANCH="${NB_BRANCH:-main}"
 NB_PM2_NAME="${NB_PM2_NAME:-nb-server}"
 
@@ -45,8 +46,7 @@ ssh "${SSH_ARGS[@]}" "$NB_SSH" NB_REMOTE_DIR="$NB_REMOTE_DIR" NB_BRANCH="$NB_BRA
 set -euo pipefail
 # corepack(pnpm)·pm2가 PATH에 있도록 로그인 셸 환경을 보정.
 export PATH="$HOME/.local/share/pnpm:$HOME/.npm-global/bin:/usr/local/bin:$PATH"
-DIR="${NB_REMOTE_DIR/#\~/$HOME}"
-cd "$DIR"
+cd "${NB_REMOTE_DIR/#\~/$HOME}"
 
 echo "· git fetch/checkout $NB_BRANCH"
 git fetch --prune origin
