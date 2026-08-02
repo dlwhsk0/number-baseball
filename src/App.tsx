@@ -144,7 +144,8 @@ export default function App() {
   const [dayMode, setDayMode] = useState(false);
   const [eggMsg, setEggMsg] = useState<string | null>(null);
   const holdRef = useRef<number | undefined>(undefined);
-  const firstThemeRef = useRef(true);
+  // 사용자가 실제로 테마를 토글했을 때만 토스트(마운트·StrictMode 재실행 땐 안 뜨게).
+  const userToggledThemeRef = useRef(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -152,17 +153,18 @@ export default function App() {
     else root.removeAttribute('data-theme');
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', dayMode ? '#eef1f5' : '#000000');
-    if (firstThemeRef.current) {
-      firstThemeRef.current = false;
-      return;
-    }
+    if (!userToggledThemeRef.current) return;
+    userToggledThemeRef.current = false;
     setEggMsg(dayMode ? '☀️ 라이트 모드' : '🌙 다크 모드');
     const t = window.setTimeout(() => setEggMsg(null), 1500);
     return () => window.clearTimeout(t);
   }, [dayMode]);
 
   const startHold = () => {
-    holdRef.current = window.setTimeout(() => setDayMode((v) => !v), 800);
+    holdRef.current = window.setTimeout(() => {
+      userToggledThemeRef.current = true;
+      setDayMode((v) => !v);
+    }, 800);
   };
   const cancelHold = () => {
     if (holdRef.current !== undefined) {
@@ -203,6 +205,7 @@ export default function App() {
   };
   const [pendingDigits, setPendingDigits] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [hintInfo, setHintInfo] = useState(false);
   const finished = state.status !== 'playing';
 
   // PWA: 새 버전은 autoUpdate로 백그라운드 설치 → 다음 실행 때 자동 적용(팝업 없음).
@@ -307,9 +310,8 @@ export default function App() {
   };
 
   return (
-    <>
-      <FieldBackdrop />
       <main className="app">
+      <FieldBackdrop />
       {showIntro && <Intro onDone={dismissIntro} />}
       <header className="controls">
         <div className="controls-row">
@@ -531,7 +533,7 @@ export default function App() {
       ) : multiMode === 'duel' ? (
         <DuelVersus onExit={() => setSection('solo')} />
       ) : (
-        <OnlineDuel onExit={() => setSection('solo')} onActiveChange={setOnlineActive} />
+        <OnlineDuel onActiveChange={setOnlineActive} />
       )}
 
       <footer className="app-footer">
@@ -608,7 +610,18 @@ export default function App() {
             </div>
 
             <div className="settings-row">
-              <span className="settings-label">힌트</span>
+              <span className="settings-label">
+                힌트
+                <button
+                  type="button"
+                  className={`info-btn${hintInfo ? ' on' : ''}`}
+                  aria-label="힌트 설명"
+                  aria-expanded={hintInfo}
+                  onClick={() => setHintInfo((v) => !v)}
+                >
+                  ?
+                </button>
+              </span>
               <div className="seg" role="group" aria-label="힌트">
                 <button
                   type="button"
@@ -628,9 +641,11 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <p className="settings-desc">
-              힌트: 추측이 전부 아웃(3·4아웃)이면 그 숫자들을 자동으로 ✕ 표시해줘요.
-            </p>
+            {hintInfo && (
+              <p className="settings-desc">
+                추측이 전부 아웃이면 그 숫자들을 자동으로 ✕(없음) 표시, 전부 있음(0아웃)이면 △(있음) 표시해줘요.
+              </p>
+            )}
 
             <button
               type="button"
@@ -682,7 +697,6 @@ export default function App() {
         />
       )}
       </main>
-    </>
   );
 }
 

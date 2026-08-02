@@ -103,8 +103,7 @@ export function Keypad({
               aria-label={MARK_LABEL[m]}
               onClick={() => onPickMark?.(m)}
             >
-              <span className="mark-badge">{BADGE[m]}</span>
-              <span className="mark-label">{MARK_SHORT[m]}</span>
+              <span className="mark-letter">{MARK_SHORT[m]}</span>
             </button>
           ))}
           <button

@@ -33,7 +33,8 @@
      종횡비(400/700) 고정 → 화면 커지/작아져도 가로·세로 같은 비율로 스케일(왜곡 없음). */
   width: 220vw;
   aspect-ratio: 400 / 700;
-  z-index: 0;
+  /* .app(글라스 backdrop root) 안에서 콘텐츠보다 뒤 — 글라스 박스들이 이 배경을 backdrop으로 잡는다. */
+  z-index: -1;
   pointer-events: none;
   overflow: visible;
   -webkit-mask-image: linear-gradient(to top, #000 46%, transparent 82%);
@@ -309,8 +310,31 @@
   gap: 12px;
 }
 .settings-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 700;
   color: var(--text);
+}
+/* 라벨 옆 물음표 토글(설명 펼치기) */
+.info-btn {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.info-btn.on {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 .settings-desc {
   margin: -2px 0 2px;
@@ -462,6 +486,10 @@
 /* 정답존 — 네모 프레임 없이 큰 그린 세그먼트만(칸은 세그먼트가 채운다) */
 .slot {
   width: 100%;
+  /* 칸 최대폭 제한 → 3자리에서 칸이 과하게 넓어져(=높아져) 보이는 것 방지.
+     3·4자리 칸 크기를 비슷하게. 좁은 폭에선 그대로 채우고, 넓으면 캡. */
+  max-width: 88px;
+  justify-self: center;
   aspect-ratio: 1 / 1.05;
   border: none;
   background: transparent;
@@ -547,28 +575,28 @@
   font-size: 1.4rem;
 }
 
-/* 메모 전용 액션: [아웃][볼][스트라이크][비우기] 4버튼(추측 버튼 없음). */
+/* 메모 전용 액션: [O][B][S][초기화] 4버튼(추측 버튼 없음). 균일 간격을 위해 flex. */
 .keypad-actions.memo-marks {
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  gap: 10px;
+}
+.keypad-actions.memo-marks > .key {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .key-mark {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  padding: 5px 0;
+  padding: 6px 0;
   aspect-ratio: auto;
 }
-.key-mark .mark-badge {
-  font-size: 1.15rem;
+/* 도형 대신 색상 글자 O/B/S */
+.key-mark .mark-letter {
+  font-size: 1.2rem;
+  font-weight: 900;
   line-height: 1;
   color: var(--mark-c);
-}
-.key-mark .mark-label {
-  font-size: 0.66rem;
-  font-weight: 700;
-  color: var(--muted);
 }
 .key-mark.mark-out {
   --mark-c: var(--out);
@@ -584,11 +612,8 @@
   box-shadow: inset 0 0 0 2px var(--mark-c),
     0 0 12px color-mix(in srgb, var(--mark-c) 45%, transparent);
 }
-.key-mark.active .mark-label {
-  color: var(--text);
-}
 .key-clear {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 700;
   line-height: 1;
   color: var(--muted);
@@ -1428,14 +1453,56 @@
 }
 
 /* ===== 온라인 대결 ===== */
+/* 온라인 시작 폼 — 하나의 글라스 카드 래퍼 */
+.online-menu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 16px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--glass-edge), 0 8px 26px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+}
+/* 카드가 이미 글라스 — 내부 입력창·세그먼트·방코드는 자체 블러 끔(중첩 방지) */
+.online-menu-card .online-input,
+.online-menu-card .seg,
+.online-menu-card .room-code {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* 로비 카드는 가운데 정렬 */
+.lobby-card {
+  align-items: center;
+  gap: 14px;
+}
+/* '또는' 구분선 */
+.online-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 2px 0;
+}
+.online-or::before,
+.online-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 .online-status {
-  margin: -4px 0 0;
+  margin: 0;
   font-size: 0.8rem;
   color: var(--muted);
+  text-align: center;
 }
 .online-status.on {
   color: var(--accent);
-  text-shadow: var(--glow-text);
 }
 .online-input {
   flex: 1;
