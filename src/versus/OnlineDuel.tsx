@@ -17,7 +17,6 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Outcome } from '../net/protocol';
 
 interface Props {
-  onExit: () => void;
   /** 대결이 진행 중(비밀 설정~플레이)인지 App에 알림 — 이탈 확인창용. */
   onActiveChange?: (active: boolean) => void;
 }
@@ -260,7 +259,7 @@ function saveSession(s: Session | null) {
 }
 
 /** 온라인 턴제 대결(방 코드). 서버가 정답을 쥐고 판정한다. */
-export function OnlineDuel({ onExit, onActiveChange }: Props) {
+export function OnlineDuel({ onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
   const myIndexRef = useRef<0 | 1>(0);
   const announceRef = useRef<number | undefined>(undefined);
@@ -624,21 +623,6 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
     }
   };
 
-  const exit = () => {
-    sessionRef.current = null;
-    saveSession(null);
-    // 의도적 나가기를 서버에 알린 뒤(상대에게 즉시 '나감') 종료. ack 못 받아도 폴백으로 진행.
-    const s = socketRef.current;
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      onExit(); // 언마운트 정리에서 소켓 disconnect
-    };
-    s.emit('leave', finish);
-    window.setTimeout(finish, 400);
-  };
-
   // 방/게임에서 나가되 온라인 메뉴로 복귀(멀티 유지). 서버 방은 정리되고 상대에겐 즉시 알림.
   // 소켓은 끊지 않고 유지(메뉴에서 바로 방 만들기/입장 가능) — leave로 서버 자리만 비운다.
   const backToMenu = () => {
@@ -691,73 +675,73 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
   }
   if (phase === 'menu') {
     return (
-      <div className="versus">
+      <div className="versus versus-center">
         <h2 className="versus-title">온라인 대결 🌐</h2>
-        <p className="versus-desc">
-          방을 만들어 코드를 공유하거나, 친구 코드로 입장하세요. 서버가 정답을 지켜 공정하게 판정해요.
-        </p>
-        <p className={`online-status${connected ? ' on' : ''}`}>
-          {connected ? '● 서버 연결됨' : '○ 서버 연결 중…'}
-        </p>
 
-        <div className="versus-field">
-          <span className="versus-label">닉네임</span>
-          <input
-            className="online-input"
-            value={nick}
-            maxLength={12}
-            placeholder="플레이어"
-            onChange={(e) => setNick(e.target.value)}
-          />
-        </div>
-        <div className="versus-field">
-          <span className="versus-label">자릿수</span>
-          <div className="seg" role="group" aria-label="자릿수">
-            {[3, 4].map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={`seg-btn${digits === d ? ' active' : ''}`}
-                onClick={() => setDigits(d)}
-              >
-                {d}자리
-              </button>
-            ))}
+        {/* 시작 폼을 하나의 글라스 카드로 */}
+        <div className="online-menu-card">
+          <p className={`online-status${connected ? ' on' : ''}`}>
+            {connected ? '● 서버 연결됨' : '○ 서버 연결 중…'}
+          </p>
+
+          <div className="versus-field">
+            <span className="versus-label">닉네임</span>
+            <input
+              className="online-input"
+              value={nick}
+              maxLength={12}
+              placeholder="플레이어"
+              onChange={(e) => setNick(e.target.value)}
+            />
           </div>
-        </div>
+          <div className="versus-field">
+            <span className="versus-label">자릿수</span>
+            <div className="seg" role="group" aria-label="자릿수">
+              {[3, 4].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`seg-btn${digits === d ? ' active' : ''}`}
+                  onClick={() => setDigits(d)}
+                >
+                  {d}자리
+                </button>
+              ))}
+            </div>
+          </div>
 
-        <button
-          type="button"
-          className="versus-primary"
-          disabled={!connected || busy}
-          onClick={doCreate}
-        >
-          방 만들기
-        </button>
-
-        <div className="online-join">
-          <input
-            className="online-input online-code"
-            value={joinCode}
-            maxLength={4}
-            placeholder="코드"
-            autoCapitalize="characters"
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          />
           <button
             type="button"
-            className="versus-secondary"
+            className="versus-primary"
             disabled={!connected || busy}
-            onClick={doJoin}
+            onClick={doCreate}
           >
-            코드로 입장
+            방 만들기
           </button>
-        </div>
 
-        {error && <p className="online-error">{error}</p>}
-        <button type="button" className="versus-secondary" onClick={exit}>
-          나가기
-        </button>
+          <div className="online-or">또는</div>
+
+          <div className="online-join">
+            <input
+              className="online-input online-code"
+              value={joinCode}
+              maxLength={4}
+              placeholder="CODE"
+              autoCapitalize="characters"
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            />
+            <button
+              type="button"
+              className="versus-secondary"
+              disabled={!connected || busy}
+              onClick={doJoin}
+            >
+              입장
+            </button>
+          </div>
+
+          {error && <p className="online-error">{error}</p>}
+        </div>
       </div>
     );
   }
@@ -767,14 +751,15 @@ export function OnlineDuel({ onExit, onActiveChange }: Props) {
       <div className="versus versus-center">
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <p className="handoff-sub">상대를 기다리는 중…</p>
-        <div className="room-code" aria-label={`방 코드 ${code}`}>
-          {code}
+        <div className="online-menu-card lobby-card">
+          <div className="room-code" aria-label={`방 코드 ${code}`}>
+            {code}
+          </div>
+          <button type="button" className="copy-btn" onClick={copyCode}>
+            {copied ? '복사됐어요!' : '코드 복사'}
+          </button>
+          <LoadingDots />
         </div>
-        <button type="button" className="copy-btn" onClick={copyCode}>
-          {copied ? '복사됐어요!' : '코드 복사'}
-        </button>
-        <LoadingDots />
-        <p className="versus-desc">이 코드를 상대에게 알려주세요. 상대가 입장하면 시작돼요.</p>
         <button type="button" className="versus-secondary" onClick={backToMenu}>
           나가기
         </button>
