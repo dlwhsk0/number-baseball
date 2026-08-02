@@ -16,6 +16,7 @@ import { Seg7 } from './components/Seg7';
 import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { FieldBackdrop } from './components/FieldBackdrop';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
@@ -257,7 +258,9 @@ export default function App() {
   };
 
   return (
-    <main className="app">
+    <>
+      <FieldBackdrop />
+      <main className="app">
       {showIntro && <Intro onDone={dismissIntro} />}
       <header className="controls">
         <div className="controls-row">
@@ -348,7 +351,27 @@ export default function App() {
 
       {section === 'solo' ? (
         <>
-      <section className="board">
+      {/* 상단: 전광판(기록) */}
+      <section className="history-section scoreboard">
+        <div className="history-head">
+          <span
+            className="egg-trigger"
+            onPointerDown={startHold}
+            onPointerUp={cancelHold}
+            onPointerLeave={cancelHold}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            history
+          </span>
+          <span className="attempts">
+            {state.guesses.length} / {state.maxAttempts}
+          </span>
+        </div>
+        <History guesses={state.guesses} />
+      </section>
+
+      {/* 하단: 타자석(입력) */}
+      <section className="board batter-box">
         {finished ? (
           <ResultBanner
             status={state.status}
@@ -401,24 +424,6 @@ export default function App() {
             )}
           </>
         )}
-      </section>
-
-      <section className="history-section">
-        <div className="history-head">
-          <span
-            className="egg-trigger"
-            onPointerDown={startHold}
-            onPointerUp={cancelHold}
-            onPointerLeave={cancelHold}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            history
-          </span>
-          <span className="attempts">
-            {state.guesses.length} / {state.maxAttempts}
-          </span>
-        </div>
-        <History guesses={state.guesses} />
       </section>
         </>
       ) : multiMode === 'speed' ? (
@@ -502,7 +507,8 @@ export default function App() {
           onCancel={() => setPendingLeave(null)}
         />
       )}
-    </main>
+      </main>
+    </>
   );
 }
 
