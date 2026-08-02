@@ -861,6 +861,122 @@
   width: 100%;
 }
 
+/* 입력칸 우상단 추리 후보 배지(레이아웃 영향 없음 — 칸 위에 겹침) */
+.slot-cands {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  max-width: 92%;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 22%, #0b0f18);
+  color: var(--accent);
+  font-family: var(--font-digit);
+  font-weight: 800;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.slot.editing {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--r-md);
+}
+/* 길게 누른 칸의 추리 메모 편집 — 키패드 위로 뜨는 오버레이(레이아웃 안 밀림) */
+.note-pop {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.3);
+  backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(1.3);
+  animation: note-pop-in 0.18s ease-out;
+}
+@keyframes note-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.note-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.note-pop-title {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.note-pop-clear {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.note-pop-clear:disabled {
+  opacity: 0.4;
+}
+.note-pop-close {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.note-pop-nums {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.note-num {
+  padding: 10px 0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--key);
+  color: var(--text);
+  font-family: var(--font-digit);
+  font-weight: 700;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+}
+.note-num.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 24%, var(--key));
+  color: var(--led);
+}
+.note-num:active {
+  transform: scale(0.94);
+}
+
 /* 고정된 입력칸(길게 눌러 고정) — 그린 링 + 자물쇠 배지 */
 .slot {
   position: relative;

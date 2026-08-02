@@ -44,18 +44,8 @@ function getInitialHint(): boolean {
 export default function App() {
   const [digits, setDigitsPref] = useState<number>(getInitialDigits);
   const [hint, setHintPref] = useState<boolean>(getInitialHint);
-  const {
-    state,
-    pushDigit,
-    popDigit,
-    clearSlot,
-    toggleLock,
-    submit,
-    toggleMemo,
-    clearMemo,
-    setHint,
-    reset,
-  } = useGame(digits, hint);
+  const { state, pushDigit, popDigit, clearSlot, submit, toggleMemo, clearMemo, setHint, reset } =
+    useGame(digits, hint);
   const [section, setSection] = useState<Section>('solo');
   const [online, setOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -90,6 +80,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, multiMode]);
   const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
+  // 자리별 추리 메모(솔로). notes[i] = i번 칸의 후보 숫자들(빈 배열=미정). 새 판·자릿수 변경 시 초기화.
+  const [notes, setNotes] = useState<string[][]>(() =>
+    Array.from({ length: digits }, () => []),
+  );
+  const toggleNote = (pos: number, digit: string) =>
+    setNotes((n) =>
+      n.map((arr, i) => {
+        if (i !== pos) return arr;
+        return arr.includes(digit) ? arr.filter((d) => d !== digit) : [...arr, digit];
+      }),
+    );
+  const clearNote = (pos: number) =>
+    setNotes((n) => n.map((arr, i) => (i === pos ? [] : arr)));
+  const resetNotes = (d: number) => setNotes(Array.from({ length: d }, () => []));
+  // 메모 편집 중인 칸(길게 눌러 열림). null이면 닫힘.
+  const [editingPos, setEditingPos] = useState<number | null>(null);
   // 추측할 때마다 잠깐 뜨는 결과 발표 카드(승리/패배 아닌 진행 중 추측만).
   const [soloReveal, setSoloReveal] = useState<GuessRecord | null>(null);
   const prevGuessCountRef = useRef(0);
@@ -235,15 +241,15 @@ export default function App() {
     setSoloReveal(null);
   };
 
-  // 입력칸 길게 누르기 → 그 자리 고정(제출해도 유지). 짧게 탭은 기존대로 지우기.
+  // 입력칸 길게 누르기 → 그 칸 추리 메모 편집(우상단 후보). 짧게 탭은 기존대로 지우기.
   const slotHoldRef = useRef<number | undefined>(undefined);
   const slotHoldFiredRef = useRef(false);
   const startSlotHold = (index: number) => {
     slotHoldFiredRef.current = false;
     slotHoldRef.current = window.setTimeout(() => {
       slotHoldFiredRef.current = true;
-      toggleLock(index);
-    }, 450);
+      setEditingPos(index);
+    }, 400);
   };
   const cancelSlotHold = () => {
     if (slotHoldRef.current !== undefined) {
@@ -252,17 +258,19 @@ export default function App() {
     }
   };
   const onSlotClick = (index: number) => {
-    // 길게 눌러 고정한 직후의 클릭은 무시(지워지지 않게).
+    // 길게 눌러 메모를 연 직후의 클릭은 무시(지워지지 않게).
     if (slotHoldFiredRef.current) {
       slotHoldFiredRef.current = false;
       return;
     }
-    clearSlot(index);
+    if (state.slots[index]) clearSlot(index); // 채워진 칸만 탭으로 지우기
   };
 
   const newGame = () => {
     setMemoMark(null);
     clearReveal();
+    resetNotes(digits);
+    setEditingPos(null);
     reset(digits, hint);
   };
 
@@ -279,6 +287,8 @@ export default function App() {
     persist('nb_digits', String(d));
     setMemoMark(null);
     clearReveal();
+    resetNotes(d);
+    setEditingPos(null);
     reset(d, hint);
   };
 
@@ -470,33 +480,31 @@ export default function App() {
             aria-label="현재 입력"
             style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
           >
-            {state.slots.map((d, i) => (
-              <button
-                key={i}
-                type="button"
-                className={`slot cell${d ? ' filled' : ''}${state.locked[i] ? ' locked' : ''}`}
-                disabled={!d}
-                aria-label={
-                  d
-                    ? state.locked[i]
-                      ? `${i + 1}번째 칸 ${d} 고정됨 — 길게 눌러 해제`
-                      : `${i + 1}번째 칸 ${d} — 탭하면 지우기, 길게 누르면 고정`
-                    : `${i + 1}번째 빈 칸`
-                }
-                onPointerDown={() => d && startSlotHold(i)}
-                onPointerUp={cancelSlotHold}
-                onPointerLeave={cancelSlotHold}
-                onClick={() => onSlotClick(i)}
-                onContextMenu={(e) => e.preventDefault()}
-              >
-                <Seg7 char={d} />
-                {state.locked[i] && (
-                  <span className="slot-lock" aria-hidden="true">
-                    🔒
-                  </span>
-                )}
-              </button>
-            ))}
+            {state.slots.map((d, i) => {
+              const cands = [...(notes[i] ?? [])].sort();
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className={`slot cell${d ? ' filled' : ''}${
+                    editingPos === i ? ' editing' : ''
+                  }`}
+                  aria-label={`${i + 1}번째 칸${d ? ` ${d}` : ' 비어있음'} — 길게 눌러 추리 메모`}
+                  onPointerDown={() => startSlotHold(i)}
+                  onPointerUp={cancelSlotHold}
+                  onPointerLeave={cancelSlotHold}
+                  onClick={() => onSlotClick(i)}
+                  onContextMenu={(e) => e.preventDefault()}
+                >
+                  <Seg7 char={d} />
+                  {cands.length > 0 && (
+                    <span className="slot-cands" aria-hidden="true">
+                      {cands.join('')}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <Keypad
@@ -514,6 +522,44 @@ export default function App() {
             onDelete={popDigit}
             onSubmit={submit}
           />
+
+          {/* 길게 누른 칸의 추리 메모 편집 — 키패드 위 오버레이(레이아웃 안 밀림). */}
+          {editingPos !== null && (
+            <div className="note-pop" role="dialog" aria-label={`${editingPos + 1}번 칸 후보`}>
+              <div className="note-pop-head">
+                <span className="note-pop-title">{editingPos + 1}번 칸 후보</span>
+                <button
+                  type="button"
+                  className="note-pop-clear"
+                  disabled={(notes[editingPos] ?? []).length === 0}
+                  onClick={() => clearNote(editingPos)}
+                >
+                  지우기
+                </button>
+                <button
+                  type="button"
+                  className="note-pop-close"
+                  aria-label="닫기"
+                  onClick={() => setEditingPos(null)}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="note-pop-nums">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((dd) => (
+                  <button
+                    key={dd}
+                    type="button"
+                    className={`note-num${(notes[editingPos] ?? []).includes(dd) ? ' on' : ''}`}
+                    aria-pressed={(notes[editingPos] ?? []).includes(dd)}
+                    onClick={() => toggleNote(editingPos, dd)}
+                  >
+                    {dd}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* 추측 직후 잠깐 뜨는 결과 발표 카드(입력 영역 위로 팝업, 입력은 계속 가능). */}
           {soloReveal && (
