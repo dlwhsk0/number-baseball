@@ -575,13 +575,13 @@
   font-size: 1.4rem;
 }
 
-/* 메모 전용 액션: [O][B][S][초기화] 4버튼(추측 버튼 없음). 균일 간격을 위해 flex. */
+/* 메모 전용 액션: [O][B][S][초기화] — 4등분 균일. */
 .keypad-actions.memo-marks {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 .keypad-actions.memo-marks > .key {
-  flex: 1 1 0;
   min-width: 0;
 }
 .key-mark {
