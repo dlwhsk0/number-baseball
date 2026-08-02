@@ -156,21 +156,38 @@ describe('gameReducer — 난이도', () => {
     expect(s.status).toBe('won');
   });
 
-  it('초보자: 3아웃이면 그 숫자들이 자동으로 아웃 표시된다', () => {
+  it('힌트: 전부 아웃이면 그 숫자들이 자동으로 아웃 표시된다', () => {
     let s = initGame('123', 10, 3, true);
     s = gameReducer(type(s, '456'), { type: 'submit' });
     expect(s.memo).toEqual({ '4': 'out', '5': 'out', '6': 'out' });
   });
 
-  it('초보자라도 전부 아웃이 아니면 자동 표시 없음', () => {
+  it('힌트: 0아웃(전부 있음)이면 그 숫자들이 자동으로 볼(있음) 표시된다', () => {
     let s = initGame('123', 10, 3, true);
-    s = gameReducer(type(s, '145'), { type: 'submit' }); // 1:스트라이크 → isOut 아님
+    s = gameReducer(type(s, '231'), { type: 'submit' }); // 전부 있음, 0스트라이크 3볼
+    expect(s.memo).toEqual({ '2': 'ball', '3': 'ball', '1': 'ball' });
+  });
+
+  it('힌트: 0아웃이라도 이미 스트라이크로 확정한 숫자는 유지', () => {
+    let s = initGame('123', 10, 3, true);
+    s = gameReducer(s, { type: 'memo', digit: '1', mark: 'strike' });
+    s = gameReducer(type(s, '231'), { type: 'submit' });
+    expect(s.memo['1']).toBe('strike'); // 볼로 강등되지 않음
+    expect(s.memo['2']).toBe('ball');
+  });
+
+  it('힌트: 아웃도 0아웃도 아니면 자동 표시 없음', () => {
+    let s = initGame('123', 10, 3, true);
+    s = gameReducer(type(s, '145'), { type: 'submit' }); // 1스트라이크 2아웃
     expect(s.memo).toEqual({});
   });
 
-  it('중급은 3아웃이어도 자동 표시 없음', () => {
+  it('힌트 끄면 자동 표시 없음', () => {
     let s = initGame('123', 10, 3, false);
     s = gameReducer(type(s, '456'), { type: 'submit' });
+    expect(s.memo).toEqual({});
+    s = initGame('123', 10, 3, false);
+    s = gameReducer(type(s, '231'), { type: 'submit' });
     expect(s.memo).toEqual({});
   });
 });

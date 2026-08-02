@@ -19,8 +19,10 @@ interface Props {
   showMemo?: boolean;
   /** 확인 버튼 라벨(기본 '확인'). */
   submitLabel?: string;
-  /** 메모 전용 모드: 하단 액션을 [아웃][볼][스트라이크][비우기] 4버튼으로(추측 버튼 없음). */
+  /** 메모 표시를 분리 버튼 [아웃][볼][스트라이크][비우기]로(순환식 대신). 솔로·멀티 공용. */
   markButtons?: boolean;
+  /** markButtons 모드에서도 그 아래 [확인][지우기] 줄을 함께 보임(솔로 입력용). */
+  showSubmit?: boolean;
   /** 마크 직접 선택(markButtons 모드). */
   onPickMark?: (mark: MemoMark) => void;
   /** 메모 전체 지우기(markButtons 모드). */
@@ -32,6 +34,8 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 /** 메모 표시 기호(키 전체에 크게 겹쳐 보인다). */
 const BADGE: Record<MemoMark, string> = { strike: '○', ball: '△', out: '✕' };
 const MARK_LABEL: Record<MemoMark, string> = { strike: '스트라이크', ball: '볼', out: '아웃' };
+/** 마크 버튼 라벨(영문 약자). */
+const MARK_SHORT: Record<MemoMark, string> = { strike: 'S', ball: 'B', out: 'O' };
 /** 메모 전용 액션 버튼 순서: 아웃 → 볼 → 스트라이크(자주 쓰는 순). */
 const MARKS: MemoMark[] = ['out', 'ball', 'strike'];
 
@@ -48,6 +52,7 @@ export function Keypad({
   showMemo = true,
   submitLabel = '확인',
   markButtons = false,
+  showSubmit = false,
   onPickMark,
   onClearMemo,
 }: Props) {
@@ -99,20 +104,40 @@ export function Keypad({
               onClick={() => onPickMark?.(m)}
             >
               <span className="mark-badge">{BADGE[m]}</span>
-              <span className="mark-label">{MARK_LABEL[m]}</span>
+              <span className="mark-label">{MARK_SHORT[m]}</span>
             </button>
           ))}
           <button
             type="button"
             className="key key-clear"
-            aria-label="메모 전체 지우기"
-            title="메모 전체 지우기"
+            aria-label="메모 전체 초기화"
+            title="메모 전체 초기화"
             onClick={onClearMemo}
           >
-            비우기
+            ↺
           </button>
         </div>
-      ) : (
+      ) : null}
+
+      {markButtons && showSubmit && (
+        <div className="keypad-actions no-memo">
+          <button type="button" className="key key-submit" disabled={!canSubmit} onClick={onSubmit}>
+            {submitLabel}
+          </button>
+          <button
+            type="button"
+            className="key key-icon key-delete"
+            aria-label="지우기"
+            title="지우기"
+            disabled={disabled || !hasInput}
+            onClick={onDelete}
+          >
+            ⌫
+          </button>
+        </div>
+      )}
+
+      {!markButtons && (
         <div className={`keypad-actions${showMemo ? '' : ' no-memo'}`}>
           {showMemo && (
             <button

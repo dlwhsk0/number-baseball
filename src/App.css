@@ -2,59 +2,124 @@
 .app {
   max-width: 404px;
   margin: 0 auto;
-  padding: max(10px, env(safe-area-inset-top)) 22px
-    calc(32px + env(safe-area-inset-bottom));
-  min-height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) 20px
+    calc(16px + env(safe-area-inset-bottom));
+  /* 모바일 — 한 화면에 고정, 페이지 전체 스크롤 없음. 넘치는 부분은 안쪽(기록)만 스크롤. */
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   color: var(--text);
   /* 배경 필드(.field-bg, z-index:0) 위에 콘텐츠가 오도록 스택 컨텍스트 생성. */
   position: relative;
   z-index: 1;
 }
+/* 대결 화면들은 앱을 넘치면 안쪽에서만 스크롤(페이지는 고정). */
+.app > .versus,
+.app > .online-result {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 
 /* 배경 연출 — 타자석에서 본 그라운드 다이아몬드(앱 전체 뒤). 위로 갈수록 페이드. */
 .field-bg {
   position: fixed;
-  inset: 0;
+  left: 50%;
+  bottom: -18vh;
+  transform: translateX(-50%);
+  /* 일부러 화면 밖으로 크게 넘치게 — 홈플레이트를 하단 중앙에, 다이아몬드는 좌우·위로 넘쳐 일부만 보임.
+     종횡비(400/700) 고정 → 화면 커지/작아져도 가로·세로 같은 비율로 스케일(왜곡 없음). */
+  width: 220vw;
+  aspect-ratio: 400 / 700;
   z-index: 0;
   pointer-events: none;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to top, #000 16%, transparent 66%);
-  mask-image: linear-gradient(to top, #000 16%, transparent 66%);
+  overflow: visible;
+  -webkit-mask-image: linear-gradient(to top, #000 46%, transparent 82%);
+  mask-image: linear-gradient(to top, #000 46%, transparent 82%);
 }
 .field-bg svg {
   display: block;
   width: 100%;
   height: 100%;
 }
-.fb-lines line {
-  stroke: color-mix(in srgb, var(--accent) 62%, #fff);
-  stroke-width: 2;
-  opacity: 0.13;
+/* 잔디 부채꼴 — 은은한 그린(마스크가 위로 페이드시킴) */
+.fb-grass {
+  fill: color-mix(in srgb, var(--accent) 42%, #0c3a1c);
+  opacity: 0.2;
 }
-.fb-diamond {
-  fill: color-mix(in srgb, var(--accent) 9%, transparent);
-  stroke: color-mix(in srgb, var(--accent) 55%, #fff);
-  stroke-width: 2;
-  opacity: 0.42;
+.fb-foul line {
+  stroke: color-mix(in srgb, #fff 70%, var(--accent));
+  stroke-width: 2.5;
+  opacity: 0.22;
+}
+/* 내야 다이아몬드 — 흙(주황빛) 채움 + 화이트 베이스패스 */
+.fb-infield {
+  fill: color-mix(in srgb, var(--strike) 34%, #3a2412);
+  fill-opacity: 0.6;
+  stroke: color-mix(in srgb, #fff 80%, var(--accent));
+  stroke-width: 2.5;
+  stroke-opacity: 0.34;
+  opacity: 0.95;
 }
 .fb-base {
-  fill: color-mix(in srgb, #fff 70%, var(--accent));
-  opacity: 0.3;
+  fill: #fff;
+  opacity: 0.62;
 }
 .fb-mound {
-  fill: var(--out);
-  opacity: 0.22;
+  fill: color-mix(in srgb, var(--strike) 60%, #4a2c15);
+  opacity: 0.6;
 }
 .fb-plate {
   fill: #fff;
-  opacity: 0.32;
+  opacity: 0.7;
 }
-:root[data-theme='light'] .fb-lines line,
-:root[data-theme='light'] .fb-diamond {
-  stroke: color-mix(in srgb, var(--accent) 70%, #000);
+:root[data-theme='light'] .fb-grass {
+  fill: #4fae6a;
+  opacity: 0.16;
+}
+:root[data-theme='light'] .fb-infield {
+  fill: #cf9b5e;
+}
+:root[data-theme='light'] .fb-foul line {
+  stroke: #7a8699;
+}
+
+/* ===== 글라스(프로스티드) — 주요 박스에 뒤 야구장이 비치는 유리 질감 ===== */
+.scoreboard,
+.history-section,
+.turn-bar,
+.keypad,
+.online-result,
+.reveal-card,
+.modal,
+.dev-modal,
+.confirm,
+.hist-tab,
+.egg-toast,
+.net-banner,
+.room-code,
+.vs-name,
+.secret-peek,
+.online-input,
+.online-status,
+.score-row,
+.duel-after,
+.mode-tabs,
+.handoff,
+.seg,
+.help-btn,
+.corner-btn,
+.turn-exit,
+.match-exit,
+.rp-card,
+.update-toast,
+.level-select,
+.result,
+.intro-board {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
 }
 
 /* 정답존 위 컨트롤 — 2행: [? · 혼자|멀티] / [난이도 · ↻새 게임] */
@@ -133,6 +198,137 @@
 .theme-toggle:active,
 .help-btn:active {
   transform: scale(0.92);
+}
+
+/* 설정(⚙) 버튼 — help-btn과 동일 원형. 멀티일 땐 자리만 차지하는 스페이서. */
+.gear-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 999px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.15s ease, color 0.15s ease;
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+.gear-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.gear-btn:active {
+  transform: rotate(45deg) scale(0.92);
+}
+.gear-spacer {
+  width: 34px;
+  flex: 0 0 34px;
+}
+
+/* 첫 방문 유도 — ? 아래 말풍선 '게임 방법 확인!' */
+.help-wrap {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+}
+.help-callout {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 0;
+  white-space: nowrap;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 6px 11px;
+  border-radius: 10px;
+  box-shadow: var(--glow-accent), 0 6px 18px rgba(0, 0, 0, 0.45);
+  animation: callout-bob 1.3s ease-in-out infinite;
+  z-index: 6;
+}
+.help-callout::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 13px;
+  border: 6px solid transparent;
+  border-bottom-color: var(--accent);
+}
+@keyframes callout-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-callout {
+    animation: none;
+  }
+}
+
+/* 오프라인 종류 행의 라벨 */
+.sub-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+/* 설정 시트(⚙ → 모달) */
+.settings-sheet {
+  width: min(100%, 340px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 20px 18px;
+  border-radius: var(--r-lg);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  box-shadow: 0 16px 44px var(--shadow), inset 0 1px 0 var(--glass-edge);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.4);
+  backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.4);
+  animation: modal-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.settings-title {
+  margin: 0 0 2px;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.settings-label {
+  font-weight: 700;
+  color: var(--text);
+}
+.settings-desc {
+  margin: -2px 0 2px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.settings-newgame {
+  margin-top: 2px;
+}
+.settings-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px;
 }
 
 /* 우상단 새 게임 + 그 아래 멀티 전환(포인트색 강조) */
@@ -360,16 +556,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 8px 0;
+  gap: 1px;
+  padding: 5px 0;
+  aspect-ratio: auto;
 }
 .key-mark .mark-badge {
-  font-size: 1.5rem;
+  font-size: 1.15rem;
   line-height: 1;
   color: var(--mark-c);
 }
 .key-mark .mark-label {
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   font-weight: 700;
   color: var(--muted);
 }
@@ -391,8 +588,9 @@
   color: var(--text);
 }
 .key-clear {
-  font-size: 0.9rem;
+  font-size: 1.4rem;
   font-weight: 700;
+  line-height: 1;
   color: var(--muted);
 }
 .key {
@@ -533,42 +731,72 @@
   margin-bottom: 8px;
 }
 
-/* ===== 전광판(상단 기록) 프레이밍 ===== */
+/* ===== 전광판(상단 기록) — 스타디움 스코어보드 프레임 ===== */
 .history-section.scoreboard {
   position: relative;
-  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 100%);
-  border: 2px solid color-mix(in srgb, var(--led) 22%, #16171b);
+  flex: 1 1 auto; /* 남은 세로 공간을 채움(무스크롤 — 안쪽 기록만 스크롤) */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* 유리 프레임 + 프로스티드 보드 */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--panel-2) 80%, transparent) 0%,
+    var(--panel) 100%
+  );
+  border: 2px solid rgba(150, 170, 205, 0.3);
   border-radius: 16px;
-  box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.7),
-    0 0 0 3px color-mix(in srgb, #000 65%, transparent),
-    0 8px 24px rgba(0, 0, 0, 0.5);
-  padding: 14px 14px 16px;
+  box-shadow: inset 0 1px 0 var(--glass-edge), inset 0 3px 18px rgba(0, 0, 0, 0.4),
+    0 8px 26px rgba(0, 0, 0, 0.4);
+  padding: 18px 14px 12px;
 }
-/* 상단 전구 램프 줄(전광판 상단 조명 느낌) */
+/* 상단 전구 마퀴 — 점점점(스코어보드 조명) */
 .scoreboard::before {
   content: '';
   position: absolute;
-  top: 7px;
-  left: 14px;
-  right: 14px;
-  height: 4px;
-  border-radius: 999px;
-  background: repeating-linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--accent) 70%, transparent) 0 4px,
-    transparent 4px 12px
-  );
-  opacity: 0.5;
+  top: 8px;
+  left: 16px;
+  right: 16px;
+  height: 7px;
+  background: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--accent) 85%, #fff) 0 2.2px,
+      transparent 2.7px
+    )
+    repeat-x;
+  background-size: 14px 7px;
+  opacity: 0.6;
+  filter: drop-shadow(0 0 3px var(--accent-glow));
 }
 .scoreboard .history-head {
-  margin-top: 8px;
+  flex: 0 0 auto;
+  margin: 4px 2px 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
   text-transform: uppercase;
+  letter-spacing: 0.12em;
   font-weight: 800;
+}
+/* 기록 리스트만 안쪽 스크롤(전광판 판 안에서 굴러감) */
+.scoreboard .history {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scoreboard .history::-webkit-scrollbar {
+  width: 6px;
+}
+.scoreboard .history::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
 }
 
 /* ===== 타자석(하단 입력) 프레이밍 — 홈플레이트 위 다이아몬드존 ===== */
 .board.batter-box {
   position: relative;
+  flex: 0 0 auto; /* 스코어보드가 늘어나도 입력부는 고정 높이 유지 */
   padding: 20px 14px 16px;
   border-radius: 16px 16px 22px 22px;
   background: radial-gradient(
@@ -592,6 +820,40 @@
   opacity: 0.85;
   clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%);
   box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+/* 결과 발표를 전광판(상단) 안에서 */
+.score-result {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.score-result .solo-result {
+  margin: 0;
+  width: 100%;
+}
+
+/* 고정된 입력칸(길게 눌러 고정) — 그린 링 + 자물쇠 배지 */
+.slot {
+  position: relative;
+}
+.slot.locked {
+  border-radius: var(--r-md);
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: -3px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.slot-lock {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-size: 0.7rem;
+  line-height: 1;
+  opacity: 0.9;
+  pointer-events: none;
 }
 /* 이스터에그 트리거(길게 누르면 주간/야간 전환) — 티 안 나게 평범한 라벨처럼 */
 .egg-trigger {
