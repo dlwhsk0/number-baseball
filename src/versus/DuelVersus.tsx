@@ -89,30 +89,31 @@ export function DuelVersus({ onExit }: Props) {
 
   if (phase.kind === 'setup') {
     return (
-      <div className="versus">
+      <div className="versus versus-center">
         <h2 className="versus-title">턴제 대결 🔁</h2>
         <p className="versus-desc">
-          서로 <strong>상대가 맞힐 숫자</strong>를 몰래 정하고, 번갈아 한 번씩 추측해요. 먼저 맞히면 승리!
-          (선공이 맞히면 후공에게 마지막 기회 → 둘 다 맞히면 무승부)
+          서로 <strong>상대가 맞힐 숫자</strong>를 몰래 정하고, 번갈아 추측해요. 먼저 맞히면 승리!
         </p>
-        <div className="versus-field">
-          <span className="versus-label">자릿수</span>
-          <div className="seg">
-            {[3, 4].map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={`seg-btn${digits === d ? ' active' : ''}`}
-                onClick={() => setDigits(d)}
-              >
-                {d}자리
-              </button>
-            ))}
+        <div className="setup-card">
+          <div className="versus-field">
+            <span className="versus-label">자릿수</span>
+            <div className="seg">
+              {[3, 4].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`seg-btn${digits === d ? ' active' : ''}`}
+                  onClick={() => setDigits(d)}
+                >
+                  {d}자리
+                </button>
+              ))}
+            </div>
           </div>
+          <button type="button" className="versus-primary" onClick={startMatch}>
+            시작
+          </button>
         </div>
-        <button type="button" className="versus-primary" onClick={startMatch}>
-          시작
-        </button>
       </div>
     );
   }

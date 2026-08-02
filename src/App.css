@@ -1568,12 +1568,13 @@
   gap: 10px;
 }
 
-/* ===== 온라인 대결 ===== */
-/* 온라인 시작 폼 — 하나의 글라스 카드 래퍼 */
-.online-menu-card {
+/* ===== 대결 시작/설정 폼 — 하나의 글라스 카드 래퍼(온라인·오프라인 공통) ===== */
+.online-menu-card,
+.setup-card {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: min(100%, 360px);
   padding: 18px 16px;
   border-radius: 18px;
   background: var(--panel);
@@ -1585,7 +1586,8 @@
 /* 카드가 이미 글라스 — 내부 입력창·세그먼트·방코드는 자체 블러 끔(중첩 방지) */
 .online-menu-card .online-input,
 .online-menu-card .seg,
-.online-menu-card .room-code {
+.online-menu-card .room-code,
+.setup-card .seg {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -2988,6 +2990,93 @@
 }
 .duel-after .versus-primary {
   width: 100%;
+}
+
+/* ===== 온라인 스피드 ===== */
+.sp-roster {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.sp-roster li {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.sp-roster li.me {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+/* 라이브 리더보드 */
+.sp-board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sp-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+}
+.sp-row.me {
+  border-color: var(--accent);
+}
+.sp-row.solved {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel-2));
+}
+.sp-rank {
+  font-family: var(--font-digit);
+  font-weight: 800;
+  color: var(--muted);
+}
+.sp-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-att {
+  font-family: var(--font-digit);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.sp-stat {
+  font-family: var(--font-digit);
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-width: 62px;
+  text-align: right;
+}
+.sp-row.solved .sp-stat {
+  color: var(--accent);
+  font-weight: 700;
+}
+.sp-count {
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.sp-done {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: var(--glow-text);
 }
 
 /* 결과 점수판 */

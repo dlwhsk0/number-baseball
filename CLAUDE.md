@@ -40,8 +40,10 @@
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
-- **대결 모드**(App `section='multi'`): 컨트롤 2행의 `[온라인 | 스피드 | 턴제]` 세그먼트(`multiMode`, 기본 온라인)로 선택.
-  스피드·턴제는 **한 기기 패스앤플레이**(서버 없음), 온라인은 **서버 대전**. 혼자로 복귀는 `혼자|멀티` 토글 또는 각 화면의 `onExit`.
+- **대결 모드**(App `section='multi'`): **게임 종류 `[스피드 | 턴제]`(`gameType`) × 진행 `[온라인 | 로컬]`(`conn`)** 두 세그먼트로 선택 → 4조합.
+  로컬=한 기기 패스앤플레이(`SpeedVersus`/`DuelVersus`, 서버 없음), 온라인=서버 대전(`OnlineSpeed`/`OnlineDuel`). 온라인은 스피드·턴제 **둘 다** 지원.
+  - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. 방 만들기/코드 입장(2~4명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(시도·맞힘·시간) → **전원 맞히면 종료**(적은 횟수→빠른 시간 순위). 세션 재접속 지원(`nb_speed_session`).
+    서버: 방 `mode:'duel'|'speed'`, 스피드는 `speedSecret`·플레이어별 `solved/attempts/solveMs/history`·`gone`. 이벤트 `startSpeed`/`speedStart`/`speedRoster`/`speedProgress`/`speedOver`.
   - **스피드 대결**: `src/versus/SpeedVersus.tsx`. 공통 숫자 1개를 2~4명이 번갈아(핸드오프 화면으로 이전 기록 숨김)
     무제한 시도로 풀고, 적은 횟수→빠른 시간 순으로 승자. 라이브 타이머. 각 턴은 `GuessBoard`(순수 `gameReducer` 재사용)로.
   - **턴제 대결**: `src/versus/DuelVersus.tsx`. 일대일. 서로 상대가 맞힐 숫자를 몰래 정하고(핸드오프),

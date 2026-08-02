@@ -345,7 +345,7 @@ export function OnlineDuel({ onActiveChange }: Props) {
   };
 
   // 재접속 후 서버가 준 현재 상태로 화면을 되돌린다(놓친 진행 동기화).
-  const applyResume = (r: import('../net/protocol').ResumeInfo) => {
+  const applyResume = (r: import('../net/protocol').DuelResume) => {
     setDigits(r.digits);
     setOpponentNick(r.opponentNick);
     // 로비(상대 아직 없음)에선 상대 끊김 배너 띄우지 않음.
@@ -387,7 +387,7 @@ export function OnlineDuel({ onActiveChange }: Props) {
       setMyIndex(sess.index);
       s.emit('rejoin', { code: sess.code, index: sess.index, token: sess.token }, (r) => {
         setResuming(false);
-        if (r.ok && r.resume) {
+        if (r.ok && r.resume && r.resume.mode === 'duel') {
           applyResume(r.resume);
         } else {
           // 방이 만료(유예 초과)·삭제됨 → 대기 상태에 갇히지 않게 메뉴로.

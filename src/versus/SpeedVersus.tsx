@@ -65,48 +65,49 @@ export function SpeedVersus({ onExit }: Props) {
 
   if (phase.kind === 'setup') {
     return (
-      <div className="versus">
+      <div className="versus versus-center">
         <h2 className="versus-title">스피드 대결 ⚡</h2>
         <p className="versus-desc">
           하나의 공통 숫자를 번갈아 풀어요. <strong>적은 횟수</strong>로 맞힌 사람이 승리!
-          (동점이면 빠른 시간)
         </p>
 
-        <div className="versus-field">
-          <span className="versus-label">자릿수</span>
-          <div className="seg">
-            {[3, 4].map((d) => (
-              <button
-                key={d}
-                type="button"
-                className={`seg-btn${digits === d ? ' active' : ''}`}
-                onClick={() => setDigits(d)}
-              >
-                {d}자리
-              </button>
-            ))}
+        <div className="setup-card">
+          <div className="versus-field">
+            <span className="versus-label">자릿수</span>
+            <div className="seg">
+              {[3, 4].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`seg-btn${digits === d ? ' active' : ''}`}
+                  onClick={() => setDigits(d)}
+                >
+                  {d}자리
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="versus-field">
-          <span className="versus-label">인원</span>
-          <div className="seg">
-            {PLAYER_COUNTS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`seg-btn${players === n ? ' active' : ''}`}
-                onClick={() => setPlayers(n)}
-              >
-                {n}명
-              </button>
-            ))}
+          <div className="versus-field">
+            <span className="versus-label">인원</span>
+            <div className="seg">
+              {PLAYER_COUNTS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`seg-btn${players === n ? ' active' : ''}`}
+                  onClick={() => setPlayers(n)}
+                >
+                  {n}명
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <button type="button" className="versus-primary" onClick={startMatch}>
-          시작
-        </button>
+          <button type="button" className="versus-primary" onClick={startMatch}>
+            시작
+          </button>
+        </div>
       </div>
     );
   }

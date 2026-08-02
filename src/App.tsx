@@ -13,10 +13,12 @@ import { FieldBackdrop } from './components/FieldBackdrop';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
+import { OnlineSpeed } from './versus/OnlineSpeed';
 import './App.css';
 
 type Section = 'solo' | 'multi';
-type MultiMode = 'speed' | 'duel' | 'online';
+type GameType = 'speed' | 'duel';
+type Conn = 'online' | 'local';
 
 // 자릿수(3/4)와 힌트(개인 기능)는 독립. 예전 'level' 저장값이 있으면 이관.
 function getInitialDigits(): number {
@@ -50,9 +52,10 @@ export default function App() {
   const [online, setOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   );
-  // 멀티 기본값은 온라인(연결 없으면 스피드).
-  const [multiMode, setMultiMode] = useState<MultiMode>(() =>
-    typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'speed',
+  // 멀티: 게임 종류(스피드/턴제) × 진행(온라인/로컬). 기본 턴제·온라인(연결 없으면 로컬).
+  const [gameType, setGameType] = useState<GameType>('duel');
+  const [conn, setConn] = useState<Conn>(() =>
+    typeof navigator !== 'undefined' && navigator.onLine ? 'online' : 'local',
   );
   const [netMsg, setNetMsg] = useState<string | null>(null);
   const netTimerRef = useRef<number | undefined>(undefined);
@@ -71,14 +74,14 @@ export default function App() {
       window.removeEventListener('offline', off);
     };
   }, []);
-  // 연결이 끊기면 온라인 모드에서 스피드로 폴백.
+  // 연결이 끊기면 온라인→로컬로 폴백.
   useEffect(() => {
-    if (!online && multiMode === 'online') {
-      setMultiMode('speed');
+    if (!online && conn === 'online') {
+      setConn('local');
       showNet('네트워크 연결이 필요해요');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online, multiMode]);
+  }, [online, conn]);
   const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   // 자리별 추리 메모(솔로). notes[i] = i번 칸의 후보 숫자들(빈 배열=미정). 새 판·자릿수 변경 시 초기화.
   const [notes, setNotes] = useState<string[][]>(() =>
@@ -376,66 +379,58 @@ export default function App() {
 
         {section === 'multi' && (
           <>
-            {/* 1차: 온라인(기본) vs 오프라인(패스앤플레이) */}
+            {/* 게임 종류 */}
             <div className="controls-row">
-              <div className="seg" role="group" aria-label="대결 방식">
+              <div className="seg" role="group" aria-label="게임 종류">
                 <button
                   type="button"
-                  className={`seg-btn${multiMode === 'online' ? ' active' : ''}${
+                  className={`seg-btn${gameType === 'speed' ? ' active' : ''}`}
+                  aria-pressed={gameType === 'speed'}
+                  onClick={() => guardedSwitch(() => setGameType('speed'))}
+                >
+                  ⚡ 스피드
+                </button>
+                <button
+                  type="button"
+                  className={`seg-btn${gameType === 'duel' ? ' active' : ''}`}
+                  aria-pressed={gameType === 'duel'}
+                  onClick={() => guardedSwitch(() => setGameType('duel'))}
+                >
+                  🔁 턴제
+                </button>
+              </div>
+            </div>
+            {/* 진행 방법 */}
+            <div className="controls-row offline-sub">
+              <div className="seg" role="group" aria-label="진행 방법">
+                <button
+                  type="button"
+                  className={`seg-btn${conn === 'online' ? ' active' : ''}${
                     online ? '' : ' disabled'
                   }`}
-                  aria-pressed={multiMode === 'online'}
+                  aria-pressed={conn === 'online'}
                   aria-disabled={!online}
                   onClick={() => {
                     if (!online) {
                       showNet('온라인은 네트워크 연결이 필요해요');
                       return;
                     }
-                    if (multiMode === 'online') return;
-                    guardedSwitch(() => setMultiMode('online'));
+                    if (conn === 'online') return;
+                    guardedSwitch(() => setConn('online'));
                   }}
                 >
                   🌐 온라인
                 </button>
                 <button
                   type="button"
-                  className={`seg-btn${multiMode !== 'online' ? ' active' : ''}`}
-                  aria-pressed={multiMode !== 'online'}
-                  onClick={() =>
-                    guardedSwitch(() =>
-                      setMultiMode((m) => (m === 'online' ? 'speed' : m)),
-                    )
-                  }
+                  className={`seg-btn${conn === 'local' ? ' active' : ''}`}
+                  aria-pressed={conn === 'local'}
+                  onClick={() => guardedSwitch(() => setConn('local'))}
                 >
-                  오프라인
+                  📱 로컬
                 </button>
               </div>
             </div>
-
-            {/* 2차: 오프라인일 때만 스피드/턴제 */}
-            {multiMode !== 'online' && (
-              <div className="controls-row">
-                <span className="sub-label">오프라인</span>
-                <div className="seg" role="group" aria-label="오프라인 종류">
-                  <button
-                    type="button"
-                    className={`seg-btn${multiMode === 'speed' ? ' active' : ''}`}
-                    aria-pressed={multiMode === 'speed'}
-                    onClick={() => guardedSwitch(() => setMultiMode('speed'))}
-                  >
-                    스피드
-                  </button>
-                  <button
-                    type="button"
-                    className={`seg-btn${multiMode === 'duel' ? ' active' : ''}`}
-                    aria-pressed={multiMode === 'duel'}
-                    onClick={() => guardedSwitch(() => setMultiMode('duel'))}
-                  >
-                    턴제
-                  </button>
-                </div>
-              </div>
-            )}
           </>
         )}
       </header>
@@ -574,12 +569,14 @@ export default function App() {
         </section>
       )}
         </>
-      ) : multiMode === 'speed' ? (
-        <SpeedVersus onExit={() => setSection('solo')} />
-      ) : multiMode === 'duel' ? (
-        <DuelVersus onExit={() => setSection('solo')} />
-      ) : (
+      ) : conn === 'online' && gameType === 'speed' ? (
+        <OnlineSpeed onActiveChange={setOnlineActive} />
+      ) : conn === 'online' ? (
         <OnlineDuel onActiveChange={setOnlineActive} />
+      ) : gameType === 'speed' ? (
+        <SpeedVersus onExit={() => setSection('solo')} />
+      ) : (
+        <DuelVersus onExit={() => setSection('solo')} />
       )}
 
       <footer className="app-footer">
