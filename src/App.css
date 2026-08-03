@@ -2394,36 +2394,44 @@
 .duel-col.mine .dc-name {
   color: var(--accent);
 }
+.dc-me {
+  margin-left: 5px;
+  color: var(--muted);
+  font-weight: 700;
+}
 .dc-count {
   flex: 0 0 auto;
   font-family: var(--font-digit);
   font-size: 0.85rem;
   color: var(--led);
 }
-/* 기록 행 — 기존처럼 인라인(번호 | 추측 | S·B·O 오른쪽), 좁은 칸에 맞게 크게 축소 */
+/* 기록 행 — 기존처럼 인라인(번호 | 추측 | S·B·O 오른쪽), 좁은 칸에 맞게 아주 작게 */
 .duel-board .history-row {
-  grid-template-columns: 16px 1fr auto;
-  gap: 6px;
-  padding: 5px 7px;
+  grid-template-columns: 13px 1fr auto;
+  gap: 4px;
+  padding: 4px 6px;
 }
 .duel-board .history-index {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
+}
+.duel-board .history-guess {
+  gap: 2px;
 }
 .duel-board .sbo {
-  gap: 5px;
+  gap: 4px;
 }
 .duel-board .hsbo {
   gap: 2px;
 }
 .duel-board .hsbo-letter {
-  font-size: 0.5rem;
+  font-size: 0.46rem;
 }
 .duel-board .hcell {
-  width: 18px;
-  height: 24px;
+  width: 15px;
+  height: 20px;
 }
 .duel-board .hcell .seg7 {
-  font-size: 15px;
+  font-size: 12px;
 }
 .duel-board .bulb {
   width: 4px;
@@ -2435,24 +2443,24 @@
 /* 내 칸(왼쪽·넓음) — 전구 유지. 상대 칸(오른쪽·좁음) — S·B·O 텍스트 */
 .sbo-text {
   display: flex;
-  gap: 5px;
+  gap: 3px;
   align-items: baseline;
   font-family: var(--font-digit);
-  font-size: 0.72rem;
+  font-size: 0.6rem;
   font-weight: 800;
   white-space: nowrap;
 }
 .duel-col.opp .history-row {
-  grid-template-columns: 14px 1fr auto;
-  gap: 4px;
-  padding: 5px 6px;
+  grid-template-columns: 12px 1fr auto;
+  gap: 3px;
+  padding: 4px 5px;
 }
 .duel-col.opp .hcell {
-  width: 15px;
-  height: 20px;
+  width: 13px;
+  height: 17px;
 }
 .duel-col.opp .hcell .seg7 {
-  font-size: 13px;
+  font-size: 10px;
 }
 
 /* 하단 고정 타자석 — 턴바 + 고정 높이 스테이지 + 키패드 */
@@ -2477,13 +2485,18 @@
   gap: 10px;
 }
 .duel-lower .play-stage .slot {
-  width: 72px;
-  max-width: 72px;
-  height: 92px;
+  width: 68px;
+  max-width: 68px;
+  height: 88px;
   aspect-ratio: auto;
+  /* 입력칸 박스 복원(.cell 프레임을 .slot이 지웠던 걸 온라인 입력엔 다시) */
+  border: 1px solid color-mix(in srgb, var(--led) 22%, #16171b);
+  background: var(--cell);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.85);
+  border-radius: var(--r-md);
 }
 .duel-lower .play-stage .slot .seg7 {
-  font-size: 66px;
+  font-size: 60px;
 }
 /* 결과 카드 — 스테이지에 딱 맞게 고정 px(숫자 칸 박스와 세그먼트 크기를 함께 맞춰 정렬·선명하게) */
 .duel-lower .play-stage .reveal-card {
@@ -3576,6 +3589,48 @@
 }
 .sp-waiting {
   padding: 10px 8px;
+}
+/* 스피드 전광판 — 글자·여백을 조금씩 줄여 더 많은 내용이 보이게 */
+.sp-scoreboard .sp-board {
+  gap: 5px;
+}
+.sp-scoreboard .sp-row {
+  padding: 6px 10px;
+  gap: 8px;
+}
+.sp-scoreboard .sp-name {
+  font-size: 0.9rem;
+}
+.sp-scoreboard .sp-att,
+.sp-scoreboard .sp-stat {
+  font-size: 0.75rem;
+}
+.sp-scoreboard .sp-stat {
+  min-width: 54px;
+}
+.sp-scoreboard .sp-count {
+  font-size: 0.74rem;
+}
+.sp-scoreboard .sp-hist-head {
+  font-size: 0.72rem;
+}
+.sp-scoreboard .history-row {
+  padding: 6px 8px;
+  gap: 8px;
+}
+.sp-scoreboard .history-index {
+  font-size: 0.72rem;
+}
+.sp-scoreboard .hcell {
+  width: 19px;
+  height: 25px;
+}
+.sp-scoreboard .hcell .seg7 {
+  font-size: 16px;
+}
+.sp-scoreboard .bulb {
+  width: 6px;
+  height: 6px;
 }
 .sp-done {
   margin: 0;

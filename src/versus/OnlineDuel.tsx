@@ -865,7 +865,10 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
         <section className="history-section scoreboard duel-board" aria-label="기록">
           <div className="duel-col mine">
             <div className="duel-col-head">
-              <span className="dc-name">{(nick.trim() || '나') + '(나)'}</span>
+              <span className="dc-name">
+                {nick.trim() || '나'}
+                <span className="dc-me">(나)</span>
+              </span>
               <span className="dc-count">{history.length}</span>
             </div>
             <History guesses={history} />
