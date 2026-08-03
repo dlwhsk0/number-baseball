@@ -14,6 +14,7 @@ import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
 import { OnlineSpeed } from './versus/OnlineSpeed';
+import { peekRoom } from './net/peek';
 import './App.css';
 
 type Section = 'solo' | 'multi';
@@ -66,12 +67,35 @@ export default function App() {
   const [mDigits, setMDigits] = useState(3);
   const [mCode, setMCode] = useState('');
   const [launch, setLaunch] = useState<Launch | null>(null);
+  const [peeking, setPeeking] = useState(false);
   const persistNick = () => {
     try {
       localStorage.setItem('nb_nick', mNick.trim());
     } catch {
       /* 무시 */
     }
+  };
+  // 코드로 입장 — 방장이 만든 모드(스피드/턴제)를 먼저 조회해 그 모드로 자동 진입.
+  const joinByCode = async () => {
+    if (!online) {
+      showNet('온라인은 네트워크 연결이 필요해요');
+      return;
+    }
+    const c = mCode.trim().toUpperCase();
+    if (c.length < 4) {
+      showNet('코드 4자리를 입력해 주세요');
+      return;
+    }
+    persistNick();
+    setPeeking(true);
+    const r = await peekRoom(c);
+    setPeeking(false);
+    if (!r.ok || !r.mode) {
+      showNet(r.error ?? '입장에 실패했어요');
+      return;
+    }
+    if (r.digits === 3 || r.digits === 4) setMDigits(r.digits);
+    setLaunch({ conn: 'online', gameType: r.mode, action: 'join', code: c });
   };
   const [netMsg, setNetMsg] = useState<string | null>(null);
   const netTimerRef = useRef<number | undefined>(undefined);
@@ -580,10 +604,16 @@ export default function App() {
                   aria-pressed={gameType === 'duel'}
                   onClick={() => setGameType('duel')}
                 >
-                  🔁 턴제
+                  🥎 주고받기
                 </button>
               </div>
             </div>
+            {/* 종류 간단 설명 — 처음 보는 사람도 이해하게 */}
+            <p className="mode-desc">
+              {gameType === 'speed'
+                ? '여럿이 같은 숫자를 동시에 풀어요. 적은 횟수로 먼저 맞히면 승리! (2~4명)'
+                : '서로 상대가 맞힐 숫자를 정하고, 번갈아 맞혀요. 먼저 맞히면 승리! (1:1)'}
+            </p>
 
             <button
               type="button"
@@ -614,27 +644,11 @@ export default function App() {
               />
               <button
                 type="button"
-                className={`versus-secondary${online ? '' : ' disabled'}`}
-                aria-disabled={!online}
-                onClick={() => {
-                  if (!online) {
-                    showNet('온라인은 네트워크 연결이 필요해요');
-                    return;
-                  }
-                  if (mCode.trim().length < 4) {
-                    showNet('코드 4자리를 입력해 주세요');
-                    return;
-                  }
-                  persistNick();
-                  setLaunch({
-                    conn: 'online',
-                    gameType,
-                    action: 'join',
-                    code: mCode.trim().toUpperCase(),
-                  });
-                }}
+                className={`versus-secondary${online && !peeking ? '' : ' disabled'}`}
+                aria-disabled={!online || peeking}
+                onClick={joinByCode}
               >
-                코드 입력하기
+                {peeking ? '확인 중…' : '코드로 입장'}
               </button>
             </div>
 
@@ -645,7 +659,7 @@ export default function App() {
               className="versus-secondary"
               onClick={() => setLaunch({ conn: 'local', gameType })}
             >
-              📱 오프라인으로 하기
+              📱 한 기기로 하기
             </button>
           </div>
         </div>

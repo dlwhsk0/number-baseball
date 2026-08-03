@@ -8,6 +8,7 @@ import {
   joinRoom,
   getRoom,
   deleteRoom,
+  resetDuelToWaiting,
   bothSecretsSet,
   speedStandings,
   allSpeedSolved,
@@ -156,6 +157,25 @@ io.on('connection', (socket) => {
     socket.to(c).emit('opponentJoined', { nick: room.players[1].nick });
     room.phase = 'secret';
     io.to(c).emit('phase', { phase: 'secret', digits: room.digits });
+  });
+
+  // 입장 전 방 종류만 조회 — 코드 입장 시 스피드/턴제를 자동으로 맞추기 위해(부수효과 없음).
+  socket.on('peek', ({ code }, ack) => {
+    if (typeof ack !== 'function') return;
+    const room = getRoom(String(code ?? '').toUpperCase().trim());
+    if (!room) {
+      ack({ ok: false, error: '방을 찾을 수 없어요. 코드를 확인해주세요.' });
+      return;
+    }
+    if (room.players.length >= room.maxPlayers) {
+      ack({ ok: false, error: '방이 가득 찼어요.' });
+      return;
+    }
+    if (room.mode === 'speed' && room.phase !== 'waiting') {
+      ack({ ok: false, error: '이미 시작한 방이에요.' });
+      return;
+    }
+    ack({ ok: true, mode: room.mode, digits: room.digits });
   });
 
   socket.on('startSpeed', (ack) => {
@@ -395,14 +415,22 @@ io.on('connection', (socket) => {
           maybeEndSpeed(room);
         }
       } else {
-        room.players.forEach((p) => {
-          if (p.graceTimer) {
-            clearTimeout(p.graceTimer);
-            p.graceTimer = undefined;
-          }
-        });
-        socket.to(room.code).emit('opponentLeft');
-        deleteRoom(room.code);
+        // 턴제 — 방은 방장(index 0) 소유. 방장이 나가면 방 종료, 후공이 나가면 방장은 대기 유지.
+        const leaverIsHost = data.index === 0;
+        if (leaverIsHost || room.players.length <= 1) {
+          room.players.forEach((p) => {
+            if (p.graceTimer) {
+              clearTimeout(p.graceTimer);
+              p.graceTimer = undefined;
+            }
+          });
+          socket.to(room.code).emit('opponentLeft');
+          deleteRoom(room.code);
+        } else {
+          // 후공 이탈 → 방장만 남기고 대기 상태로. 방장 클라는 opponentLeft를 '대기 복귀'로 처리.
+          resetDuelToWaiting(room);
+          socket.to(room.code).emit('opponentLeft');
+        }
       }
     }
     if (data.code) socket.leave(data.code);
@@ -438,15 +466,19 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // 턴제
+    // 턴제 — 유예 후에도 안 돌아오면: 방장이면 방 종료, 후공이면 방장은 대기 유지.
     io.to(room.code).emit('opponentDisconnected');
     me.graceTimer = setTimeout(() => {
       if (getRoom(room.code) !== room) return;
       me.graceTimer = undefined;
-      const opp = room.players[1 - (idx === 1 ? 1 : 0)];
-      if (opp && opp.connected) return;
-      io.to(room.code).emit('opponentLeft');
-      deleteRoom(room.code);
+      if (me.connected) return; // 재접속함
+      if (idx === 0 || room.players.length <= 1) {
+        io.to(room.code).emit('opponentLeft');
+        deleteRoom(room.code);
+      } else {
+        resetDuelToWaiting(room);
+        io.to(room.code).emit('opponentLeft');
+      }
     }, GRACE_MS);
   });
 });

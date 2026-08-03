@@ -245,7 +245,9 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     });
     s.on('errorMsg', ({ message }) => setError(message));
 
-    s.connect();
+    // 이미 연결돼 있으면(코드 입장 전 peek 등) connect 이벤트가 안 오므로 직접 처리.
+    if (s.connected) onConnect();
+    else s.connect();
     let resumeTimer: number | undefined;
     if (sessionRef.current) {
       resumeTimer = window.setTimeout(() => {

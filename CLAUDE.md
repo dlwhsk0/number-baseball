@@ -41,8 +41,10 @@
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
 - **대결 모드**(App `section='multi'`): **멀티 시작 메뉴** — 하나의 글라스 카드(`.online-menu-card`)에 위→아래로
-  **닉네임 입력**(`mNick`, `localStorage.nb_nick`) · **자릿수 `[3|4]`**(`mDigits`) · **종류 `[스피드|턴제]`**(`gameType`),
-  그 아래 **버튼 3개**: `[방 만들기]`·`[코드 입력하기]`(CODE 입력칸 동반)·`[로컬 진행하기]`. 앞 둘은 온라인(오프라인이면 `disabled`+토스트), 마지막은 로컬.
+  **닉네임 입력**(`mNick`, `localStorage.nb_nick`) · **자릿수 `[3|4]`**(`mDigits`) · **종류 `[⚡스피드|🥎주고받기]`**(`gameType`, 아래 한 줄 설명 `.mode-desc`),
+  그 아래 **버튼 3개**: `[방 만들기]`·`[코드로 입장]`(CODE 입력칸 동반)·`[한 기기로 하기]`. 앞 둘은 온라인(오프라인이면 `disabled`+토스트), 마지막은 로컬.
+  **코드로 입장은 모드 무관** — 먼저 `peek`(부수효과 없는 방 조회, `src/net/peek.ts`)으로 방장이 만든 모드·자릿수를 받아 그 모드로 자동 진입(`peeking` 중 "확인 중…").
+  (`gameType`은 방 만들기·로컬에만 쓰임. 종류 라벨은 `duel`='주고받기'로 표기하지만 코드·프로토콜은 그대로 `duel`.)
   버튼을 누르면 `launch`(`{conn,gameType,action,code?}`)가 세팅되어 해당 화면으로 진입, 각 화면의 `onExit`가 `launch=null`로 메뉴 복귀.
   - 온라인 컴포넌트(`OnlineSpeed`/`OnlineDuel`)는 **액션 구동식**: `entry={{action:'create'|'join', nick, digits, code}}` + `onExit`를 받아
     연결되면 자동으로 `doCreate`/`doJoin` 실행(`autoRanRef` 가드), 자체 메뉴 없이 로딩 화면만. 로컬은 `SpeedVersus`/`DuelVersus`(자체 셋업 유지).
@@ -63,6 +65,7 @@
     **재접속 복구**: 끊겨도 서버가 방을 바로 안 지우고 유예(`GRACE_MS` 기본 90s — 모바일 백그라운드 대비 넉넉히).
     클라는 세션(코드·자리·토큰)을 **`sessionStorage`(`nb_online_session`)에 저장** → 탭이 리로드/백그라운드 복귀해도 마운트 시 복원해 자동 `rejoin`(그동안 "방에 다시 연결하는 중" 화면, 9s 타임아웃 폴백).
     소켓 재연결 시 `rejoin`으로 다시 합류하고 `resume`으로 상태 동기화. 나가기·방 만료·상대 이탈 시 세션 삭제. (`opponentDisconnected/Reconnected` 알림, `NetStatus` 배너.)
+    **방장 소유 방 수명**(턴제): 방은 방장(index 0) 소유. **방장이 나가면 방 종료**(후공은 결과 화면), **후공이 나가면 방장은 방을 유지한 채 다시 대기(lobby)**(`resetDuelToWaiting`, 새 상대 입장 가능). 끊김도 유예 후 같은 규칙. 클라의 `opponentLeft`는 내 index로 분기(방장=대기 복귀, 후공=종료). **승패(`over`) 나면 저장 세션 해제**(새로고침·실수 이탈해도 재접속 안 함), 재대결 시작(`phase`) 때 다시 저장.
     Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **서버 코드 바꾸면 VM 재배포 필요** — `scripts/redeploy-server.sh`
     (접속 정보는 `scripts/deploy.env`, gitignore. VM `ubuntu@151.145.75.107`, 도메인 `wss://b-ball.duckdns.org`, pm2 `nb-server`). 수동: `git pull && pnpm -C server build && pm2 restart nb-server`.
     연출: 추측 후 **결과 발표 텀**(서버 `reveal` → `REVEAL_MS` 뒤 turn/over, 그동안 `pending`으로 입력 차단), 특이 이벤트 리액션,

@@ -53,6 +53,13 @@ export interface OkAck {
   /** guess 성공 시 서버 판정(추측한 본인에게만). */
   judgement?: Judgement;
 }
+/** 코드로 방의 종류만 미리 조회(입장 전, 부수효과 없음). */
+export interface PeekAck {
+  ok: boolean;
+  error?: string;
+  mode?: Mode;
+  digits?: number;
+}
 
 /** 재접속 복원 — 턴제. */
 export interface DuelResume {
@@ -93,6 +100,8 @@ export interface ClientToServerEvents {
     ack: (r: CreateAck) => void,
   ) => void;
   join: (p: { nick: string; code: string }, ack: (r: JoinAck) => void) => void;
+  /** 입장 전 방 종류만 조회(스피드/턴제 자동 판별용). */
+  peek: (p: { code: string }, ack: (r: PeekAck) => void) => void;
   setSecret: (p: { secret: string }, ack: (r: OkAck) => void) => void;
   /** 스피드: 방장이 레이스 시작(공통 숫자 생성·전원 동시 시작). */
   startSpeed: (ack: (r: OkAck) => void) => void;

@@ -42,6 +42,12 @@ export interface OkAck {
   error?: string;
   judgement?: Judgement;
 }
+export interface PeekAck {
+  ok: boolean;
+  error?: string;
+  mode?: Mode;
+  digits?: number;
+}
 
 export interface DuelResume {
   mode: 'duel';
@@ -76,6 +82,7 @@ export interface RejoinAck {
 export interface ClientToServerEvents {
   create: (p: { nick: string; digits: number; mode?: Mode }, ack: (r: CreateAck) => void) => void;
   join: (p: { nick: string; code: string }, ack: (r: JoinAck) => void) => void;
+  peek: (p: { code: string }, ack: (r: PeekAck) => void) => void;
   setSecret: (p: { secret: string }, ack: (r: OkAck) => void) => void;
   startSpeed: (ack: (r: OkAck) => void) => void;
   guess: (p: { guess: string }, ack: (r: OkAck) => void) => void;

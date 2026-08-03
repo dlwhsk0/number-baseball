@@ -1875,6 +1875,14 @@
   align-items: center;
   gap: 14px;
 }
+/* 게임 종류 간단 설명(메뉴) */
+.mode-desc {
+  margin: -2px 4px 2px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-align: center;
+}
 /* '또는' 구분선 */
 .online-or {
   display: flex;

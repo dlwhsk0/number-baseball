@@ -116,6 +116,26 @@ export function getRoom(code: string | undefined): Room | undefined {
   return code ? rooms.get(code) : undefined;
 }
 
+/**
+ * 턴제 방을 '방장만 남은 대기' 상태로 되돌린다(후공이 나갔을 때).
+ * 방은 방장 소유 — 방장이 나가야 방이 사라지고, 후공이 나가면 방장은 새 상대를 계속 기다린다.
+ */
+export function resetDuelToWaiting(room: Room): void {
+  // 방장(index 0)만 남기고 후공 제거.
+  const extras = room.players.slice(1);
+  extras.forEach((p) => p.graceTimer && clearTimeout(p.graceTimer));
+  room.players = room.players.slice(0, 1);
+  const host = room.players[0];
+  if (host) host.secret = null;
+  room.phase = 'waiting';
+  room.turn = 0;
+  room.pending = false;
+  room.histories = [[], []];
+  room.solved = [false, false];
+  room.rematch = [false, false];
+  room.lastOver = undefined;
+}
+
 export function deleteRoom(code: string): void {
   const room = rooms.get(code);
   room?.players.forEach((p) => p.graceTimer && clearTimeout(p.graceTimer));

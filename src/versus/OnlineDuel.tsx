@@ -455,6 +455,14 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     });
     s.on('rematchRequested', () => setOppWantsRematch(true));
     s.on('opponentLeft', () => {
+      // 방은 방장 소유. 내가 방장(index 0)이면 후공이 나간 것 → 방을 유지하고 다시 대기.
+      if (myIndexRef.current === 0) {
+        resetRound();
+        setOpponentNick('상대');
+        setPhase('lobby');
+        return;
+      }
+      // 내가 후공이면 방장이 나간 것 → 방 종료. 세션 지우고 결과 화면으로.
       sessionRef.current = null;
       saveSession(null);
       // 끊김(유예 중)에서 넘어온 이탈이면 '연결 끊김', 아니면 '나감'.
@@ -465,7 +473,9 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     });
     s.on('errorMsg', ({ message }) => setError(message));
 
-    s.connect();
+    // 이미 연결돼 있으면(코드 입장 전 peek 등) connect 이벤트가 안 오므로 직접 처리.
+    if (s.connected) onConnect();
+    else s.connect();
     // 저장된 세션으로 복귀 시도가 너무 오래 걸리면(연결 실패 등) 메뉴로 풀어준다.
     let resumeTimer: number | undefined;
     if (sessionRef.current) {
