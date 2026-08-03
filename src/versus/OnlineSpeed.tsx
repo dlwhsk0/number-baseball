@@ -444,7 +444,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     const elapsed = startAt ? now - startAt : 0;
     let rank = 0;
     return (
-      <div className="versus">
+      <div className="versus play">
         <div className="turn-bar">
           <span className="turn-who">스피드 ⚡</span>
           <div className="turn-right">
@@ -455,36 +455,38 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
           </div>
         </div>
 
-        <ul className="sp-board">
-          {standings.map((s) => {
-            if (s.solved) rank += 1;
-            return (
-              <Standing key={s.index} s={s} me={s.index === myIndex} rank={s.solved ? rank : 0} />
-            );
-          })}
-        </ul>
-        <p className="sp-count">
-          {solvedCount}/{standings.length}명 맞힘
-        </p>
-
-        {iSolved ? (
-          <div className="versus versus-center">
-            <p className="sp-done">맞혔어요! 🎉</p>
-            <LoadingDots />
-            <p className="wait-line">다른 사람들을 기다리는 중…</p>
+        {/* 전광판(상단) — 리더보드 + 내 기록. 기록만 안쪽 스크롤. */}
+        <section className="history-section scoreboard sp-scoreboard" aria-label="순위·기록">
+          <ul className="sp-board">
+            {standings.map((s) => {
+              if (s.solved) rank += 1;
+              return (
+                <Standing key={s.index} s={s} me={s.index === myIndex} rank={s.solved ? rank : 0} />
+              );
+            })}
+          </ul>
+          <p className="sp-count">
+            {solvedCount}/{standings.length}명 맞힘
+          </p>
+          <div className="sp-hist-head">
+            <span>내 기록</span>
+            <span className="attempts">{myHistory.length}</span>
           </div>
-        ) : (
-          <>
+          <History guesses={myHistory} />
+        </section>
+
+        {/* 하단 고정 — 입력/키패드(다 풀면 대기 메시지). 위치 안 흔들림. */}
+        <div className="duel-lower">
+          {iSolved ? (
+            <div className="versus versus-center sp-waiting">
+              <p className="sp-done">맞혔어요! 🎉</p>
+              <LoadingDots />
+              <p className="wait-line">다른 사람들을 기다리는 중…</p>
+            </div>
+          ) : (
             <RaceInput digits={raceDigitsRef.current} onSubmit={submitGuess} />
-            <section className="history-section">
-              <div className="history-head">
-                <span>내 기록</span>
-                <span className="attempts">{myHistory.length}</span>
-              </div>
-              <History guesses={myHistory} />
-            </section>
-          </>
-        )}
+          )}
+        </div>
         {error && <p className="online-error">{error}</p>}
         {confirmLeave && (
           <ConfirmDialog

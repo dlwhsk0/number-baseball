@@ -405,6 +405,8 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     s.on('phase', ({ digits: d }) => {
       setDigits(d);
       resetRound();
+      // 재대결 등 새 판이 시작되면 세션을 다시 저장(over에서 지웠던 걸 복구).
+      if (sessionRef.current) saveSession(sessionRef.current);
       // 매치업(VS) 연출 → '시작하기' 버튼으로 넘어감(안 누르면 안전장치로 오래 뒤 자동).
       setVsIntro(true);
       if (vsTimerRef.current) window.clearTimeout(vsTimerRef.current);
@@ -447,6 +449,9 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
       setReveal(null);
       setOver(p);
       setPhase('over');
+      // 승패가 나면 저장 세션을 지운다 — 실수로 닫히거나 새로고침해도 재접속하지 않고 메뉴로.
+      // (재대결이 시작되면 'phase'에서 다시 저장하므로 메모리 참조는 남겨둔다.)
+      saveSession(null);
     });
     s.on('rematchRequested', () => setOppWantsRematch(true));
     s.on('opponentLeft', () => {

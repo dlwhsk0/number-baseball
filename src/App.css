@@ -3205,8 +3205,8 @@
   z-index: 2;
 }
 .vs-name.top {
-  top: 2%;
-  left: 2%;
+  top: 17%;
+  left: 6%;
   border-color: var(--accent);
   box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 28%, transparent);
   /* 대각선 등장 후 둥실둥실 떠다님. */
@@ -3214,8 +3214,8 @@
     vs-float-top 3s ease-in-out 0.85s infinite;
 }
 .vs-name.bottom {
-  bottom: 2%;
-  right: 2%;
+  bottom: 17%;
+  right: 6%;
   border-color: color-mix(in srgb, var(--out) 60%, var(--border));
   box-shadow: 0 0 26px color-mix(in srgb, var(--out) 20%, transparent);
   animation: vs-in-br 0.6s 0.26s cubic-bezier(0.18, 1.3, 0.4, 1) both,
@@ -3485,6 +3485,38 @@
   text-align: center;
   color: var(--muted);
   font-size: 0.82rem;
+}
+/* 온라인 스피드 — 전광판 안: 리더보드·카운트(고정) + 내 기록(스크롤) */
+.sp-scoreboard {
+  gap: 8px;
+}
+.sp-scoreboard .sp-board,
+.sp-scoreboard .sp-count,
+.sp-hist-head {
+  flex: 0 0 auto;
+}
+.sp-scoreboard .sp-count {
+  margin: 2px 0 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.sp-hist-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 2px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.sp-hist-head .attempts {
+  font-family: var(--font-digit);
+  color: var(--led);
+}
+.sp-waiting {
+  padding: 10px 8px;
 }
 .sp-done {
   margin: 0;
