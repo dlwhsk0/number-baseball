@@ -3598,14 +3598,27 @@
 .sp-waiting {
   padding: 10px 8px;
 }
-/* 스피드 종료 후 — 참가자별 추측 기록 공개 */
-.sp-result-hists {
-  width: 100%;
+/* 스피드 종료 — 전광판 프레임 안: 순위(고정) + 참가자 기록(스크롤) */
+.sp-over-hists {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   text-align: left;
-  margin-top: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.sp-over-hists::-webkit-scrollbar {
+  width: 6px;
+}
+.sp-over-hists::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+.sp-over-foot {
+  padding-top: 2px;
 }
 .sp-result-hist {
   background: var(--panel-2);

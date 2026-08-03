@@ -522,45 +522,49 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   if (!over) return null;
 
   const iWon = over.standings.length > 0 && over.standings[0].index === myIndex;
+  // 종료 화면도 경기 중과 같은 전광판 레이아웃(상단 바 + 스코어보드 프레임 + 하단 고정 버튼).
   return (
-    <div className={`online-result ${iWon ? 'win' : 'lose'}`}>
-      <div className="result-emblem">{iWon ? '🏆' : '⚡'}</div>
-      <h2 className="result-headline">{iWon ? '1등!' : '결과'}</h2>
-      <p className="forfeit-desc">정답은 {over.secret} 였어요.</p>
-      <ol className="score-list">
-        {over.standings.map((s, i) => (
-          <li key={s.index} className={`score-row${s.index === myIndex ? ' win' : ''}`}>
-            <span className="score-rank">{i + 1}</span>
-            <span className="score-name">
-              {s.nick}
-              {s.index === myIndex ? ' (나)' : ''}
-            </span>
-            <span className="score-stat">{s.attempts}회</span>
-            <span className="score-stat">{s.solveMs != null ? fmtTime(s.solveMs) : '-'}</span>
-          </li>
-        ))}
-      </ol>
+    <div className="versus play sp-over">
+      <div className={`turn-bar${iWon ? ' my-turn' : ''}`}>
+        <span className="turn-who">{iWon ? '🏆 1등!' : '⚡ 결과'}</span>
+        <span className="turn-timer">정답 {over.secret}</span>
+      </div>
 
-      {over.histories.length > 0 && (
-        <div className="sp-result-hists">
-          {over.histories.map((h) => (
-            <div key={h.index} className="sp-result-hist">
-              <div className="sp-hist-head">
-                <span>
-                  {h.nick}
-                  {h.index === myIndex ? ' (나)' : ''}
-                </span>
-                <span className="attempts">{h.history.length}</span>
-              </div>
-              <History guesses={h.history} sboText />
-            </div>
+      <section className="history-section scoreboard sp-scoreboard" aria-label="최종 순위·기록">
+        <ol className="sp-board">
+          {over.standings.map((s, i) => (
+            <Standing key={s.index} s={s} me={s.index === myIndex} rank={i + 1} />
           ))}
-        </div>
-      )}
+        </ol>
 
-      <button type="button" className="versus-primary" onClick={backToMenu}>
-        나가기
-      </button>
+        {over.histories.length > 0 && (
+          <>
+            <div className="sp-hist-head">
+              <span>추측 기록</span>
+            </div>
+            <div className="sp-over-hists">
+              {over.histories.map((h) => (
+                <div key={h.index} className="sp-result-hist">
+                  <div className="sp-hist-head">
+                    <span>
+                      {h.nick}
+                      {h.index === myIndex ? ' (나)' : ''}
+                    </span>
+                    <span className="attempts">{h.history.length}</span>
+                  </div>
+                  <History guesses={h.history} sboText />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <div className="duel-lower sp-over-foot">
+        <button type="button" className="versus-primary" onClick={backToMenu}>
+          나가기
+        </button>
+      </div>
     </div>
   );
 }
