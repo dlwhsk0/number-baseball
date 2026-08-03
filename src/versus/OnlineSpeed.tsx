@@ -28,18 +28,10 @@ interface OverInfo {
 
 type Session = { code: string; index: number; token: string };
 const SESSION_KEY = 'nb_speed_session';
-function loadSession(): Session | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (s && typeof s.code === 'string' && typeof s.index === 'number' && typeof s.token === 'string')
-      return s;
-  } catch {
-    /* 무시 */
-  }
-  return null;
-}
+// 세션은 '게임 중 소켓 끊김→재연결' 복구용으로만 메모리(sessionRef)에 담는다.
+// 마운트 때 sessionStorage에서 불러오지 않는다 — 앱은 새로고침 시 메뉴로 돌아가고
+// 모든 진입은 '새 방 만들기/입장'이라, 옛 세션을 불러오면 만료된 방에 rejoin 시도 →
+// "방이 만료됐어요" 오류가 났다(방 만들기→나가기→다시 만들기에서 재현).
 function saveSession(s: Session | null) {
   try {
     if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
@@ -122,11 +114,15 @@ function RaceInput({
   );
 }
 
+const MEDALS = ['🥇', '🥈', '🥉'];
+
 /** 리더보드 한 줄. */
 function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number }) {
   return (
     <li className={`sp-row${me ? ' me' : ''}${s.solved ? ' solved' : ''}`}>
-      <span className="sp-rank">{s.solved ? rank : '-'}</span>
+      <span className="sp-rank">
+        {s.solved ? (rank <= 3 ? MEDALS[rank - 1] : rank) : '-'}
+      </span>
       <span className="sp-name">
         {s.nick}
         {me ? ' (나)' : ''}
@@ -151,7 +147,7 @@ function StandingChip({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: nu
         </span>
       </span>
       <span className="sp-chip-stat">
-        {s.solved ? `✓ ${fmtTime(s.solveMs ?? 0)}` : `${s.attempts}회`}
+        {s.solved ? `✓ ${s.attempts}회·${fmtTime(s.solveMs ?? 0)}` : `${s.attempts}회`}
       </span>
     </div>
   );
@@ -163,8 +159,8 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const entryRef = useRef(entry);
   const autoRanRef = useRef(false);
   const myIndexRef = useRef(0);
-  const sessionRef = useRef<Session | null>(loadSession());
-  const [resuming, setResuming] = useState<boolean>(() => sessionRef.current !== null);
+  const sessionRef = useRef<Session | null>(null);
+  const [resuming, setResuming] = useState(false);
 
   const [phase, setPhase] = useState<Phase>('menu');
   const [connected, setConnected] = useState(false);
@@ -544,16 +540,18 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   if (!over) return null;
 
   const iWon = over.standings.length > 0 && over.standings[0].index === myIndex;
+  const winner = over.standings[0]?.nick ?? '';
   // 종료 화면도 경기 중과 같은 전광판 레이아웃(상단 바 + 스코어보드 프레임 + 하단 고정 버튼).
   return (
     <div className="versus play sp-over">
       <div className={`turn-bar${iWon ? ' my-turn' : ''}`}>
-        <span className="turn-who">{iWon ? '🏆 1등!' : '⚡ 결과'}</span>
+        <span className="turn-who">{iWon ? '🏆 내가 1등!' : `🏆 ${winner} 우승`}</span>
         <span className="turn-timer">정답 {over.secret}</span>
       </div>
 
       <section className="history-section scoreboard sp-scoreboard" aria-label="최종 순위·기록">
-        <ol className="sp-board">
+        <div className="sp-rank-note">🏁 적은 횟수 순 · 같으면 빠른 시간</div>
+        <ol className="sp-board sp-final-board">
           {over.standings.map((s, i) => (
             <Standing key={s.index} s={s} me={s.index === myIndex} rank={i + 1} />
           ))}

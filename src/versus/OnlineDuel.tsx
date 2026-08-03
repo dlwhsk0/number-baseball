@@ -242,19 +242,9 @@ function SecretPeek({ secret }: { secret: string }) {
 type Session = { code: string; index: 0 | 1; token: string };
 // 세션을 sessionStorage에 저장 → 모바일 백그라운드로 탭이 리로드돼도 방으로 자동 복귀.
 const SESSION_KEY = 'nb_online_session';
-function loadSession(): Session | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (s && typeof s.code === 'string' && (s.index === 0 || s.index === 1) && typeof s.token === 'string') {
-      return s;
-    }
-  } catch {
-    /* 무시 */
-  }
-  return null;
-}
+// 세션은 '게임 중 소켓 끊김→재연결' 복구용으로만 메모리(sessionRef)에 담는다.
+// 마운트 때 sessionStorage에서 불러오지 않는다 — 모든 진입은 새 방 만들기/입장이라
+// 옛 세션을 불러오면 만료된 방에 rejoin 시도 → 오류(방 만들기→나가기→다시 만들기).
 function saveSession(s: Session | null) {
   try {
     if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
@@ -274,9 +264,8 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const vsTimerRef = useRef<number | undefined>(undefined);
   // 재접속용 세션(코드·자리·토큰). 소켓이 끊겼다 붙으면 이걸로 다시 합류한다.
   // 저장돼 있으면(리로드 직후) 마운트 시 복원해 자동 rejoin.
-  const sessionRef = useRef<Session | null>(loadSession());
-  // 저장된 세션으로 복귀 시도 중 — 메뉴 대신 "재접속 중" 화면을 잠깐 보여준다.
-  const [resuming, setResuming] = useState<boolean>(() => sessionRef.current !== null);
+  const sessionRef = useRef<Session | null>(null);
+  const [resuming, setResuming] = useState(false);
 
   const [phase, setPhase] = useState<Phase>('menu');
   const [connected, setConnected] = useState(false);
