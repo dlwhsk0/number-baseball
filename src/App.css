@@ -2456,23 +2456,60 @@
 .duel-lower .tension-slot {
   min-height: 1.8rem;
 }
-/* 스테이지 고정 높이 — 결과/상대입력/대기 무엇이 와도 키패드 자리 유지 */
+/* 스테이지 고정 높이(px — 화면 크기와 무관) — 결과/상대입력/대기 무엇이 와도 키패드 자리 유지.
+   화면 높이에 따라 늘고 주는 건 전광판(scoreboard)뿐이고, 여긴 항상 고정이다. */
 .duel-lower .play-stage {
-  height: 148px;
-  min-height: 148px;
+  height: 156px;
+  min-height: 156px;
   overflow: hidden;
 }
-/* 스테이지 안 결과 카드는 고정 높이에 맞춰 컴팩트하게 */
+/* 입력칸 — 3·4자리 모두 같은 고정 크기(vw/cqw 안 씀 → 자릿수·화면 무관 동일) */
+.duel-lower .play-stage .input-display {
+  gap: 10px;
+}
+.duel-lower .play-stage .slot {
+  width: 72px;
+  max-width: 72px;
+  height: 92px;
+  aspect-ratio: auto;
+}
+.duel-lower .play-stage .slot .seg7 {
+  font-size: 66px;
+}
+/* 결과 카드 — 스테이지에 딱 맞게 고정 px(숫자 칸 박스와 세그먼트 크기를 함께 맞춰 정렬·선명하게) */
 .duel-lower .play-stage .reveal-card {
-  gap: 7px;
+  gap: 6px;
   padding: 10px 16px;
   max-width: 320px;
 }
+.duel-lower .play-stage .reveal-card .num-cells {
+  gap: 6px;
+}
+.duel-lower .play-stage .reveal-card .num-cells .hcell {
+  width: 44px;
+  height: 56px;
+}
 .duel-lower .play-stage .reveal-card .num-cells .seg7 {
-  font-size: 38px;
+  font-size: 44px;
+}
+.duel-lower .play-stage .reveal-card .reveal-sbo .bulb {
+  width: 7px;
+  height: 7px;
 }
 .duel-lower .play-stage .reveal-who {
   margin: 0;
+  font-size: 0.82rem;
+}
+.duel-lower .play-stage .reveal-reaction {
+  margin: 0;
+}
+/* 상대 입력 중 미리보기도 고정 px(화면 무관, 스테이지에 맞게) */
+.duel-lower .play-stage .live-input .num-cells .hcell {
+  width: 60px;
+  height: 76px;
+}
+.duel-lower .play-stage .live-input .num-cells .seg7 {
+  font-size: 60px;
 }
 
 /* 기록 탭 — 내/상대 분리(누구 기록인지 헷갈림 방지) */
