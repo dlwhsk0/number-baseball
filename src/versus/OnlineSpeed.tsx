@@ -138,7 +138,7 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
   );
 }
 
-/** 온라인 스피드 대전 — 공통 숫자를 2~4명이 동시에 풀어 순위를 겨룬다(서버 권위). */
+/** 온라인 스피드 대전 — 공통 숫자를 2~6명이 동시에 풀어 순위를 겨룬다(서버 권위). */
 export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
   const entryRef = useRef(entry);

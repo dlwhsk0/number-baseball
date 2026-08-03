@@ -82,7 +82,7 @@ export function createRoom(hostId: string, nick: string, digits: number, mode: M
     code: genCode(),
     mode,
     digits,
-    maxPlayers: mode === 'speed' ? 4 : 2,
+    maxPlayers: mode === 'speed' ? 6 : 2,
     players: [newPlayer(hostId, nick)],
     phase: 'waiting',
     turn: 0,

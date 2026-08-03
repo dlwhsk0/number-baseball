@@ -19,7 +19,7 @@ type Phase =
   | { kind: 'play'; player: number }
   | { kind: 'result' };
 
-const PLAYER_COUNTS = [2, 3, 4];
+const PLAYER_COUNTS = [2, 3, 4, 5, 6];
 
 function fmtTime(ms: number): string {
   const s = Math.floor(ms / 1000);

@@ -49,9 +49,9 @@
   - 온라인 컴포넌트(`OnlineSpeed`/`OnlineDuel`)는 **액션 구동식**: `entry={{action:'create'|'join', nick, digits, code}}` + `onExit`를 받아
     연결되면 자동으로 `doCreate`/`doJoin` 실행(`autoRanRef` 가드), 자체 메뉴 없이 로딩 화면만. 로컬은 `SpeedVersus`/`DuelVersus`(자체 셋업 유지).
   로컬=한 기기 패스앤플레이(`SpeedVersus`/`DuelVersus`, 서버 없음), 온라인=서버 대전(`OnlineSpeed`/`OnlineDuel`). 온라인은 스피드·턴제 **둘 다** 지원.
-  - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. 방 만들기/코드 입장(2~4명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(시도·맞힘·시간) → **전원 맞히면 종료**(적은 횟수→빠른 시간 순위). 세션 재접속 지원(`nb_speed_session`).
+  - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. 방 만들기/코드 입장(2~6명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(시도·맞힘·시간) → **전원 맞히면 종료**(적은 횟수→빠른 시간 순위). 세션 재접속 지원(`nb_speed_session`).
     서버: 방 `mode:'duel'|'speed'`, 스피드는 `speedSecret`·플레이어별 `solved/attempts/solveMs/history`·`gone`. 이벤트 `startSpeed`/`speedStart`/`speedRoster`/`speedProgress`/`speedOver`.
-  - **스피드 대결**: `src/versus/SpeedVersus.tsx`. 공통 숫자 1개를 2~4명이 번갈아(핸드오프 화면으로 이전 기록 숨김)
+  - **스피드 대결**: `src/versus/SpeedVersus.tsx`. 공통 숫자 1개를 2~6명이 번갈아(핸드오프 화면으로 이전 기록 숨김)
     무제한 시도로 풀고, 적은 횟수→빠른 시간 순으로 승자. 라이브 타이머. 각 턴은 `GuessBoard`(순수 `gameReducer` 재사용)로.
   - **턴제 대결**: `src/versus/DuelVersus.tsx`. 일대일. 서로 상대가 맞힐 숫자를 몰래 정하고(핸드오프),
     번갈아 한 번씩 상대 숫자를 추측. 공정성: 선공(P1)이 맞히면 후공(P2)에게 같은 라운드 마지막 기회 → 둘 다 맞히면 무승부.

@@ -365,7 +365,7 @@ function Wrap() {
       <h3>🆚 친구와 대결</h3>
       <ul className="tut-list">
         <li>
-          <strong>⚡ 스피드</strong> — 같은 숫자를 함께 풀어, <b>적은 횟수·빠른 시간</b>이 이겨요(2~4명).
+          <strong>⚡ 스피드</strong> — 같은 숫자를 함께 풀어, <b>적은 횟수·빠른 시간</b>이 이겨요(2~6명).
         </li>
         <li>
           <strong>🥎 주고받기</strong> — 서로 낼 숫자를 정하고 번갈아 맞히는 1:1이에요.
