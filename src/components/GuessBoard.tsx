@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { gameReducer, initGame, cycleMemoMark, type MemoMark } from '../game/useGame';
+import { gameReducer, initGame, type MemoMark } from '../game/useGame';
 import { Keypad } from './Keypad';
 import { History } from './History';
 import { Seg7 } from './Seg7';
@@ -61,11 +61,15 @@ export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Pr
           memo={state.memo}
           memoMark={memoMark}
           disabled={finished}
+          markButtons
+          showSubmit
+          submitLabel="던지기"
           onDigit={(digit) => dispatch({ type: 'push', digit })}
           onMemo={(digit) => memoMark && dispatch({ type: 'memo', digit, mark: memoMark })}
           onDelete={() => dispatch({ type: 'pop' })}
           onSubmit={() => dispatch({ type: 'submit' })}
-          onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m))}
+          onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
+          onClearMemo={() => dispatch({ type: 'clearMemo' })}
         />
       </section>
 

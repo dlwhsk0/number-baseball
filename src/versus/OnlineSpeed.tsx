@@ -1,9 +1,10 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { getSocket } from '../net/socket';
-import { gameReducer, initGame, type GuessRecord } from '../game/useGame';
+import { gameReducer, initGame, toggleMemoMark, type GuessRecord, type MemoMark } from '../game/useGame';
 import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { SpeedStanding } from '../net/protocol';
 
 export interface OnlineEntry {
@@ -73,6 +74,9 @@ function RaceInput({
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
     initGame('', Infinity, digits, false),
   );
+  // 메모는 추측을 거듭해도 유지돼야 해서 리듀서 밖 상태로 둔다(제출 시 입력칸만 리셋).
+  const [memo, setMemo] = useState<Record<string, MemoMark>>({});
+  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
   const full = !state.slots.includes('');
   return (
     <section className="board">
@@ -96,20 +100,22 @@ function RaceInput({
       </div>
       <Keypad
         slots={state.slots}
-        memo={{}}
-        memoMark={null}
+        memo={memo}
+        memoMark={memoMark}
         disabled={false}
-        showMemo={false}
+        markButtons
+        showSubmit
         submitLabel="던지기"
         onDigit={(digit) => dispatch({ type: 'push', digit })}
-        onMemo={() => {}}
+        onMemo={(d) => memoMark && setMemo((m) => toggleMemoMark(m, d, memoMark))}
         onDelete={() => dispatch({ type: 'pop' })}
         onSubmit={() => {
           if (!full) return;
           onSubmit(state.slots.join(''));
           dispatch({ type: 'reset', secret: '', maxAttempts: Infinity, digits, beginner: false });
         }}
-        onCycleMemo={() => {}}
+        onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
+        onClearMemo={() => setMemo({})}
       />
     </section>
   );
@@ -158,6 +164,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const [myHistory, setMyHistory] = useState<GuessRecord[]>([]);
   const [over, setOver] = useState<OverInfo | null>(null);
   const [left, setLeft] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   const raceDigitsRef = useRef(3);
 
@@ -440,7 +447,12 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
       <div className="versus">
         <div className="turn-bar">
           <span className="turn-who">스피드 ⚡</span>
-          <span className="turn-timer">{fmtTime(elapsed)}</span>
+          <div className="turn-right">
+            <span className="turn-timer">{fmtTime(elapsed)}</span>
+            <button type="button" className="turn-exit" onClick={() => setConfirmLeave(true)}>
+              나가기
+            </button>
+          </div>
         </div>
 
         <ul className="sp-board">
@@ -474,6 +486,18 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
           </>
         )}
         {error && <p className="online-error">{error}</p>}
+        {confirmLeave && (
+          <ConfirmDialog
+            message="대결에서 나갈까요? 순위에서 빠지고 온라인 메뉴로 돌아가요."
+            confirmLabel="나가기"
+            cancelLabel="계속하기"
+            onConfirm={() => {
+              setConfirmLeave(false);
+              backToMenu();
+            }}
+            onCancel={() => setConfirmLeave(false)}
+          />
+        )}
       </div>
     );
   }

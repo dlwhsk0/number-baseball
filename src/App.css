@@ -2328,6 +2328,137 @@
   opacity: 0.94;
 }
 
+/* ===== 온라인 턴제 — 무스크롤 야구장 레이아웃(전광판 상단 이중 기록 + 하단 고정 타자석) ===== */
+.app > .versus.play {
+  overflow: hidden; /* 페이지 스크롤 없음 — 안쪽 기록만 스크롤 */
+}
+.versus.play {
+  gap: 10px;
+  min-height: 0;
+}
+/* 전광판 안을 좌(내)·우(상대)로 분할, 내 쪽을 더 넓게 */
+.duel-board {
+  flex-direction: row;
+  gap: 10px;
+  padding: 16px 10px 10px;
+}
+.duel-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+}
+.duel-col.mine {
+  flex: 1.5 1 0;
+}
+.duel-col.opp {
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+.duel-col-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 2px 2px 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.dc-name {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.duel-col.mine .dc-name {
+  color: var(--accent);
+}
+.dc-count {
+  flex: 0 0 auto;
+  font-family: var(--font-digit);
+  font-size: 0.85rem;
+  color: var(--led);
+}
+/* 좁은 칸에 맞춰 기록 행 컴팩트: 번호+추측 윗줄 / S·B·O 아랫줄 */
+.duel-board .history-row {
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'idx guess'
+    'sbo sbo';
+  gap: 3px 6px;
+  padding: 6px 7px;
+}
+.duel-board .history-index {
+  grid-area: idx;
+  font-size: 0.72rem;
+}
+.duel-board .history-guess {
+  grid-area: guess;
+}
+.duel-board .sbo {
+  grid-area: sbo;
+  gap: 8px;
+}
+.duel-board .hcell {
+  width: 20px;
+  height: 27px;
+}
+.duel-board .hcell .seg7 {
+  font-size: 17px;
+}
+.duel-board .bulb {
+  width: 6px;
+  height: 6px;
+}
+.duel-col.opp .history-row {
+  padding: 5px 6px;
+}
+.duel-col.opp .hcell {
+  width: 17px;
+  height: 23px;
+}
+.duel-col.opp .hcell .seg7 {
+  font-size: 14px;
+}
+.duel-col.opp .bulb {
+  width: 5px;
+  height: 5px;
+}
+
+/* 하단 고정 타자석 — 턴바 + 고정 높이 스테이지 + 키패드 */
+.duel-lower {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.duel-lower .tension-slot {
+  min-height: 1.8rem;
+}
+/* 스테이지 고정 높이 — 결과/상대입력/대기 무엇이 와도 키패드 자리 유지 */
+.duel-lower .play-stage {
+  height: 148px;
+  min-height: 148px;
+  overflow: hidden;
+}
+/* 스테이지 안 결과 카드는 고정 높이에 맞춰 컴팩트하게 */
+.duel-lower .play-stage .reveal-card {
+  gap: 7px;
+  padding: 10px 16px;
+  max-width: 320px;
+}
+.duel-lower .play-stage .reveal-card .num-cells .seg7 {
+  font-size: 38px;
+}
+.duel-lower .play-stage .reveal-who {
+  margin: 0;
+}
+
 /* 기록 탭 — 내/상대 분리(누구 기록인지 헷갈림 방지) */
 .hist-tabs {
   display: flex;

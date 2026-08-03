@@ -3,7 +3,6 @@ import { getSocket } from '../net/socket';
 import {
   gameReducer,
   initGame,
-  cycleMemoMark,
   toggleMemoMark,
   type GuessRecord,
   type MemoMark,
@@ -177,14 +176,13 @@ function OnlineInput({
         memo={memo}
         memoMark={memoMark}
         disabled={false}
-        showMemo={showMemo}
+        markButtons={showMemo}
+        showSubmit={active}
         submitLabel={submitLabel}
         onDigit={(digit) => active && dispatch({ type: 'push', digit })}
         onMemo={(d) => memoMark && onMemo?.(d, memoMark)}
         onDelete={() => active && dispatch({ type: 'pop' })}
         onSubmit={() => active && full && onSubmit(state.slots.join(''))}
-        onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m, active))}
-        markButtons={!active}
         onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
         onClearMemo={onClearMemo}
       />
@@ -211,13 +209,11 @@ function MemoPad({
       memo={memo}
       memoMark={memoMark}
       disabled={false}
-      showMemo
       submitLabel="확인"
       onDigit={() => {}}
       onMemo={(d) => memoMark && onMemo(d, memoMark)}
       onDelete={() => {}}
       onSubmit={() => {}}
-      onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m, false))}
       markButtons
       onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
       onClearMemo={onClearMemo}
@@ -302,14 +298,12 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const [startAnnounce, setStartAnnounce] = useState(false);
   const [myTurn, setMyTurn] = useState(false);
   const [history, setHistory] = useState<GuessRecord[]>([]);
-  const [oppAttempts, setOppAttempts] = useState(0);
   const [oppSolved, setOppSolved] = useState(false);
   const [mySolved, setMySolved] = useState(false);
   const [reveal, setReveal] = useState<Reveal | null>(null);
   const [oppInput, setOppInput] = useState('');
   const [oppHistory, setOppHistory] = useState<GuessRecord[]>([]);
   const [oppDisconnected, setOppDisconnected] = useState(false);
-  const [histTab, setHistTab] = useState<'me' | 'opp'>('me');
 
   const [over, setOver] = useState<OverInfo | null>(null);
   const [oppLeft, setOppLeft] = useState(false);
@@ -327,7 +321,6 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
 
   const resetRound = () => {
     setHistory([]);
-    setOppAttempts(0);
     setOppSolved(false);
     setMySolved(false);
     setReveal(null);
@@ -345,7 +338,6 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     setVsIntro(false);
     setMemo({});
     setOppDisconnected(false);
-    setHistTab('me');
     setConfirmLeave(false);
   };
 
@@ -356,7 +348,6 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     // 로비(상대 아직 없음)에선 상대 끊김 배너 띄우지 않음.
     setOppDisconnected(r.phase !== 'lobby' && !r.opponentConnected);
     setSecretReady(r.secretReady);
-    setOppAttempts(r.oppAttempts);
     setOppSolved(r.oppSolved);
     setOppHistory(r.oppHistory);
     if (r.phase === 'over' && r.over) {
@@ -424,7 +415,6 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     s.on('start', ({ turn, digits: d }) => {
       setDigits(d);
       setHistory([]);
-      setOppAttempts(0);
       setOppSolved(false);
       setMySolved(false);
       setReveal(null);
@@ -436,12 +426,11 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
       if (announceRef.current) window.clearTimeout(announceRef.current);
       announceRef.current = window.setTimeout(() => setStartAnnounce(false), 2200);
     });
-    s.on('reveal', ({ by, guess, judgement, solved, attempts }) => {
+    s.on('reveal', ({ by, guess, judgement, solved }) => {
       if (by === myIndexRef.current) {
         setHistory((h) => [...h, { guess, judgement }]);
         if (solved) setMySolved(true);
       } else {
-        setOppAttempts(attempts);
         setOppHistory((h) => [...h, { guess, judgement }]);
         if (solved) setOppSolved(true);
       }
@@ -771,7 +760,6 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
               <LoadingDots />
               <p className="wait-line">상대가 숫자를 정하는 중…</p>
             </div>
-            <p className="memo-hint">미리 메모해두세요</p>
             <MemoPad digits={digits} memo={memo} onMemo={toggleMemo} onClearMemo={clearMemo} />
           </>
         ) : (
@@ -855,88 +843,72 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
           : null
         : null;
     return (
-      <div className="versus">
+      <div className="versus play">
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
-        <div
-          className={`turn-bar${
-            reveal || startAnnounce ? '' : myTurn ? ' my-turn' : ' opp-turn'
-          }`}
-        >
-          <span className="turn-who">
-            {reveal
-              ? '결과 발표'
-              : startAnnounce
-              ? '플레이 볼!'
-              : myTurn
-              ? '내 차례'
-              : `${opponentNick} 차례`}
-          </span>
-          <div className="turn-right">
-            {(oppSolved || oppAttempts > 0) && (
-              <span className="turn-hint">
-                {oppSolved ? `${opponentNick} 맞힘!` : `${opponentNick} ${oppAttempts}회`}
-              </span>
-            )}
-            {matchExitBtn}
+
+        {/* 전광판(상단) — 내/상대 기록을 동시에. 솔로처럼 기록이 위로. 내 쪽을 더 넓게. */}
+        <section className="history-section scoreboard duel-board" aria-label="기록">
+          <div className="duel-col mine">
+            <div className="duel-col-head">
+              <span className="dc-name">내 기록</span>
+              <span className="dc-count">{history.length}</span>
+            </div>
+            <History guesses={history} />
           </div>
-        </div>
+          <div className="duel-col opp">
+            <div className="duel-col-head">
+              <span className="dc-name">
+                <Nick>{opponentNick}</Nick>
+              </span>
+              <span className="dc-count">{oppHistory.length}</span>
+            </div>
+            <History guesses={oppHistory} />
+          </div>
+        </section>
 
-        {mySecret && <SecretPeek secret={mySecret} />}
+        {/* 타자석(하단, 고정) — 턴바 + 고정 높이 스테이지 + 키패드. 위치 안 흔들림. */}
+        <div className="duel-lower">
+          <div
+            className={`turn-bar${
+              reveal || startAnnounce ? '' : myTurn ? ' my-turn' : ' opp-turn'
+            }`}
+          >
+            <span className="turn-who">
+              {reveal
+                ? '결과 발표'
+                : startAnnounce
+                ? '플레이 볼!'
+                : myTurn
+                ? '내 차례'
+                : `${opponentNick} 차례`}
+            </span>
+            <div className="turn-right">{matchExitBtn}</div>
+          </div>
 
-        {/* 종반(누군가 맞힘)에만 긴장 배너 자리 확보 — 문구가 떠도 스테이지가 안 밀리게. */}
-        {(oppSolved || mySolved) && (
+          {mySecret && <SecretPeek secret={mySecret} />}
+
+          {/* 긴장 배너 자리 항상 고정 — 문구가 떠도 스테이지·키패드가 안 밀림. */}
           <div className="tension-slot">
             {tension && (
               <div className={`tension ${myTurn ? 'reverse' : 'last'}`}>{tension}</div>
             )}
           </div>
-        )}
 
-        {/* 스테이지 박스 + 고정 키패드 — 하나의 박스에서 내 차례=입력칸 / 결과·대기가 전환. */}
-        <OnlineInput
-          key={`${history.length}-${inputActive ? 'in' : 'memo'}`}
-          digits={digits}
-          active={inputActive}
-          submitLabel={inputActive ? '추측' : '대기'}
-          onSubmit={submitGuess}
-          onChange={emitInput}
-          memo={memo}
-          onMemo={toggleMemo}
-          onClearMemo={clearMemo}
-          showMemo
-          stage={stageContent}
-        />
-        {/* 자리 고정 — 턴 바뀔 때 문구 유무로 기록이 안 밀리게. */}
-        <div className="hint-slot">
-          {!inputActive && !startAnnounce && (
-            <p className="memo-hint under-keypad">미리 메모해두세요</p>
-          )}
+          {/* 고정 높이 스테이지 + 고정 키패드 — 결과/상대입력/대기 높이가 달라도 키패드 자리 유지. */}
+          <OnlineInput
+            key={`${history.length}-${inputActive ? 'in' : 'memo'}`}
+            digits={digits}
+            active={inputActive}
+            submitLabel={inputActive ? '추측' : '대기'}
+            onSubmit={submitGuess}
+            onChange={emitInput}
+            memo={memo}
+            onMemo={toggleMemo}
+            onClearMemo={clearMemo}
+            showMemo
+            stage={stageContent}
+          />
         </div>
-
-        {/* 기록 — 내/상대 탭으로 분리(헷갈림 방지), 자리 고정. */}
-        <section className="history-section">
-          <div className="hist-tabs" role="tablist" aria-label="기록">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={histTab === 'me'}
-              className={`hist-tab${histTab === 'me' ? ' active' : ''}`}
-              onClick={() => setHistTab('me')}
-            >
-              내 기록 <span className="ht-count">{history.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={histTab === 'opp'}
-              className={`hist-tab${histTab === 'opp' ? ' active' : ''}`}
-              onClick={() => setHistTab('opp')}
-            >
-              <Nick>{opponentNick}</Nick> <span className="ht-count">{oppHistory.length}</span>
-            </button>
-          </div>
-          <History guesses={histTab === 'me' ? history : oppHistory} />
-        </section>
         {error && <p className="online-error">{error}</p>}
         {leaveConfirm}
       </div>

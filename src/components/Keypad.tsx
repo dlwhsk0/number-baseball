@@ -173,16 +173,6 @@ export function Keypad({
           </button>
         </div>
       )}
-
-      {isMemo && (
-        <p className="keypad-hint">
-          숫자를 눌러{' '}
-          <span className={`mark-${memoMark}`}>
-            {BADGE[memoMark!]} {MARK_LABEL[memoMark!]}
-          </span>{' '}
-          표시 · 다시 눌러 해제
-        </p>
-      )}
     </div>
   );
 }

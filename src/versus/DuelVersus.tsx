@@ -2,7 +2,6 @@ import { useReducer, useState } from 'react';
 import {
   gameReducer,
   initGame,
-  cycleMemoMark,
   toggleMemoMark,
   type GuessRecord,
   type MemoMark,
@@ -43,6 +42,12 @@ export function DuelVersus({ onExit }: Props) {
     setMemos((ms) => {
       const out: [Record<string, MemoMark>, Record<string, MemoMark>] = [ms[0], ms[1]];
       out[player] = toggleMemoMark(ms[player], d, mark);
+      return out;
+    });
+  const clearMemoAt = (player: number) =>
+    setMemos((ms) => {
+      const out: [Record<string, MemoMark>, Record<string, MemoMark>] = [ms[0], ms[1]];
+      out[player] = {};
       return out;
     });
 
@@ -177,6 +182,7 @@ export function DuelVersus({ onExit }: Props) {
         history={histories[p]}
         memo={memos[p]}
         onMemo={(d, mark) => toggleMemoAt(p, d, mark)}
+        onClearMemo={() => clearMemoAt(p)}
         onDone={(record) => finishTurn(p, record)}
       />
     );
@@ -280,6 +286,7 @@ function DuelTurn({
   history,
   memo,
   onMemo,
+  onClearMemo,
   onDone,
 }: {
   player: number;
@@ -288,6 +295,7 @@ function DuelTurn({
   history: GuessRecord[];
   memo: Record<string, MemoMark>;
   onMemo: (d: string, mark: MemoMark) => void;
+  onClearMemo: () => void;
   onDone: (record: GuessRecord) => void;
 }) {
   const [state, dispatch] = useReducer(gameReducer, undefined, () =>
@@ -346,13 +354,15 @@ function DuelTurn({
               memo={memo}
               memoMark={memoMark}
               disabled={false}
-              showMemo
-              submitLabel="추측"
+              markButtons
+              showSubmit
+              submitLabel="던지기"
               onDigit={(digit) => dispatch({ type: 'push', digit })}
               onMemo={(d) => memoMark && onMemo(d, memoMark)}
               onDelete={() => dispatch({ type: 'pop' })}
               onSubmit={() => dispatch({ type: 'submit' })}
-              onCycleMemo={() => setMemoMark((m) => cycleMemoMark(m))}
+              onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
+              onClearMemo={onClearMemo}
             />
           </>
         )}
