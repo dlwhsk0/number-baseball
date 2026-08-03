@@ -40,8 +40,8 @@ export function RulesModal({ onClose }: Props) {
         aria-label="게임 방법"
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="modal-close" onClick={onClose} aria-label="닫기">
-          ✕
+        <button type="button" className="tut-skip" onClick={onClose}>
+          건너뛰기
         </button>
         <div className="tut-dots" aria-hidden="true">
           {steps.map((_, i) => (
@@ -95,7 +95,7 @@ function Intro() {
     <div className="tut-step">
       <h2 className="modal-title">숫자 야구 ⚾</h2>
       <p className="tut-lead">
-        컴퓨터가 숨긴 <strong>세 자리 숫자</strong>를 추리로 맞혀보세요.
+        컴퓨터가 몰래 정한 <strong>세 자리 숫자</strong>를 추리로 맞혀보는 게임이에요.
       </p>
       <div className="tut-hidden">
         <MiniCell char="" />
@@ -130,18 +130,20 @@ function Intro() {
 function Judge() {
   return (
     <div className="tut-step">
-      <h2 className="modal-title">추측하면 채점돼요</h2>
-      <p className="tut-lead">각 숫자가 정답에 있는지·자리가 맞는지로 나눠요.</p>
+      <h2 className="modal-title">얼마나 맞았는지 알려줘요</h2>
+      <p className="tut-lead">
+        숫자를 넣으면 정답과 비교해서, 자리마다 이렇게 알려줘요.
+      </p>
 
       <div className="tut-legend">
         <div className="tut-leg">
-          <span className="tag tag-strike">S 스트라이크</span> 숫자 O · 자리 O
+          <span className="tag tag-strike">스트라이크</span> 숫자와 자리가 모두 맞았어요
         </div>
         <div className="tut-leg">
-          <span className="tag tag-ball">B 볼</span> 숫자 O · 자리 X
+          <span className="tag tag-ball">볼</span> 숫자는 맞지만 자리가 달라요
         </div>
         <div className="tut-leg">
-          <span className="tag tag-out">O 아웃</span> 아예 없는 숫자
+          <span className="tag tag-out">아웃</span> 정답에 없는 숫자예요
         </div>
       </div>
 
@@ -170,17 +172,17 @@ function Judge() {
       </div>
       <ul className="tut-explain">
         <li>
-          <b className="mark-s">1</b> — 자리까지 딱 맞음 → 스트라이크
+          <b className="mark-s">1</b> — 자리까지 딱 맞았어요 → 스트라이크
         </li>
         <li>
-          <b className="mark-b">3</b> — 정답에 있지만 자리가 다름 → 볼
+          <b className="mark-b">3</b> — 정답에 있지만 자리가 달라요 → 볼
         </li>
         <li>
-          <b className="mark-o">5</b> — 정답에 없음 → 아웃
+          <b className="mark-o">5</b> — 정답에 없어요 → 아웃
         </li>
       </ul>
       <p className="tut-result">
-        결과: <b className="mark-s">S 1</b> · <b className="mark-b">B 1</b> ·{' '}
+        그래서 <b className="mark-s">S 1</b> · <b className="mark-b">B 1</b> ·{' '}
         <b className="mark-o">O 1</b>
       </p>
     </div>
@@ -195,16 +197,16 @@ function MemoKeypadDemo() {
 
   return (
     <div className="tut-step">
-      <h2 className="modal-title">메모로 추리해요 ✎</h2>
+      <h2 className="modal-title">키패드에 메모하기 ✎</h2>
       <p className="tut-lead">
-        추리한 내용을 키패드에 표시해두는 기능이에요. 실제처럼 <strong>직접 눌러보세요.</strong>
+        추리하면서 알아낸 걸 키패드에 표시해둘 수 있어요. <strong>직접 눌러보세요!</strong>
       </p>
       <ol className="tut-try">
         <li>
-          아래에서 <b className="mark-o">O</b>·<b className="mark-b">B</b>·<b className="mark-s">S</b>{' '}
+          먼저 <b className="mark-o">O</b>·<b className="mark-b">B</b>·<b className="mark-s">S</b>{' '}
           중 하나를 고르고
         </li>
-        <li>숫자를 누르면 표시가 붙어요 (다시 누르면 떼짐).</li>
+        <li>숫자를 누르면 표시가 붙어요. 다시 누르면 지워지고요.</li>
       </ol>
       <div className="tut-pad">
         <Keypad
@@ -222,7 +224,9 @@ function MemoKeypadDemo() {
         />
       </div>
       <p className={`tut-nudge${placed ? ' done' : ''}`}>
-        {placed ? '좋아요! 표시는 참고용이라 입력을 막지 않아요.' : '👆 위에서 직접 표시해보세요'}
+        {placed
+          ? '좋아요! 이건 나만 보는 메모라 숫자 입력에는 영향을 주지 않아요.'
+          : '👆 여기서 한번 눌러보세요'}
       </p>
     </div>
   );
@@ -264,11 +268,13 @@ function SlotMemoDemo() {
         칸을 <span className="mark-s">꾹</span> 눌러 후보 메모
       </h2>
       <p className="tut-lead">
-        “이 자리는 3 아니면 7”처럼 좁혀질 때가 있죠. <strong>숫자 칸을 길게 누르면</strong> 그 자리
-        후보를 적어둘 수 있어요.
+        “이 자리는 3 아니면 7”처럼 후보가 좁혀질 때가 있죠. <strong>숫자 칸을 길게 누르면</strong> 그
+        자리에 올 수 있는 숫자를 적어둘 수 있어요.
       </p>
       <p className={`tut-nudge big${opened ? ' done' : ''}`}>
-        {opened ? '이렇게요! 고른 후보는 칸 오른쪽 위에 작게 표시돼요.' : '👇 아래 숫자 칸을 꾹 눌러보세요'}
+        {opened
+          ? '바로 이거예요! 적어둔 후보는 칸 오른쪽 위에 작게 보여요.'
+          : '👇 아래 숫자 칸을 꾹 눌러보세요'}
       </p>
 
       <div className="tut-slots">
@@ -344,27 +350,27 @@ function Wrap() {
   return (
     <div className="tut-step">
       <h2 className="modal-title">준비 끝! 🎉</h2>
-      <p className="tut-lead">이제 게임을 즐겨보세요. 몇 가지 더 알아두면 좋아요.</p>
+      <p className="tut-lead">이제 시작해볼까요? 이런 것도 있어요.</p>
 
       <h3>⚙ 설정</h3>
       <ul className="tut-list">
         <li>
-          <strong>자릿수</strong> — <b>3자리</b> 또는 <b>4자리</b>.
+          <strong>자릿수</strong> — <b>3자리</b>와 <b>4자리</b> 중에 고를 수 있어요.
         </li>
         <li>
-          <strong>힌트</strong> — 켜면 추측이 전부 아웃일 때 그 숫자들을 자동으로 ✕ 표시해줘요.
+          <strong>힌트</strong> — 켜면 넣은 숫자가 전부 아웃일 때 자동으로 ✕ 표시를 해줘요.
         </li>
       </ul>
 
       <h3>🆚 친구와 대결</h3>
       <ul className="tut-list">
         <li>
-          <strong>스피드</strong> — 같은 숫자를 여럿이 풀어 <b>적은 횟수·빠른 시간</b>으로 승부.
+          <strong>스피드</strong> — 같은 숫자를 함께 풀어, <b>적은 횟수·빠른 시간</b>이 이겨요.
         </li>
         <li>
-          <strong>턴제</strong> — 서로 숫자를 정해 번갈아 맞히는 일대일.
+          <strong>턴제</strong> — 서로 낼 숫자를 정하고 번갈아 맞히는 일대일이에요.
         </li>
-        <li>온라인(방 코드) · 로컬(한 기기 주고받기) 모두 돼요.</li>
+        <li>온라인(방 코드로 초대) · 오프라인(한 기기를 주고받기) 둘 다 돼요.</li>
       </ul>
     </div>
   );

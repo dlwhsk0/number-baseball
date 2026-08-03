@@ -1428,6 +1428,24 @@
   padding-top: 52px;
   flex: 1;
 }
+.tut-skip {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--key);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tut-skip:active {
+  transform: scale(0.94);
+}
 .tut-dots {
   position: absolute;
   top: 18px;

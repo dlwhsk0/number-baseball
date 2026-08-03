@@ -121,7 +121,7 @@ export default function App() {
     prevGuessCountRef.current = n;
   }, [state.guesses, state.status]);
   const [showRules, setShowRules] = useState(false);
-  // 첫 방문이면 게임 방법(?) 버튼을 반짝여 규칙을 보게 유도. 한 번 열면 localStorage에 기록.
+  // 첫 방문이면 인트로 뒤에 튜토리얼을 자동으로 띄운다. 한 번 보면(닫으면) localStorage에 기록.
   const [seenRules, setSeenRules] = useState(() => {
     try {
       return !!localStorage.getItem('nb_seen_rules');
@@ -129,16 +129,22 @@ export default function App() {
       return true;
     }
   });
+  const markRulesSeen = () => {
+    if (seenRules) return;
+    setSeenRules(true);
+    try {
+      localStorage.setItem('nb_seen_rules', '1');
+    } catch {
+      /* 저장 불가 환경 무시 */
+    }
+  };
   const openRules = () => {
     setShowRules(true);
-    if (!seenRules) {
-      setSeenRules(true);
-      try {
-        localStorage.setItem('nb_seen_rules', '1');
-      } catch {
-        /* 저장 불가 환경 무시 */
-      }
-    }
+    markRulesSeen();
+  };
+  const closeRules = () => {
+    setShowRules(false);
+    markRulesSeen();
   };
   const [showIntro, setShowIntro] = useState(() => {
     try {
@@ -155,6 +161,13 @@ export default function App() {
     }
     setShowIntro(false);
   };
+  // 첫 방문: 인트로가 닫힌 뒤 튜토리얼을 자동으로 한 번 띄운다(우상단 건너뛰기로 넘길 수 있음).
+  const autoRulesRef = useRef(false);
+  useEffect(() => {
+    if (showIntro || seenRules || autoRulesRef.current) return;
+    autoRulesRef.current = true;
+    setShowRules(true);
+  }, [showIntro, seenRules]);
 
   // 이스터에그: 라이트('주간') 모드. 다크가 무조건 기본 — 세션 한정이라 새로고침하면 다시 다크.
   // 'history' 라벨을 길게 눌러 전환.
@@ -632,7 +645,7 @@ export default function App() {
               className="versus-secondary"
               onClick={() => setLaunch({ conn: 'local', gameType })}
             >
-              📱 로컬 진행하기
+              📱 오프라인으로 하기
             </button>
           </div>
         </div>
@@ -697,7 +710,7 @@ export default function App() {
         </div>
       )}
 
-      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      {showRules && <RulesModal onClose={closeRules} />}
 
       {showSettings && (
         <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
@@ -761,7 +774,7 @@ export default function App() {
             </div>
             {hintInfo && (
               <p className="settings-desc">
-                추측이 전부 아웃이면 그 숫자들을 자동으로 ✕(없음) 표시, 전부 있음(0아웃)이면 △(있음) 표시해줘요.
+                넣은 숫자가 전부 아웃이면 그 숫자들에 ✕(없음)를, 모두 정답에 들어있으면 △(자리는 틀림)를 자동으로 표시해줘요.
               </p>
             )}
 
