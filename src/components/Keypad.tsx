@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { MemoMark } from '../game/useGame';
 import { Seg7 } from './Seg7';
 
@@ -68,6 +69,38 @@ export function Keypad({
     if (isMemo) return false;
     return slots.includes(d) || isFull || (firstEmpty === 0 && d === '0');
   };
+
+  // 물리 키보드 입력 — 숫자(0-9)=입력/메모, Backspace=지우기, Enter=제출.
+  // 최신값을 ref로 읽어 리스너는 한 번만 등록(스테일 클로저 방지).
+  const kbRef = useRef({ disabled, isMemo, onDigit, onMemo, onDelete, onSubmit, digitDisabled, canSubmit });
+  kbRef.current = { disabled, isMemo, onDigit, onMemo, onDelete, onSubmit, digitDisabled, canSubmit };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const h = kbRef.current;
+      if (h.disabled || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      // 모달(규칙·설정·확인창 등)이 열려 있으면 무시.
+      if (document.querySelector('.modal-backdrop')) return;
+      if (e.key >= '0' && e.key <= '9') {
+        if (h.isMemo) {
+          e.preventDefault();
+          h.onMemo(e.key);
+        } else if (!h.digitDisabled(e.key)) {
+          e.preventDefault();
+          h.onDigit(e.key);
+        }
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        h.onDelete();
+      } else if (e.key === 'Enter' && h.canSubmit) {
+        e.preventDefault();
+        h.onSubmit();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div className={`keypad${isMemo ? ' is-memo' : ''}`}>

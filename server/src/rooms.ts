@@ -16,9 +16,14 @@ export interface Player {
   graceTimer?: ReturnType<typeof setTimeout>;
   // --- 스피드 전용 ---
   solved: boolean;
+  /** 순위용 횟수 = 실제 추측 수 + 지연 페널티. */
   attempts: number;
   solveMs: number | null;
   history: GuessRecord[];
+  /** 마지막 추측 시각(ms). 다음 추측까지 걸린 시간으로 지연 페널티 계산. */
+  lastGuessAt: number;
+  /** 한 추측 제한시간 초과로 누적된 페널티 횟수. */
+  penalty: number;
   /** 스피드: 완전히 나감(인덱스 유지 위해 splice 대신 제외 표시). */
   gone: boolean;
 }
@@ -42,6 +47,8 @@ export interface Room {
   // --- 스피드 전용 ---
   speedSecret: string | null;
   startedAt: number; // ms epoch, 0=미시작
+  /** 5분 제한 타이머(만료 시 강제 종료). */
+  speedTimer?: ReturnType<typeof setTimeout>;
 }
 
 const rooms = new Map<string, Room>();
@@ -73,6 +80,8 @@ function newPlayer(id: string, nick: string): Player {
     attempts: 0,
     solveMs: null,
     history: [],
+    lastGuessAt: 0,
+    penalty: 0,
     gone: false,
   };
 }
@@ -139,6 +148,7 @@ export function resetDuelToWaiting(room: Room): void {
 export function deleteRoom(code: string): void {
   const room = rooms.get(code);
   room?.players.forEach((p) => p.graceTimer && clearTimeout(p.graceTimer));
+  if (room?.speedTimer) clearTimeout(room.speedTimer);
   rooms.delete(code);
 }
 

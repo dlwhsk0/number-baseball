@@ -134,24 +134,6 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
   );
 }
 
-/** 리더보드 칩(가로 배치·컴팩트) — 경기 중 많은 인원을 좁게 보여주려고. */
-function StandingChip({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number }) {
-  return (
-    <div className={`sp-chip${me ? ' me' : ''}${s.solved ? ' solved' : ''}`}>
-      <span className="sp-chip-top">
-        <span className="sp-chip-rank">{s.solved ? rank : '·'}</span>
-        <span className="sp-chip-name">
-          {s.nick}
-          {me ? '(나)' : ''}
-          {!s.connected ? ' ⚡' : ''}
-        </span>
-      </span>
-      <span className="sp-chip-stat">
-        {s.solved ? `✓ ${s.attempts}회·${fmtTime(s.solveMs ?? 0)}` : `${s.attempts}회`}
-      </span>
-    </div>
-  );
-}
 
 /** 온라인 스피드 대전 — 공통 숫자를 2~6명이 동시에 풀어 순위를 겨룬다(서버 권위). */
 export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
@@ -176,11 +158,20 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const [roster, setRoster] = useState<{ index: number; nick: string; connected: boolean }[]>([]);
   const [standings, setStandings] = useState<SpeedStanding[]>([]);
   const [startAt, setStartAt] = useState(0);
+  const [limitMs, setLimitMs] = useState(0);
   const [now, setNow] = useState(0);
   const [myHistory, setMyHistory] = useState<GuessRecord[]>([]);
   const [over, setOver] = useState<OverInfo | null>(null);
   const [left, setLeft] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | undefined>(undefined);
+  const prevSolvedRef = useRef<Set<number>>(new Set());
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 2400);
+  };
 
   const raceDigitsRef = useRef(3);
 
@@ -200,6 +191,21 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     return () => window.clearInterval(t);
   }, [phase, startAt]);
 
+  // 순위 갱신 시 남이 맞히면 토스트 알림.
+  useEffect(() => {
+    if (phase !== 'race') {
+      prevSolvedRef.current = new Set(standings.filter((s) => s.solved).map((s) => s.index));
+      return;
+    }
+    for (const s of standings) {
+      if (s.solved && s.index !== myIndex && !prevSolvedRef.current.has(s.index)) {
+        showToast(`🎉 ${s.nick} 맞힘! ${s.attempts}회`);
+      }
+    }
+    prevSolvedRef.current = new Set(standings.filter((s) => s.solved).map((s) => s.index));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [standings, phase]);
+
   useEffect(() => {
     const s = socketRef.current;
     const onConnect = () => {
@@ -217,6 +223,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
           raceDigitsRef.current = rm.digits;
           setStandings(rm.standings);
           setStartAt(rm.startAt);
+          setLimitMs(rm.limitMs);
           setMyHistory(rm.myHistory);
           if (rm.phase === 'over' && rm.over) {
             setOver(rm.over);
@@ -239,12 +246,14 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     s.on('connect', onConnect);
     s.on('disconnect', onDisconnect);
     s.on('speedRoster', ({ players }) => setRoster(players));
-    s.on('speedStart', ({ startAt: at, digits: d }) => {
+    s.on('speedStart', ({ startAt: at, digits: d, limitMs: lim }) => {
       raceDigitsRef.current = d;
       setDigits(d);
       setStartAt(at);
+      setLimitMs(lim);
       setMyHistory([]);
       setOver(null);
+      prevSolvedRef.current = new Set();
       setPhase('race');
     });
     s.on('speedProgress', ({ standings: st }) => setStandings(st));
@@ -460,40 +469,67 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     const solvedCount = standings.filter((s) => s.solved).length;
     const iSolved = me?.solved ?? false;
     const elapsed = startAt ? now - startAt : 0;
-    let rank = 0;
+    const remaining = limitMs ? Math.max(0, limitMs - elapsed) : 0;
+    const low = limitMs > 0 && remaining < 30000;
+    const ROW = 34; // 순위 행 높이(px) — 실시간 이동 애니메이션 기준.
+    // 안정된 키 순서(플레이어 index)로 렌더하고, 각 행을 '현재 순위' 위치로 translate → 순위 바뀌면 미끄러짐.
+    const byIndex = [...standings].sort((a, b) => a.index - b.index);
+    const rankOf = (idx: number) => standings.findIndex((s) => s.index === idx);
     return (
       <div className="versus play">
         <div className="turn-bar">
           <span className="turn-who">스피드 ⚡</span>
           <div className="turn-right">
-            <span className="turn-timer">{fmtTime(elapsed)}</span>
+            <span className={`turn-timer${low ? ' low' : ''}`}>
+              {limitMs ? fmtTime(remaining) : fmtTime(elapsed)}
+            </span>
             <button type="button" className="turn-exit" onClick={() => setConfirmLeave(true)}>
               나가기
             </button>
           </div>
         </div>
 
-        {/* 전광판(상단) — 리더보드 + 내 기록. 기록만 안쪽 스크롤. */}
-        <section className="history-section scoreboard sp-scoreboard" aria-label="순위·기록">
-          <div className="sp-strip">
-            {standings.map((s) => {
-              if (s.solved) rank += 1;
-              return (
-                <StandingChip
-                  key={s.index}
-                  s={s}
-                  me={s.index === myIndex}
-                  rank={s.solved ? rank : 0}
-                />
-              );
-            })}
+        {/* 전광판 — 왼쪽 순위(세로·좁게·실시간 이동) / 오른쪽 내 기록 */}
+        <section className="history-section scoreboard sp-race-board" aria-label="순위·기록">
+          <div className="sp-rank-col">
+            <div className="sp-col-head">
+              <span>순위</span>
+              <span className="sp-count-inline">
+                {solvedCount}/{standings.length}
+              </span>
+            </div>
+            <div className="sp-rank-scroll">
+              <div className="sp-rank-list" style={{ height: byIndex.length * ROW }}>
+                {byIndex.map((s) => {
+                  const r = rankOf(s.index);
+                  return (
+                    <div
+                      key={s.index}
+                      className={`sp-rank-item${s.index === myIndex ? ' me' : ''}${
+                        s.solved ? ' solved' : ''
+                      }`}
+                      style={{ transform: `translateY(${r * ROW}px)` }}
+                    >
+                      <span className="rank-pos">{s.solved ? (r < 3 ? MEDALS[r] : r + 1) : '·'}</span>
+                      <span className="rank-name">
+                        {s.nick}
+                        {s.index === myIndex ? '(나)' : ''}
+                      </span>
+                      <span className="rank-att">{s.attempts}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <div className="sp-hist-head">
-            <span>내 기록</span>
-            <span className="sp-count-inline">{solvedCount}/{standings.length}명 맞힘</span>
-            <span className="attempts">{myHistory.length}</span>
+
+          <div className="sp-hist-col">
+            <div className="sp-col-head">
+              <span>내 기록</span>
+              <span className="attempts">{myHistory.length}</span>
+            </div>
+            <History guesses={myHistory} />
           </div>
-          <History guesses={myHistory} />
         </section>
 
         {/* 하단 고정 — 입력/키패드(다 풀면 대기 메시지). 위치 안 흔들림. */}
@@ -508,6 +544,11 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
             <RaceInput digits={raceDigitsRef.current} onSubmit={submitGuess} />
           )}
         </div>
+        {toast && (
+          <div className="sp-toast" role="status">
+            {toast}
+          </div>
+        )}
         {error && <p className="online-error">{error}</p>}
         {confirmLeave && (
           <ConfirmDialog

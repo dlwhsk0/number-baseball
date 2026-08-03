@@ -644,6 +644,7 @@ export default function App() {
                 autoCorrect="off"
                 autoComplete="off"
                 spellCheck={false}
+                onFocus={() => setMCode('')}
                 onChange={(e) =>
                   setMCode(
                     codeComposingRef.current

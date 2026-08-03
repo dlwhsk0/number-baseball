@@ -90,6 +90,8 @@ export interface SpeedResume {
   digits: number;
   /** 레이스 시작 시각(ms epoch). 0이면 아직 로비. */
   startAt: number;
+  /** 한 판 제한시간(ms). */
+  limitMs: number;
   myHistory: GuessRecord[];
   standings: SpeedStanding[];
   over?: { standings: SpeedStanding[]; secret: string; histories: SpeedHistoryEntry[] };
@@ -149,7 +151,7 @@ export interface ServerToClientEvents {
     players: { index: number; nick: string; connected: boolean }[];
   }) => void;
   /** 레이스 시작 — 전원 동시. */
-  speedStart: (p: { startAt: number; digits: number }) => void;
+  speedStart: (p: { startAt: number; digits: number; limitMs: number }) => void;
   /** 리더보드 라이브 갱신(누가 몇 번, 맞혔는지). */
   speedProgress: (p: { standings: SpeedStanding[] }) => void;
   /** 전원 맞힘 → 종료·순위. */

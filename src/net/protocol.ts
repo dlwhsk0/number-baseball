@@ -73,6 +73,7 @@ export interface SpeedResume {
   phase: 'lobby' | 'playing' | 'over';
   digits: number;
   startAt: number;
+  limitMs: number;
   myHistory: GuessRecord[];
   standings: SpeedStanding[];
   over?: { standings: SpeedStanding[]; secret: string; histories: SpeedHistoryEntry[] };
@@ -122,7 +123,7 @@ export interface ServerToClientEvents {
   speedRoster: (p: {
     players: { index: number; nick: string; connected: boolean }[];
   }) => void;
-  speedStart: (p: { startAt: number; digits: number }) => void;
+  speedStart: (p: { startAt: number; digits: number; limitMs: number }) => void;
   speedProgress: (p: { standings: SpeedStanding[] }) => void;
   speedOver: (p: { standings: SpeedStanding[]; secret: string; histories: SpeedHistoryEntry[] }) => void;
   // 공통

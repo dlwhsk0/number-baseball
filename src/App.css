@@ -3706,6 +3706,146 @@
   letter-spacing: 0;
   text-transform: none;
 }
+
+/* 스피드 경기 중 — 왼쪽 순위(세로·좁게·실시간 이동) / 오른쪽 내 기록 */
+.scoreboard.sp-race-board {
+  flex-direction: row;
+  gap: 10px;
+  padding: 14px 10px 10px;
+}
+.sp-rank-col {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sp-hist-col {
+  flex: 1.25 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+.sp-col-head {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 2px 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 800;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.sp-col-head .attempts {
+  font-family: var(--font-digit);
+  color: var(--led);
+}
+.sp-rank-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.sp-rank-list {
+  position: relative;
+}
+/* 각 행을 절대배치+transform으로 옮겨 순위 변동을 미끄러지듯 보여줌 */
+.sp-rank-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+  transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1), background 0.2s ease,
+    border-color 0.2s ease;
+}
+.sp-rank-item.me {
+  border-color: var(--accent);
+}
+.sp-rank-item.solved {
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-2));
+}
+.rank-pos {
+  flex: 0 0 auto;
+  min-width: 16px;
+  text-align: center;
+  font-family: var(--font-digit);
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.sp-rank-item.solved .rank-pos {
+  color: var(--accent);
+}
+.rank-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.rank-att {
+  flex: 0 0 auto;
+  font-family: var(--font-digit);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.sp-rank-item.solved .rank-att {
+  color: var(--accent);
+  font-weight: 700;
+}
+.turn-timer.low {
+  color: var(--out);
+  animation: help-pulse 1s ease-in-out infinite;
+}
+.sp-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 24%, var(--panel));
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.86rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: sp-toast-in 0.25s ease-out;
+}
+@keyframes sp-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-rank-item {
+    transition: none;
+  }
+}
 /* 종료 순위 — 순위 기준 안내 + 조금 더 또렷한 행(메달) */
 .sp-rank-note {
   flex: 0 0 auto;
