@@ -126,8 +126,8 @@
   **다음 실행 때 적용**된다. `onRegisteredSW`에서 앱이 보일 때마다(`visibilitychange`) + 1분마다 `registration.update()`로 확인.
   진행 중 강제 리로드는 하지 않음(온라인 대전 끊김 방지). React 훅은 `workbox-window`(peer dep) 필요 → devDependencies에 명시.
   주의: SW 교체는 한 텀 늦다 — 새 로직은 그 버전에 올라온 *다음* 실행부터 적용.
-- 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. 야구공(흰 원+빨간 실밥)을 검정 타일(`#08090c`)에.
-  공 반지름은 `(0.5-pad)*0.62`로 타일 대비 작게(여백). 재생성: `pnpm add -D sharp` 후 `node scripts/gen-icons.mjs`
+- 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. **야구 베이스 한 구석**(흰 정사각형을 45°
+  다이아몬드로 크게 그려 위쪽 꼭짓점만 확대, 베벨 테두리 + 네온 그린 발광)을 검정 타일에. 재생성: `pnpm add -D sharp` 후 `node scripts/gen-icons.mjs`
   (sharp는 애드혹 — 생성 후 `git checkout package.json pnpm-lock.yaml`로 의존성 되돌림).
 
 ## 컨벤션
