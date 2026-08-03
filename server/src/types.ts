@@ -13,6 +13,13 @@ export type Mode = 'duel' | 'speed';
 /** 턴제 결과: 무승부 / 0=선공 승 / 1=후공 승. */
 export type Outcome = 'draw' | 0 | 1;
 
+/** 스피드 종료 후 공개할 플레이어별 추측 기록. */
+export interface SpeedHistoryEntry {
+  index: number;
+  nick: string;
+  history: GuessRecord[];
+}
+
 /** 스피드 리더보드 한 줄. */
 export interface SpeedStanding {
   index: number;
@@ -85,7 +92,7 @@ export interface SpeedResume {
   startAt: number;
   myHistory: GuessRecord[];
   standings: SpeedStanding[];
-  over?: { standings: SpeedStanding[]; secret: string };
+  over?: { standings: SpeedStanding[]; secret: string; histories: SpeedHistoryEntry[] };
 }
 export type ResumeInfo = DuelResume | SpeedResume;
 export interface RejoinAck {
@@ -146,7 +153,11 @@ export interface ServerToClientEvents {
   /** 리더보드 라이브 갱신(누가 몇 번, 맞혔는지). */
   speedProgress: (p: { standings: SpeedStanding[] }) => void;
   /** 전원 맞힘 → 종료·순위. */
-  speedOver: (p: { standings: SpeedStanding[]; secret: string }) => void;
+  speedOver: (p: {
+    standings: SpeedStanding[];
+    secret: string;
+    histories: SpeedHistoryEntry[];
+  }) => void;
 
   // --- 공통 ---
   opponentDisconnected: () => void;

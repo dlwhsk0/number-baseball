@@ -21,6 +21,7 @@ import type {
   SocketData,
   Outcome,
   ResumeInfo,
+  GuessRecord,
 } from './types.js';
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -90,6 +91,12 @@ function speedRoster(room: Room): { index: number; nick: string; connected: bool
     .filter((p) => !p.gone)
     .map(({ index, nick, connected }) => ({ index, nick, connected }));
 }
+function speedHistories(room: Room): { index: number; nick: string; history: GuessRecord[] }[] {
+  return room.players
+    .map((p, i) => ({ index: i, nick: p.nick, history: p.history, gone: p.gone }))
+    .filter((p) => !p.gone)
+    .map(({ index, nick, history }) => ({ index, nick, history }));
+}
 function broadcastSpeedRoster(room: Room): void {
   io.to(room.code).emit('speedRoster', { players: speedRoster(room) });
 }
@@ -102,6 +109,7 @@ function maybeEndSpeed(room: Room): void {
   io.to(room.code).emit('speedOver', {
     standings: speedStandings(room),
     secret: room.speedSecret ?? '',
+    histories: speedHistories(room),
   });
 }
 
@@ -367,7 +375,11 @@ io.on('connection', (socket) => {
         standings: speedStandings(room),
         over:
           room.phase === 'over'
-            ? { standings: speedStandings(room), secret: room.speedSecret ?? '' }
+            ? {
+                standings: speedStandings(room),
+                secret: room.speedSecret ?? '',
+                histories: speedHistories(room),
+              }
             : undefined,
       };
       ack({ ok: true, resume });

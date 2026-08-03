@@ -9,6 +9,11 @@ export interface GuessRecord {
 export type Mode = 'duel' | 'speed';
 export type Outcome = 'draw' | 0 | 1;
 
+export interface SpeedHistoryEntry {
+  index: number;
+  nick: string;
+  history: GuessRecord[];
+}
 export interface SpeedStanding {
   index: number;
   nick: string;
@@ -70,7 +75,7 @@ export interface SpeedResume {
   startAt: number;
   myHistory: GuessRecord[];
   standings: SpeedStanding[];
-  over?: { standings: SpeedStanding[]; secret: string };
+  over?: { standings: SpeedStanding[]; secret: string; histories: SpeedHistoryEntry[] };
 }
 export type ResumeInfo = DuelResume | SpeedResume;
 export interface RejoinAck {
@@ -119,7 +124,7 @@ export interface ServerToClientEvents {
   }) => void;
   speedStart: (p: { startAt: number; digits: number }) => void;
   speedProgress: (p: { standings: SpeedStanding[] }) => void;
-  speedOver: (p: { standings: SpeedStanding[]; secret: string }) => void;
+  speedOver: (p: { standings: SpeedStanding[]; secret: string; histories: SpeedHistoryEntry[] }) => void;
   // 공통
   opponentDisconnected: () => void;
   opponentReconnected: () => void;

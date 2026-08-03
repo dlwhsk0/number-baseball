@@ -5,7 +5,7 @@ import { Keypad } from '../components/Keypad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { SpeedStanding } from '../net/protocol';
+import type { SpeedStanding, SpeedHistoryEntry } from '../net/protocol';
 
 export interface OnlineEntry {
   action: 'create' | 'join';
@@ -23,6 +23,7 @@ type Phase = 'menu' | 'lobby' | 'race' | 'over';
 interface OverInfo {
   standings: SpeedStanding[];
   secret: string;
+  histories: SpeedHistoryEntry[];
 }
 
 type Session = { code: string; index: number; token: string };
@@ -539,6 +540,24 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
           </li>
         ))}
       </ol>
+
+      {over.histories.length > 0 && (
+        <div className="sp-result-hists">
+          {over.histories.map((h) => (
+            <div key={h.index} className="sp-result-hist">
+              <div className="sp-hist-head">
+                <span>
+                  {h.nick}
+                  {h.index === myIndex ? ' (나)' : ''}
+                </span>
+                <span className="attempts">{h.history.length}</span>
+              </div>
+              <History guesses={h.history} sboText />
+            </div>
+          ))}
+        </div>
+      )}
+
       <button type="button" className="versus-primary" onClick={backToMenu}>
         나가기
       </button>
