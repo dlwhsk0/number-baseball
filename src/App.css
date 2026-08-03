@@ -2478,34 +2478,42 @@
 .duel-lower .play-stage {
   height: 170px;
   min-height: 170px;
-  overflow: hidden;
+  /* 결과 카드가 넘쳐도 안 잘리고 위로 뜨게 — 클립 안 함 + 키패드보다 위 스택. */
+  position: relative;
+  z-index: 20;
 }
 /* 입력칸 — 3·4자리 모두 같은 고정 크기(vw/cqw 안 씀 → 자릿수·화면 무관 동일) */
 .duel-lower .play-stage .input-display {
   gap: 10px;
+}
+/* 온라인 입력칸(비밀 정하기·내 차례 모두) — .slot이 지웠던 .cell 프레임을 다시 넣음 */
+.online-board .slot {
+  border: 1px solid color-mix(in srgb, var(--led) 22%, #16171b);
+  background: var(--cell);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.85);
+  border-radius: var(--r-md);
 }
 .duel-lower .play-stage .slot {
   width: 68px;
   max-width: 68px;
   height: 88px;
   aspect-ratio: auto;
-  /* 입력칸 박스 복원(.cell 프레임을 .slot이 지웠던 걸 온라인 입력엔 다시) */
-  border: 1px solid color-mix(in srgb, var(--led) 22%, #16171b);
-  background: var(--cell);
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.85);
-  border-radius: var(--r-md);
 }
 .duel-lower .play-stage .slot .seg7 {
   font-size: 60px;
 }
-/* 결과 카드 — 스테이지에 딱 맞게 고정 px(숫자 칸 박스와 세그먼트 크기를 함께 맞춰 정렬·선명하게) */
+/* 결과 카드 — 넘쳐도 안 줄고(flex-shrink:0) 항상 맨 위에 뜨게(z-index) */
 .duel-lower .play-stage .reveal-card {
   gap: 6px;
   padding: 10px 16px;
   max-width: 320px;
+  flex-shrink: 0;
+  z-index: 30;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
 }
+/* 숫자 세그먼트 3개를 바짝 붙임 */
 .duel-lower .play-stage .reveal-card .num-cells {
-  gap: 6px;
+  gap: 2px;
 }
 .duel-lower .play-stage .reveal-card .num-cells .hcell {
   width: 42px;

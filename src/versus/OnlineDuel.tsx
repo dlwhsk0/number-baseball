@@ -164,7 +164,7 @@ function OnlineInput({
   );
 
   return (
-    <section className={`board${active ? '' : ' memo-only'}`}>
+    <section className={`board online-board${active ? '' : ' memo-only'}`}>
       {/* 스테이지 모드: 하나의 박스에서 내 차례=입력칸 / 아니면 결과·대기 노드가 전환. */}
       {stage !== undefined ? (
         <div className="play-stage">{active ? inputDisplay : stage}</div>
