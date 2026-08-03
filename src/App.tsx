@@ -66,6 +66,9 @@ export default function App() {
   });
   const [mDigits, setMDigits] = useState(3);
   const [mCode, setMCode] = useState('');
+  // 코드 입력: IME(한글/안드로이드 예측 입력) 조합 중엔 값을 건드리지 않아야 입력이 안 씹힌다.
+  const codeComposingRef = useRef(false);
+  const normalizeCode = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [peeking, setPeeking] = useState(false);
   const persistNick = () => {
@@ -635,12 +638,26 @@ export default function App() {
               <input
                 className="online-input online-code"
                 value={mCode}
-                maxLength={4}
+                maxLength={12}
                 placeholder="CODE"
                 autoCapitalize="characters"
                 autoCorrect="off"
+                autoComplete="off"
                 spellCheck={false}
-                onChange={(e) => setMCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                onChange={(e) =>
+                  setMCode(
+                    codeComposingRef.current
+                      ? e.target.value
+                      : normalizeCode(e.target.value),
+                  )
+                }
+                onCompositionStart={() => {
+                  codeComposingRef.current = true;
+                }}
+                onCompositionEnd={(e) => {
+                  codeComposingRef.current = false;
+                  setMCode(normalizeCode(e.currentTarget.value));
+                }}
               />
               <button
                 type="button"
