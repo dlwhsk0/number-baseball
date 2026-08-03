@@ -3,6 +3,8 @@ import { Seg7 } from './Seg7';
 
 interface Props {
   guesses: GuessRecord[];
+  /** 좁은 칸(상대 기록)용 — S·B·O를 전구 대신 '1S 2B 0O' 텍스트로. */
+  sboText?: boolean;
 }
 
 /** S+B+O = 자릿수. O(아웃)은 정답에 없는 자리 수(자릿수 - S - B). */
@@ -16,7 +18,7 @@ function counts({ strikes, balls }: GuessRecord['judgement'], digits: number) {
   return { strike: strikes, ball: balls, out: digits - strikes - balls };
 }
 
-export function History({ guesses }: Props) {
+export function History({ guesses, sboText = false }: Props) {
   if (guesses.length === 0) return null;
 
   return (
@@ -33,21 +35,29 @@ export function History({ guesses }: Props) {
                 </span>
               ))}
             </span>
-            <span className="sbo">
-              {CELLS.map(({ key, letter }) => (
-                <span
-                  key={key}
-                  className={`hsbo lamp-${key}${c[key] === 0 ? ' zero' : ''}`}
-                >
-                  <span className="hsbo-letter">{letter}</span>
-                  <span className="bulbs">
-                    {Array.from({ length: g.guess.length }, (_, k) => (
-                      <span key={k} className={`bulb${k < c[key] ? ' on' : ''}`} />
-                    ))}
+            {sboText ? (
+              <span className="sbo sbo-text">
+                <b className="mark-s">{c.strike}S</b>
+                <b className="mark-b">{c.ball}B</b>
+                <b className="mark-o">{c.out}O</b>
+              </span>
+            ) : (
+              <span className="sbo">
+                {CELLS.map(({ key, letter }) => (
+                  <span
+                    key={key}
+                    className={`hsbo lamp-${key}${c[key] === 0 ? ' zero' : ''}`}
+                  >
+                    <span className="hsbo-letter">{letter}</span>
+                    <span className="bulbs">
+                      {Array.from({ length: g.guess.length }, (_, k) => (
+                        <span key={k} className={`bulb${k < c[key] ? ' on' : ''}`} />
+                      ))}
+                    </span>
                   </span>
-                </span>
-              ))}
-            </span>
+                ))}
+              </span>
+            )}
           </li>
         );
       })}

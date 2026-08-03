@@ -2400,50 +2400,59 @@
   font-size: 0.85rem;
   color: var(--led);
 }
-/* 좁은 칸에 맞춰 기록 행 컴팩트: 번호+추측 윗줄 / S·B·O 아랫줄 */
+/* 기록 행 — 기존처럼 인라인(번호 | 추측 | S·B·O 오른쪽), 좁은 칸에 맞게 크게 축소 */
 .duel-board .history-row {
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    'idx guess'
-    'sbo sbo';
-  gap: 3px 6px;
-  padding: 6px 7px;
+  grid-template-columns: 16px 1fr auto;
+  gap: 6px;
+  padding: 5px 7px;
 }
 .duel-board .history-index {
-  grid-area: idx;
-  font-size: 0.72rem;
-}
-.duel-board .history-guess {
-  grid-area: guess;
+  font-size: 0.68rem;
 }
 .duel-board .sbo {
-  grid-area: sbo;
-  gap: 8px;
+  gap: 5px;
+}
+.duel-board .hsbo {
+  gap: 2px;
+}
+.duel-board .hsbo-letter {
+  font-size: 0.5rem;
 }
 .duel-board .hcell {
-  width: 20px;
-  height: 27px;
+  width: 18px;
+  height: 24px;
 }
 .duel-board .hcell .seg7 {
-  font-size: 17px;
+  font-size: 15px;
 }
 .duel-board .bulb {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
+}
+.duel-board .bulbs {
+  gap: 2px;
+}
+/* 내 칸(왼쪽·넓음) — 전구 유지. 상대 칸(오른쪽·좁음) — S·B·O 텍스트 */
+.sbo-text {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  font-family: var(--font-digit);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 .duel-col.opp .history-row {
+  grid-template-columns: 14px 1fr auto;
+  gap: 4px;
   padding: 5px 6px;
 }
 .duel-col.opp .hcell {
-  width: 17px;
-  height: 23px;
+  width: 15px;
+  height: 20px;
 }
 .duel-col.opp .hcell .seg7 {
-  font-size: 14px;
-}
-.duel-col.opp .bulb {
-  width: 5px;
-  height: 5px;
+  font-size: 13px;
 }
 
 /* 하단 고정 타자석 — 턴바 + 고정 높이 스테이지 + 키패드 */
@@ -2459,8 +2468,8 @@
 /* 스테이지 고정 높이(px — 화면 크기와 무관) — 결과/상대입력/대기 무엇이 와도 키패드 자리 유지.
    화면 높이에 따라 늘고 주는 건 전광판(scoreboard)뿐이고, 여긴 항상 고정이다. */
 .duel-lower .play-stage {
-  height: 156px;
-  min-height: 156px;
+  height: 170px;
+  min-height: 170px;
   overflow: hidden;
 }
 /* 입력칸 — 3·4자리 모두 같은 고정 크기(vw/cqw 안 씀 → 자릿수·화면 무관 동일) */
@@ -2486,11 +2495,14 @@
   gap: 6px;
 }
 .duel-lower .play-stage .reveal-card .num-cells .hcell {
-  width: 44px;
-  height: 56px;
+  width: 42px;
+  height: 52px;
 }
 .duel-lower .play-stage .reveal-card .num-cells .seg7 {
-  font-size: 44px;
+  font-size: 42px;
+}
+.duel-lower .play-stage .reveal-card .reveal-sbo {
+  gap: 14px;
 }
 .duel-lower .play-stage .reveal-card .reveal-sbo .bulb {
   width: 7px;
@@ -2498,10 +2510,12 @@
 }
 .duel-lower .play-stage .reveal-who {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.75rem;
 }
+/* 특이 이벤트 멘트가 커서 카드가 스테이지 밖으로 넘치지 않게 축소 */
 .duel-lower .play-stage .reveal-reaction {
   margin: 0;
+  font-size: 1.05rem;
 }
 /* 상대 입력 중 미리보기도 고정 px(화면 무관, 스테이지에 맞게) */
 .duel-lower .play-stage .live-input .num-cells .hcell {

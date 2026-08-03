@@ -177,7 +177,7 @@ function OnlineInput({
         memoMark={memoMark}
         disabled={false}
         markButtons={showMemo}
-        showSubmit={active}
+        showSubmit={showMemo}
         submitLabel={submitLabel}
         onDigit={(digit) => active && dispatch({ type: 'push', digit })}
         onMemo={(d) => memoMark && onMemo?.(d, memoMark)}
@@ -865,7 +865,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
         <section className="history-section scoreboard duel-board" aria-label="기록">
           <div className="duel-col mine">
             <div className="duel-col-head">
-              <span className="dc-name">내 기록</span>
+              <span className="dc-name">{(nick.trim() || '나') + '(나)'}</span>
               <span className="dc-count">{history.length}</span>
             </div>
             <History guesses={history} />
@@ -877,7 +877,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
               </span>
               <span className="dc-count">{oppHistory.length}</span>
             </div>
-            <History guesses={oppHistory} />
+            <History guesses={oppHistory} sboText />
           </div>
         </section>
 
