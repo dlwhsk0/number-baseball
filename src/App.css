@@ -16,10 +16,17 @@
   z-index: 1;
 }
 /* 대결 화면들은 앱을 넘치면 안쪽에서만 스크롤(페이지는 고정). */
-.app > .versus,
-.app > .online-result {
+.app > .versus {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
+}
+/* 승패 결과 카드는 콘텐츠 높이에 맞추고 세로 중앙 정렬(전체 높이로 늘어나지 않게). */
+.app > .online-result {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  margin: auto 0;
   overflow-y: auto;
 }
 
@@ -2336,8 +2343,9 @@
   gap: 10px;
   min-height: 0;
 }
-/* 전광판 안을 좌(내)·우(상대)로 분할, 내 쪽을 더 넓게 */
-.duel-board {
+/* 전광판 안을 좌(내)·우(상대)로 분할, 내 쪽을 더 넓게.
+   (.history-section.scoreboard(0,2,0)의 flex-direction:column·padding을 이기려면 같은 특정도 필요) */
+.scoreboard.duel-board {
   flex-direction: row;
   gap: 10px;
   padding: 16px 10px 10px;
@@ -3070,6 +3078,8 @@
 .vs-intro {
   gap: 16px;
   overflow: hidden;
+  justify-content: center;
+  min-height: 100%;
 }
 .vs-ready {
   margin: 0;
@@ -3094,7 +3104,9 @@
 .vs-stage {
   position: relative;
   width: 100%;
-  min-height: clamp(300px, 62vw, 400px);
+  /* 화면 높이에 비례해 더 크게 + 남는 세로 공간을 채워 VS 화면이 꽉 차 보이게 */
+  min-height: clamp(340px, 58vh, 620px);
+  flex: 1 1 auto;
   display: grid;
   place-items: center;
 }
