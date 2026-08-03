@@ -95,7 +95,7 @@ export function DuelVersus({ onExit }: Props) {
   if (phase.kind === 'setup') {
     return (
       <div className="versus versus-center">
-        <h2 className="versus-title">턴제 대결 🔁</h2>
+        <h2 className="versus-title">주고받기 🥎</h2>
         <p className="versus-desc">
           서로 <strong>상대가 맞힐 숫자</strong>를 몰래 정하고, 번갈아 추측해요. 먼저 맞히면 승리!
         </p>
