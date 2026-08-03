@@ -138,6 +138,25 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
   );
 }
 
+/** 리더보드 칩(가로 배치·컴팩트) — 경기 중 많은 인원을 좁게 보여주려고. */
+function StandingChip({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number }) {
+  return (
+    <div className={`sp-chip${me ? ' me' : ''}${s.solved ? ' solved' : ''}`}>
+      <span className="sp-chip-top">
+        <span className="sp-chip-rank">{s.solved ? rank : '·'}</span>
+        <span className="sp-chip-name">
+          {s.nick}
+          {me ? '(나)' : ''}
+          {!s.connected ? ' ⚡' : ''}
+        </span>
+      </span>
+      <span className="sp-chip-stat">
+        {s.solved ? `✓ ${fmtTime(s.solveMs ?? 0)}` : `${s.attempts}회`}
+      </span>
+    </div>
+  );
+}
+
 /** 온라인 스피드 대전 — 공통 숫자를 2~6명이 동시에 풀어 순위를 겨룬다(서버 권위). */
 export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
@@ -460,19 +479,22 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
 
         {/* 전광판(상단) — 리더보드 + 내 기록. 기록만 안쪽 스크롤. */}
         <section className="history-section scoreboard sp-scoreboard" aria-label="순위·기록">
-          <ul className="sp-board">
+          <div className="sp-strip">
             {standings.map((s) => {
               if (s.solved) rank += 1;
               return (
-                <Standing key={s.index} s={s} me={s.index === myIndex} rank={s.solved ? rank : 0} />
+                <StandingChip
+                  key={s.index}
+                  s={s}
+                  me={s.index === myIndex}
+                  rank={s.solved ? rank : 0}
+                />
               );
             })}
-          </ul>
-          <p className="sp-count">
-            {solvedCount}/{standings.length}명 맞힘
-          </p>
+          </div>
           <div className="sp-hist-head">
             <span>내 기록</span>
+            <span className="sp-count-inline">{solvedCount}/{standings.length}명 맞힘</span>
             <span className="attempts">{myHistory.length}</span>
           </div>
           <History guesses={myHistory} />

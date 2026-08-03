@@ -3642,6 +3642,71 @@
   font-size: 0.82rem;
   gap: 6px;
 }
+/* 스피드 리더보드 — 가로 칩 배치(많은 인원도 좁게, 기록 공간 확보) */
+.sp-strip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sp-chip {
+  flex: 1 1 auto;
+  min-width: 92px;
+  max-width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+}
+.sp-chip.me {
+  border-color: var(--accent);
+}
+.sp-chip.solved {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel-2));
+}
+.sp-chip-top {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+.sp-chip-rank {
+  flex: 0 0 auto;
+  font-family: var(--font-digit);
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.sp-chip.solved .sp-chip-rank {
+  color: var(--accent);
+}
+.sp-chip-name {
+  font-weight: 700;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-chip-stat {
+  font-family: var(--font-digit);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.sp-chip.solved .sp-chip-stat {
+  color: var(--accent);
+  font-weight: 700;
+}
+.sp-count-inline {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* 스피드 전광판 — 글자·여백을 조금씩 줄여 더 많은 내용이 보이게 */
 .sp-scoreboard .sp-board {
   gap: 5px;
