@@ -625,11 +625,20 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   };
 
   // 나가기 = 멀티 메뉴로 복귀. 서버에 leave 알리고 언마운트(App이 메뉴로).
+  // 의도적 나가기와 연결 끊김을 구분하려면 leave가 서버에 반드시 도달해야 한다.
+  // 바로 언마운트하면 소켓이 끊겨 leave 패킷이 유실 → 서버가 '연결 끊김'으로 처리해
+  // 상대가 유예시간(GRACE_MS) 내내 대기하게 된다. 그래서 ack(또는 짧은 폴백)까지 기다린다.
   const backToMenu = () => {
     sessionRef.current = null;
     saveSession(null);
-    socketRef.current.emit('leave', () => {});
-    onExit();
+    let exited = false;
+    const finish = () => {
+      if (exited) return;
+      exited = true;
+      onExit();
+    };
+    socketRef.current.emit('leave', finish);
+    window.setTimeout(finish, 700); // ack 유실 대비 안전장치
   };
 
   // 세션 없이 진입하면(신규) 연결되는 대로 App이 준 액션(방 만들기/입장) 자동 실행.

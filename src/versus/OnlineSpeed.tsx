@@ -343,11 +343,19 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   };
 
   // 나가기 = 멀티 메뉴로 복귀(서버에 leave 알리고 언마운트).
+  // 의도적 나가기가 서버에 확실히 도달하도록 ack(또는 짧은 폴백)까지 기다렸다 언마운트한다.
+  // (바로 끊으면 leave가 유실돼 서버가 '연결 끊김'으로 처리 → 상대·순위 갱신이 늦어짐.)
   const backToMenu = () => {
     sessionRef.current = null;
     saveSession(null);
-    socketRef.current.emit('leave', () => {});
-    onExit();
+    let exited = false;
+    const finish = () => {
+      if (exited) return;
+      exited = true;
+      onExit();
+    };
+    socketRef.current.emit('leave', finish);
+    window.setTimeout(finish, 700);
   };
 
   // 세션 없이 진입하면(신규) 연결되는 대로 App이 준 액션(방 만들기/입장) 자동 실행.
