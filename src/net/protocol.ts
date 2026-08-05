@@ -21,6 +21,7 @@ export interface SpeedStanding {
   solved: boolean;
   solveMs: number | null;
   connected: boolean;
+  score: number | null;
 }
 
 export interface CreateAck {

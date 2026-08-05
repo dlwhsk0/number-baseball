@@ -16,17 +16,16 @@ export interface Player {
   graceTimer?: ReturnType<typeof setTimeout>;
   // --- 스피드 전용 ---
   solved: boolean;
-  /** 순위용 횟수 = 실제 추측 수 + 지연 페널티. */
+  /** 추측 횟수(실제 추측 수). 순위 점수 = attempts + 시간/… (rooms.speedStandings). */
   attempts: number;
   solveMs: number | null;
   history: GuessRecord[];
-  /** 마지막 추측 시각(ms). 다음 추측까지 걸린 시간으로 지연 페널티 계산. */
-  lastGuessAt: number;
-  /** 한 추측 제한시간 초과로 누적된 페널티 횟수. */
-  penalty: number;
   /** 스피드: 완전히 나감(인덱스 유지 위해 splice 대신 제외 표시). */
   gone: boolean;
 }
+
+/** 순위 점수 환산: 시간 SCORE_SEC_PER_POINT초당 1점(횟수와 동일 단위). 기본 20초=1점. */
+const SCORE_MS_PER_POINT = Number(process.env.SCORE_SEC_PER_POINT || 20) * 1000;
 
 export type Phase = 'waiting' | 'secret' | 'playing' | 'over';
 
@@ -80,8 +79,6 @@ function newPlayer(id: string, nick: string): Player {
     attempts: 0,
     solveMs: null,
     history: [],
-    lastGuessAt: 0,
-    penalty: 0,
     gone: false,
   };
 }
@@ -168,14 +165,16 @@ export function speedStandings(room: Room): SpeedStanding[] {
       solved: p.solved,
       solveMs: p.solveMs,
       connected: p.connected,
+      // 합산 점수(낮을수록 상위) = 추측 횟수 + 시간/포인트. 미해결이면 null.
+      score: p.solved ? p.attempts + (p.solveMs ?? 0) / SCORE_MS_PER_POINT : null,
     }))
     .sort((a, b) => {
       if (a.solved !== b.solved) return a.solved ? -1 : 1;
-      if (a.solved) {
-        if (a.attempts !== b.attempts) return a.attempts - b.attempts;
-        return (a.solveMs ?? 0) - (b.solveMs ?? 0);
+      if (a.solved && b.solved) {
+        if (a.score !== b.score) return (a.score ?? 0) - (b.score ?? 0);
+        return (a.solveMs ?? 0) - (b.solveMs ?? 0); // 극히 드문 동점 → 빠른 시간
       }
-      return a.attempts - b.attempts;
+      return a.attempts - b.attempts; // 둘 다 미해결: 적은 시도(현행 유지)
     });
 }
 

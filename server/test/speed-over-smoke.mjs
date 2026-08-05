@@ -74,6 +74,17 @@ async function main() {
   assert(b && b.history.length === nb, `밥 기록 ${b?.history.length}=${nb}`);
   assert(a.history[0] && a.history[0].guess && a.history[0].judgement, '기록에 guess·judgement 포함');
 
+  // 합산 점수: 해결자는 score(횟수+시간/포인트) 존재, standings는 score 오름차순 정렬.
+  const st = over.standings;
+  assert(
+    st.every((s) => typeof s.score === 'number' && s.score >= s.attempts),
+    `standings에 score 존재(≥횟수): ${st.map((s) => s.score?.toFixed(2)).join(', ')}`,
+  );
+  assert(
+    st.every((s, i) => i === 0 || (st[i - 1].score ?? 0) <= (s.score ?? 0)),
+    'standings가 score 오름차순 정렬',
+  );
+
   A.close();
   B.close();
   console.log(fail ? '\n❌ 실패' : '\n✅ 통과');

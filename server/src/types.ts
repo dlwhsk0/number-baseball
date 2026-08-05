@@ -29,6 +29,8 @@ export interface SpeedStanding {
   /** 맞힌 경우 시작~맞힘 경과(ms), 아니면 null. */
   solveMs: number | null;
   connected: boolean;
+  /** 합산 순위 점수(횟수 + 시간/포인트, 낮을수록 상위). 미해결이면 null. */
+  score: number | null;
 }
 
 export interface CreateAck {

@@ -27,9 +27,11 @@ import type {
 const PORT = Number(process.env.PORT) || 3001;
 const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
 const REVEAL_MS = Number(process.env.REVEAL_MS) || 1900;
-// 스피드: 한 판 제한(기본 5분) + 한 추측 제한(초과분마다 페널티 횟수 +1).
-const SPEED_LIMIT_MS = Number(process.env.SPEED_LIMIT_MS) || 300000;
-const GUESS_LIMIT_MS = Number(process.env.GUESS_LIMIT_MS) || 30000;
+// 스피드 한 판 제한 — 자릿수별(3자리 5분, 4자리 7분). env로 개별 조정 가능.
+const SPEED_LIMIT_3_MS = Number(process.env.SPEED_LIMIT_3_MS) || 300000;
+const SPEED_LIMIT_4_MS = Number(process.env.SPEED_LIMIT_4_MS) || 420000;
+const speedLimitMs = (digits: number): number =>
+  digits >= 4 ? SPEED_LIMIT_4_MS : SPEED_LIMIT_3_MS;
 const GRACE_MS = Number(process.env.GRACE_MS) || 90000;
 
 const httpServer = createServer((req, res) => {
@@ -225,18 +227,16 @@ io.on('connection', (socket) => {
     room.speedSecret = generateSecret(room.digits);
     room.startedAt = Date.now();
     room.phase = 'playing';
-    room.players.forEach((p) => {
-      p.lastGuessAt = room.startedAt;
-    });
-    // 5분 제한 — 만료되면 그 시점 순위로 강제 종료.
+    const limit = speedLimitMs(room.digits);
+    // 제한시간(자릿수별) 만료 → 그 시점 순위로 강제 종료.
     room.speedTimer = setTimeout(() => {
       if (getRoom(room.code) === room) endSpeed(room);
-    }, SPEED_LIMIT_MS);
+    }, limit);
     ack({ ok: true });
     io.to(room.code).emit('speedStart', {
       startAt: room.startedAt,
       digits: room.digits,
-      limitMs: SPEED_LIMIT_MS,
+      limitMs: limit,
     });
     broadcastSpeedProgress(room);
   });
@@ -257,8 +257,6 @@ io.on('connection', (socket) => {
       p.attempts = 0;
       p.solveMs = null;
       p.history = [];
-      p.penalty = 0;
-      p.lastGuessAt = 0;
     });
     io.to(room.code).emit('speedReset', { players: speedRoster(room) });
   });
@@ -316,12 +314,8 @@ io.on('connection', (socket) => {
       }
       const judgement = judge(room.speedSecret, g);
       const now = Date.now();
-      // 지연 페널티: 직전 추측(첫 추측은 시작)부터 제한시간을 넘긴 만큼 횟수 추가.
-      const sinceLast = now - (me.lastGuessAt || room.startedAt);
-      if (sinceLast > GUESS_LIMIT_MS) me.penalty += Math.floor(sinceLast / GUESS_LIMIT_MS);
-      me.lastGuessAt = now;
       me.history.push({ guess: g, judgement });
-      me.attempts = me.history.length + me.penalty;
+      me.attempts = me.history.length; // 순위는 횟수+시간 합산 점수로(speedStandings). 지연 페널티 없음.
       if (isWin(judgement, room.digits)) {
         me.solved = true;
         me.solveMs = now - room.startedAt;
@@ -422,7 +416,7 @@ io.on('connection', (socket) => {
         phase: room.phase === 'over' ? 'over' : room.phase === 'waiting' ? 'lobby' : 'playing',
         digits: room.digits,
         startAt: room.startedAt,
-        limitMs: SPEED_LIMIT_MS,
+        limitMs: speedLimitMs(room.digits),
         myHistory: me.history,
         standings: speedStandings(room),
         over:

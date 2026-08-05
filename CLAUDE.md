@@ -49,8 +49,10 @@
   - 온라인 컴포넌트(`OnlineSpeed`/`OnlineDuel`)는 **액션 구동식**: `entry={{action:'create'|'join', nick, digits, code}}` + `onExit`를 받아
     연결되면 자동으로 `doCreate`/`doJoin` 실행(`autoRanRef` 가드), 자체 메뉴 없이 로딩 화면만. 로컬은 `SpeedVersus`/`DuelVersus`(자체 셋업 유지).
   로컬=한 기기 패스앤플레이(`SpeedVersus`/`DuelVersus`, 서버 없음), 온라인=서버 대전(`OnlineSpeed`/`OnlineDuel`). 온라인은 스피드·턴제 **둘 다** 지원.
-  - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. 방 만들기/코드 입장(2~6명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(시도·맞힘·시간) → **전원 맞히면 종료**(적은 횟수→빠른 시간 순위). 세션 재접속 지원(`nb_speed_session`).
-    서버: 방 `mode:'duel'|'speed'`, 스피드는 `speedSecret`·플레이어별 `solved/attempts/solveMs/history`·`gone`. 이벤트 `startSpeed`/`speedStart`/`speedRoster`/`speedProgress`/`speedOver`.
+  - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. 방 만들기/코드 입장(2~6명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(순위·점수·시간) → **전원 맞히면 종료**. 세션 재접속 지원(`nb_speed_session`).
+    - **순위 = 합산 점수**(낮을수록 상위): `점수 = 추측 횟수 + 시간(초)/SCORE_SEC_PER_POINT`(기본 20초=1점, `server`에서 계산해 `SpeedStanding.score`로 전달). 지연 페널티 없음(총 시간이 점수에 반영). 미해결은 solved 뒤에 시도수 순.
+    - **제한시간 자릿수별**: 3자리 5분·4자리 7분(`SPEED_LIMIT_3_MS`/`SPEED_LIMIT_4_MS`, `speedLimitMs(digits)`). 만료 시 그 시점 순위로 강제 종료. 진행 중 상대 다 나가면 종료(기권승).
+    서버: 방 `mode:'duel'|'speed'`, 스피드는 `speedSecret`·플레이어별 `solved/attempts/solveMs/history`·`gone`. 이벤트 `startSpeed`/`speedStart`(payload `limitMs`)/`speedRoster`/`speedProgress`/`speedOver`/`speedReset`.
   - **스피드 대결**: `src/versus/SpeedVersus.tsx`. 공통 숫자 1개를 2~6명이 번갈아(핸드오프 화면으로 이전 기록 숨김)
     무제한 시도로 풀고, 적은 횟수→빠른 시간 순으로 승자. 라이브 타이머. 각 턴은 `GuessBoard`(순수 `gameReducer` 재사용)로.
   - **턴제 대결**: `src/versus/DuelVersus.tsx`. 일대일. 서로 상대가 맞힐 숫자를 몰래 정하고(핸드오프),

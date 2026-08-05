@@ -81,8 +81,12 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
         {me ? ' (나)' : ''}
         {!s.connected ? ' ⚡끊김' : ''}
       </span>
-      <span className="sp-att">{s.attempts}회</span>
-      <span className="sp-stat">{s.solved ? `✓ ${fmtTime(s.solveMs ?? 0)}` : '푸는 중'}</span>
+      <span className="sp-att">
+        {s.solved ? `${s.attempts}회 · ${fmtTime(s.solveMs ?? 0)}` : `${s.attempts}회`}
+      </span>
+      <span className="sp-stat">
+        {s.solved && s.score != null ? `${s.score.toFixed(1)}점` : '푸는 중'}
+      </span>
     </li>
   );
 }
@@ -479,7 +483,9 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
                     >
                       <span className="rank-pos">{s.solved ? (r < 3 ? MEDALS[r] : r + 1) : '·'}</span>
                       <span className="rank-name">{s.nick}</span>
-                      <span className="rank-att">{s.attempts}</span>
+                      <span className="rank-att">
+                        {s.solved && s.score != null ? s.score.toFixed(1) : s.attempts}
+                      </span>
                     </div>
                   );
                 })}
