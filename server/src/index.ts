@@ -121,7 +121,9 @@ function endSpeed(room: Room): void {
 }
 // 전원 맞히면 종료(정상), 5분 초과 시 강제 종료는 startSpeed의 타이머가 endSpeed 호출.
 function maybeEndSpeed(room: Room): void {
-  if (room.phase === 'playing' && allSpeedSolved(room)) endSpeed(room);
+  if (room.phase !== 'playing') return;
+  // 종료 조건: 남은 전원이 맞힘, 또는 혼자만 남음(상대가 다 나가 레이스가 성립 안 함).
+  if (allSpeedSolved(room) || activeCount(room) < 2) endSpeed(room);
 }
 
 io.on('connection', (socket) => {

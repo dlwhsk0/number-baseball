@@ -18,6 +18,10 @@ import './App.css';
 
 type Section = 'solo' | 'multi';
 type GameType = 'speed' | 'duel';
+
+// 앱 아이콘 버전. 올릴 때마다 설치된 사용자에게 '홈 화면 재설치' 안내를 한 번 띄운다.
+// (PWA 홈 화면 아이콘은 OS가 설치 시점에 캐시 → 매니페스트만 바꿔선 안 바뀜.)
+const ICON_VERSION = '2';
 type Launch =
   | { conn: 'online'; gameType: GameType; action: 'create' | 'join'; code?: string }
   | { conn: 'local'; gameType: GameType };
@@ -163,6 +167,35 @@ export default function App() {
       return false;
     }
   });
+
+  // 앱 아이콘이 바뀌면 이미 '홈 화면에 설치'한 사용자에게 재설치 안내를 한 번 띄운다.
+  // (새 설치·브라우저 탭은 이미 새 아이콘이라 조용히 최신으로 표시하고 안 띄움.)
+  const [iconNotice, setIconNotice] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('nb_icon_seen') === ICON_VERSION) return;
+      const standalone =
+        window.matchMedia?.('(display-mode: standalone)').matches ||
+        (navigator as unknown as { standalone?: boolean }).standalone === true;
+      const usedBefore = !!(
+        localStorage.getItem('nb_seen_rules') ||
+        localStorage.getItem('nb_digits') ||
+        localStorage.getItem('nb_nick')
+      );
+      if (standalone && usedBefore) setIconNotice(true);
+      else localStorage.setItem('nb_icon_seen', ICON_VERSION);
+    } catch {
+      /* 무시 */
+    }
+  }, []);
+  const dismissIconNotice = () => {
+    setIconNotice(false);
+    try {
+      localStorage.setItem('nb_icon_seen', ICON_VERSION);
+    } catch {
+      /* 무시 */
+    }
+  };
   const dismissIntro = () => {
     try {
       sessionStorage.setItem('nb_intro', '1');
@@ -591,6 +624,19 @@ export default function App() {
       {eggMsg && <div className="egg-toast">{eggMsg}</div>}
       {netMsg && <div className="egg-toast">{netMsg}</div>}
       {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
+
+      {iconNotice && (
+        <div className="reinstall-banner" role="status">
+          <span className="reinstall-emoji" aria-hidden="true">⚾</span>
+          <div className="reinstall-text">
+            <b>앱 아이콘이 새로 바뀌었어요!</b>
+            <span>적용하려면 홈 화면에서 앱을 삭제하고 다시 추가해 주세요.</span>
+          </div>
+          <button type="button" className="reinstall-close" onClick={dismissIconNotice}>
+            확인
+          </button>
+        </div>
+      )}
 
       {devUnlocked && (
         <div className="dev-modal-backdrop" onClick={() => setDevUnlocked(false)}>

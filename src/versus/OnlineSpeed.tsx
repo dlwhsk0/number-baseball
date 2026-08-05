@@ -547,13 +547,25 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   }
   if (!over) return null;
 
-  const iWon = over.standings.length > 0 && over.standings[0].index === myIndex;
-  const winner = over.standings[0]?.nick ?? '';
+  // 진행 중 상대가 다 나가 혼자 남으면 기권승. 1등이 실제로 맞혔으면 정상 우승.
+  // 아무도 못 맞히고 전원 남은 채 끝났으면(시간 종료) 중립 문구.
+  const top = over.standings[0];
+  const iAmTop = top?.index === myIndex;
+  const realWin = (top?.solved ?? false) && iAmTop;
+  const forfeitWin = over.standings.length < 2 && !(top?.solved ?? false); // 상대 이탈로 혼자 남음
+  const won = realWin || forfeitWin;
+  const headline = realWin
+    ? '🏆 내가 1등!'
+    : top?.solved
+    ? `🏆 ${top.nick} 우승`
+    : forfeitWin
+    ? '🏆 기권승! 상대가 나갔어요'
+    : '⏱️ 시간 종료';
   // 종료 화면도 경기 중과 같은 전광판 레이아웃(상단 바 + 스코어보드 프레임 + 하단 고정 버튼).
   return (
     <div className="versus play sp-over">
-      <div className={`turn-bar${iWon ? ' my-turn' : ''}`}>
-        <span className="turn-who">{iWon ? '🏆 내가 1등!' : `🏆 ${winner} 우승`}</span>
+      <div className={`turn-bar${won ? ' my-turn' : ''}`}>
+        <span className="turn-who">{headline}</span>
         <span className="turn-timer">정답 {over.secret}</span>
       </div>
 

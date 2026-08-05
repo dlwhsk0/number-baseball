@@ -1013,6 +1013,61 @@
   touch-action: manipulation;
 }
 /* 전환 알림 토스트 — 잠깐 떴다 사라짐 */
+/* 아이콘 재설치 안내 배너(하단 스낵바) */
+.reinstall-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 130;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), var(--glow-accent);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  animation: row-in 0.25s ease-out;
+}
+.reinstall-emoji {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+.reinstall-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.reinstall-text b {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.reinstall-close {
+  flex-shrink: 0;
+  align-self: stretch;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.reinstall-close:active {
+  transform: scale(0.96);
+}
+
 .egg-toast {
   position: fixed;
   left: 50%;
@@ -2239,6 +2294,18 @@
   color: var(--accent);
   font-weight: 800;
   text-shadow: var(--glow-text);
+  animation: announce-pop 0.35s ease-out;
+}
+/* 방장 기권승 알림(대기 복귀 시) */
+.forfeit-note {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 800;
+  text-align: center;
   animation: announce-pop 0.35s ease-out;
 }
 

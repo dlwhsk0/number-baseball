@@ -174,6 +174,8 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const [leftKind, setLeftKind] = useState<'left' | 'disconnected'>('left');
   // oppDisconnected 최신값(콜백에서 stale 없이 읽으려고 ref로 동기화).
   const oppDisconnectedRef = useRef(false);
+  // 방장이 후공 이탈로 대기 복귀할 때, 진행 중이었으면(기권승) 알림.
+  const [hostForfeit, setHostForfeit] = useState(false);
   const [rematchWait, setRematchWait] = useState(false);
   const [oppWantsRematch, setOppWantsRematch] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -202,6 +204,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     setMemo({});
     setOppDisconnected(false);
     setConfirmLeave(false);
+    setHostForfeit(false);
   };
 
   // 재접속 후 서버가 준 현재 상태로 화면을 되돌린다(놓친 진행 동기화).
@@ -320,8 +323,11 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     s.on('opponentLeft', () => {
       // 방은 방장 소유. 내가 방장(index 0)이면 후공이 나간 것 → 방을 유지하고 다시 대기.
       if (myIndexRef.current === 0) {
+        // 진행 중(비밀 설정~플레이)에 나갔으면 기권승 알림. 대기 전에 판정.
+        const wasPlaying = phaseRef.current === 'secret' || phaseRef.current === 'playing';
         resetRound();
         setOpponentNick('상대');
+        setHostForfeit(wasPlaying);
         setPhase('lobby');
         return;
       }
@@ -376,6 +382,9 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   useEffect(() => {
     oppDisconnectedRef.current = oppDisconnected;
   }, [oppDisconnected]);
+  // 현재 phase를 ref로 동기화(콜백에서 진행 중 여부 판별용).
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   // 대결 진행 중(비밀 설정~플레이) 알림 + 브라우저 이탈(뒤로가기·새로고침·닫기) 경고.
   const active = phase === 'secret' || phase === 'playing';
@@ -561,6 +570,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     return (
       <div className="versus versus-center">
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
+        {hostForfeit && <p className="forfeit-note">🏆 상대가 나가 기권승! 새 상대를 기다려요.</p>}
         <p className="handoff-sub">상대를 기다리는 중…</p>
         <div className="online-menu-card lobby-card">
           <div className="room-code" aria-label={`방 코드 ${code}`}>
@@ -811,15 +821,16 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
 
   // over — 결과가 없는데 상대가 나갔으면(중도 이탈) 전용 결과 발표 화면.
   if (oppLeft && !over) {
+    // 진행 중 상대가 나감/끊김 → 기권승. (게임 시작 전 이탈은 이 화면이 아니라 대기 복귀로 처리됨.)
     const disc = leftKind === 'disconnected';
     return (
-      <div className="online-result forfeit">
-        <div className="forfeit-emblem">{disc ? '🔌' : '🚪'}</div>
-        <h2 className="result-headline">{disc ? '상대 연결 끊김' : '상대가 나갔어요'}</h2>
+      <div className="online-result win forfeit">
+        <div className="result-emblem">🏆</div>
+        <h2 className="result-headline">기권승!</h2>
         <p className="forfeit-desc">
           {disc
-            ? '상대방의 연결이 끊겨 대결이 종료됐어요.'
-            : '상대가 대결에서 나가 종료됐어요.'}
+            ? '상대의 연결이 끊겨 이겼어요.'
+            : '상대가 대결에서 나가 이겼어요.'}
         </p>
         <button
           type="button"
