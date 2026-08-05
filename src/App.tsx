@@ -168,33 +168,79 @@ export default function App() {
     }
   });
 
-  // 앱 아이콘이 바뀌면 이미 '홈 화면에 설치'한 사용자에게 재설치 안내를 한 번 띄운다.
-  // (새 설치·브라우저 탭은 이미 새 아이콘이라 조용히 최신으로 표시하고 안 띄움.)
-  const [iconNotice, setIconNotice] = useState(false);
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('nb_icon_seen') === ICON_VERSION) return;
-      const standalone =
-        window.matchMedia?.('(display-mode: standalone)').matches ||
-        (navigator as unknown as { standalone?: boolean }).standalone === true;
-      const usedBefore = !!(
-        localStorage.getItem('nb_seen_rules') ||
-        localStorage.getItem('nb_digits') ||
-        localStorage.getItem('nb_nick')
-      );
-      if (standalone && usedBefore) setIconNotice(true);
-      else localStorage.setItem('nb_icon_seen', ICON_VERSION);
-    } catch {
-      /* 무시 */
-    }
-  }, []);
-  const dismissIconNotice = () => {
-    setIconNotice(false);
+  // 앱 아이콘이 바뀌면(ICON_VERSION↑) 기존 사용자에게 안내를 한 번 띄운다.
+  //  - 설치 가능(브라우저·미설치)이면 [설치하기] 한 번에 네이티브 설치(새 아이콘).
+  //  - 이미 설치(standalone)했으면 아이콘이 OS 캐시라 재설치를 강제할 API가 없어 수동 안내.
+  const [iconPending, setIconPending] = useState(false);
+  const [standalone, setStandalone] = useState(false);
+  const [canInstall, setCanInstall] = useState(false);
+  type InstallPrompt = Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> };
+  const deferredPromptRef = useRef<InstallPrompt | null>(null);
+  const markIconSeen = () => {
     try {
       localStorage.setItem('nb_icon_seen', ICON_VERSION);
     } catch {
       /* 무시 */
     }
+  };
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('nb_icon_seen') === ICON_VERSION) return;
+      setStandalone(
+        window.matchMedia?.('(display-mode: standalone)').matches ||
+          (navigator as unknown as { standalone?: boolean }).standalone === true,
+      );
+      // 이전에 써 본 흔적(=예전 버전으로 설치/이용)이 있어야 안내(완전 새 사용자는 이미 새 아이콘).
+      const usedBefore = !!(
+        localStorage.getItem('nb_seen_rules') ||
+        localStorage.getItem('nb_digits') ||
+        localStorage.getItem('nb_nick')
+      );
+      if (usedBefore) setIconPending(true);
+      else markIconSeen();
+    } catch {
+      /* 무시 */
+    }
+  }, []);
+  // 설치 가능 이벤트 캡처(크롬/안드로이드/데스크톱). iOS·이미 설치 상태에선 안 뜸.
+  useEffect(() => {
+    const onBIP = (e: Event) => {
+      e.preventDefault();
+      deferredPromptRef.current = e as InstallPrompt;
+      setCanInstall(true);
+    };
+    const onInstalled = () => {
+      deferredPromptRef.current = null;
+      setCanInstall(false);
+      setIconPending(false);
+      markIconSeen();
+    };
+    window.addEventListener('beforeinstallprompt', onBIP);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBIP);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+  const dismissIconNotice = () => {
+    setIconPending(false);
+    markIconSeen();
+  };
+  const doInstall = async () => {
+    const p = deferredPromptRef.current;
+    if (!p) {
+      dismissIconNotice();
+      return;
+    }
+    p.prompt();
+    try {
+      await p.userChoice;
+    } catch {
+      /* 무시 */
+    }
+    deferredPromptRef.current = null;
+    setCanInstall(false);
+    dismissIconNotice();
   };
   const dismissIntro = () => {
     try {
@@ -625,16 +671,38 @@ export default function App() {
       {netMsg && <div className="egg-toast">{netMsg}</div>}
       {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
 
-      {iconNotice && (
+      {iconPending && (
         <div className="reinstall-banner" role="status">
           <span className="reinstall-emoji" aria-hidden="true">⚾</span>
           <div className="reinstall-text">
-            <b>앱 아이콘이 새로 바뀌었어요!</b>
-            <span>적용하려면 홈 화면에서 앱을 삭제하고 다시 추가해 주세요.</span>
+            <b>{canInstall ? '새 아이콘으로 앱 설치하기!' : '앱 아이콘이 새로 바뀌었어요!'}</b>
+            <span>
+              {canInstall
+                ? '한 번에 설치돼요.'
+                : standalone
+                ? '적용하려면 홈 화면에서 앱을 삭제하고 다시 추가해 주세요.'
+                : '공유 메뉴 → “홈 화면에 추가”로 설치해요.'}
+            </span>
           </div>
-          <button type="button" className="reinstall-close" onClick={dismissIconNotice}>
-            확인
-          </button>
+          {canInstall ? (
+            <>
+              <button type="button" className="reinstall-close" onClick={doInstall}>
+                설치하기
+              </button>
+              <button
+                type="button"
+                className="reinstall-x"
+                aria-label="닫기"
+                onClick={dismissIconNotice}
+              >
+                ✕
+              </button>
+            </>
+          ) : (
+            <button type="button" className="reinstall-close ghost" onClick={dismissIconNotice}>
+              확인
+            </button>
+          )}
         </div>
       )}
 

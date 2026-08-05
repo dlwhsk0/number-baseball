@@ -1067,6 +1067,23 @@
 .reinstall-close:active {
   transform: scale(0.96);
 }
+.reinstall-close.ghost {
+  background: transparent;
+  color: var(--text);
+}
+.reinstall-x {
+  flex-shrink: 0;
+  width: 30px;
+  align-self: stretch;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.reinstall-x:active {
+  transform: scale(0.9);
+}
 
 .egg-toast {
   position: fixed;
