@@ -261,6 +261,17 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
       setOver(p);
       setPhase('over');
     });
+    s.on('speedReset', ({ players }) => {
+      // 재대결 — 로비로 복귀.
+      setOver(null);
+      setStandings([]);
+      setMyHistory([]);
+      setStartAt(0);
+      prevSolvedRef.current = new Set();
+      setRoster(players);
+      setError(null);
+      setPhase('lobby');
+    });
     s.on('opponentLeft', () => {
       // 방이 사라짐(전원 이탈 등).
       sessionRef.current = null;
@@ -290,6 +301,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
       s.off('speedStart');
       s.off('speedProgress');
       s.off('speedOver');
+      s.off('speedReset');
       s.off('opponentLeft');
       s.off('errorMsg');
       s.disconnect();
@@ -354,6 +366,8 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
       if (!r.ok) setError(r.error ?? '시작할 수 없어요.');
     });
   };
+
+  const doRematch = () => socketRef.current.emit('speedRematch');
 
   const submitGuess = (guess: string) => {
     setError(null);
@@ -622,9 +636,14 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
       </section>
 
       <div className="duel-lower sp-over-foot">
-        <button type="button" className="versus-primary" onClick={backToMenu}>
-          나가기
-        </button>
+        <div className="versus-actions">
+          <button type="button" className="versus-secondary" onClick={backToMenu}>
+            나가기
+          </button>
+          <button type="button" className="versus-primary" onClick={doRematch}>
+            ↻ 다시하기
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -114,6 +114,8 @@ export interface ClientToServerEvents {
   setSecret: (p: { secret: string }, ack: (r: OkAck) => void) => void;
   /** 스피드: 방장이 레이스 시작(공통 숫자 생성·전원 동시 시작). */
   startSpeed: (ack: (r: OkAck) => void) => void;
+  /** 스피드: 종료 후 재대결(방을 로비로 리셋). */
+  speedRematch: () => void;
   guess: (p: { guess: string }, ack: (r: OkAck) => void) => void;
   /** 추측 입력 중간 상태(실시간 미리보기용, 턴제 전용). */
   input: (p: { value: string }) => void;
@@ -159,6 +161,10 @@ export interface ServerToClientEvents {
     standings: SpeedStanding[];
     secret: string;
     histories: SpeedHistoryEntry[];
+  }) => void;
+  /** 재대결 — 방을 로비로 리셋. 전원 로비로 복귀. */
+  speedReset: (p: {
+    players: { index: number; nick: string; connected: boolean }[];
   }) => void;
 
   // --- 공통 ---

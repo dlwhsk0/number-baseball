@@ -91,6 +91,7 @@ export interface ClientToServerEvents {
   peek: (p: { code: string }, ack: (r: PeekAck) => void) => void;
   setSecret: (p: { secret: string }, ack: (r: OkAck) => void) => void;
   startSpeed: (ack: (r: OkAck) => void) => void;
+  speedRematch: () => void;
   guess: (p: { guess: string }, ack: (r: OkAck) => void) => void;
   input: (p: { value: string }) => void;
   rematch: () => void;
@@ -126,6 +127,7 @@ export interface ServerToClientEvents {
   speedStart: (p: { startAt: number; digits: number; limitMs: number }) => void;
   speedProgress: (p: { standings: SpeedStanding[] }) => void;
   speedOver: (p: { standings: SpeedStanding[]; secret: string; histories: SpeedHistoryEntry[] }) => void;
+  speedReset: (p: { players: { index: number; nick: string; connected: boolean }[] }) => void;
   // 공통
   opponentDisconnected: () => void;
   opponentReconnected: () => void;

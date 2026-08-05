@@ -3748,6 +3748,35 @@
   font-family: var(--font-digit);
   color: var(--led);
 }
+/* 내 기록(좁은 오른쪽 칸) — 가로로 안 잘리게 S·B·O를 숫자 아래로 쌓는다 */
+.sp-hist-col .history {
+  overflow-x: hidden;
+}
+.sp-hist-col .history-row {
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'idx guess'
+    'sbo sbo';
+  gap: 3px 6px;
+  padding: 6px 8px;
+}
+.sp-hist-col .history-index {
+  grid-area: idx;
+}
+.sp-hist-col .history-guess {
+  grid-area: guess;
+}
+.sp-hist-col .sbo {
+  grid-area: sbo;
+  gap: 10px;
+}
+.sp-hist-col .hcell {
+  width: 21px;
+  height: 28px;
+}
+.sp-hist-col .hcell .seg7 {
+  font-size: 18px;
+}
 .sp-rank-scroll {
   flex: 1 1 auto;
   min-height: 0;

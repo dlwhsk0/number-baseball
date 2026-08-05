@@ -239,6 +239,28 @@ io.on('connection', (socket) => {
     broadcastSpeedProgress(room);
   });
 
+  // 스피드 재대결 — 종료된 방을 로비로 리셋(남은 인원 유지).
+  socket.on('speedRematch', () => {
+    const room = getRoom(data.code);
+    if (!room || room.mode !== 'speed' || room.phase !== 'over') return;
+    if (room.speedTimer) {
+      clearTimeout(room.speedTimer);
+      room.speedTimer = undefined;
+    }
+    room.speedSecret = null;
+    room.startedAt = 0;
+    room.phase = 'waiting';
+    room.players.forEach((p) => {
+      p.solved = false;
+      p.attempts = 0;
+      p.solveMs = null;
+      p.history = [];
+      p.penalty = 0;
+      p.lastGuessAt = 0;
+    });
+    io.to(room.code).emit('speedReset', { players: speedRoster(room) });
+  });
+
   socket.on('setSecret', ({ secret }, ack) => {
     const room = getRoom(data.code);
     if (!room || data.index == null) {
