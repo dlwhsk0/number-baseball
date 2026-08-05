@@ -1,8 +1,8 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
-import { gameReducer, initGame, type MemoMark } from '../game/useGame';
-import { Keypad } from './Keypad';
+import { useRef, useState } from 'react';
+import { judge, isWin, type Judgement } from '../game/logic';
+import type { GuessRecord } from '../game/useGame';
+import { GuessPad } from './GuessPad';
 import { History } from './History';
-import { Seg7 } from './Seg7';
 
 interface Props {
   /** 맞혀야 할 정답. */
@@ -15,70 +15,39 @@ interface Props {
 }
 
 /**
- * 재사용 가능한 추측 보드(입력 칸 + 키패드 + 메모 + 히스토리).
- * 순수 `gameReducer`로 자체 상태를 관리한다. 대결 모드의 한 플레이어 턴에 사용.
+ * 재사용 가능한 추측 보드(공용 GuessPad + 히스토리). 판정·기록은 여기서, 입력·메모는 GuessPad가.
+ * 대결 모드의 한 플레이어 턴에 사용.
  */
 export function GuessBoard({ secret, digits, maxAttempts = Infinity, onWin }: Props) {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () =>
-    initGame(secret, maxAttempts, digits, false),
-  );
-  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
-  const finished = state.status !== 'playing';
-
-  // 승리하면 한 번만 콜백.
+  const [guesses, setGuesses] = useState<GuessRecord[]>([]);
+  const [status, setStatus] = useState<'playing' | 'won' | 'lost'>('playing');
   const firedRef = useRef(false);
-  useEffect(() => {
-    if (state.status === 'won' && !firedRef.current) {
-      firedRef.current = true;
-      onWin(state.guesses.length);
+
+  const submit = (value: string) => {
+    if (status !== 'playing') return;
+    const judgement: Judgement = judge(secret, value);
+    const next = [...guesses, { guess: value, judgement }];
+    setGuesses(next);
+    if (isWin(judgement, digits)) {
+      setStatus('won');
+      if (!firedRef.current) {
+        firedRef.current = true;
+        onWin(next.length);
+      }
+    } else if (next.length >= maxAttempts) {
+      setStatus('lost');
     }
-  }, [state.status, state.guesses.length, onWin]);
+  };
 
   return (
     <>
-      <section className="board">
-        <div
-          className="input-display"
-          aria-label="현재 입력"
-          style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-        >
-          {state.slots.map((d, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`slot cell${d ? ' filled' : ''}`}
-              disabled={finished || !d}
-              aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
-              onClick={() => dispatch({ type: 'clearSlot', index: i })}
-            >
-              <Seg7 char={d} />
-            </button>
-          ))}
-        </div>
-
-        <Keypad
-          slots={state.slots}
-          memo={state.memo}
-          memoMark={memoMark}
-          disabled={finished}
-          markButtons
-          showSubmit
-          submitLabel="던지기"
-          onDigit={(digit) => dispatch({ type: 'push', digit })}
-          onMemo={(digit) => memoMark && dispatch({ type: 'memo', digit, mark: memoMark })}
-          onDelete={() => dispatch({ type: 'pop' })}
-          onSubmit={() => dispatch({ type: 'submit' })}
-          onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
-          onClearMemo={() => dispatch({ type: 'clearMemo' })}
-        />
-      </section>
-
+      <GuessPad digits={digits} disabled={status !== 'playing'} onSubmit={submit} />
       <section className="history-section">
         <div className="history-head">
           <span>history</span>
-          <span className="attempts">{state.guesses.length}회</span>
+          <span className="attempts">{guesses.length}회</span>
         </div>
-        <History guesses={state.guesses} />
+        <History guesses={guesses} />
       </section>
     </>
   );
