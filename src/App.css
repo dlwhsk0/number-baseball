@@ -3794,23 +3794,24 @@
 /* 스피드 경기 중 — 왼쪽 순위(세로·좁게·실시간 이동) / 오른쪽 내 기록 */
 .scoreboard.sp-race-board {
   flex-direction: row;
-  gap: 10px;
-  padding: 14px 10px 10px;
+  gap: 8px;
+  padding: 12px 9px 9px;
 }
+/* 순위는 얇은 레일, 기록은 넓게(한 줄 기록이 펴지게) */
 .sp-rank-col {
-  flex: 1 1 0;
-  min-width: 0;
+  flex: 0 0 34%;
+  min-width: 92px;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .sp-hist-col {
-  flex: 1.25 1 0;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-left: 10px;
+  padding-left: 9px;
   border-left: 1px solid var(--border);
 }
 .sp-col-head {
@@ -3818,48 +3819,45 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 6px;
-  margin: 0 2px 8px;
-  padding-bottom: 6px;
+  gap: 5px;
+  margin: 0 2px 6px;
+  padding-bottom: 5px;
   border-bottom: 1px solid var(--border);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   font-weight: 800;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   color: var(--muted);
 }
 .sp-col-head .attempts {
   font-family: var(--font-digit);
   color: var(--led);
 }
-/* 내 기록(좁은 오른쪽 칸) — 가로로 안 잘리게 S·B·O를 숫자 아래로 쌓는다 */
+/* 내 기록(넓은 오른쪽 칸) — 한 줄(번호 | 추측 | S·B·O 텍스트)로 펴서 많이 보이게 */
 .sp-hist-col .history {
   overflow-x: hidden;
 }
 .sp-hist-col .history-row {
-  grid-template-columns: auto 1fr;
-  grid-template-areas:
-    'idx guess'
-    'sbo sbo';
-  gap: 3px 6px;
-  padding: 6px 8px;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  padding: 5px 8px;
 }
 .sp-hist-col .history-index {
-  grid-area: idx;
+  font-size: 0.72rem;
 }
 .sp-hist-col .history-guess {
-  grid-area: guess;
+  gap: 3px;
 }
-.sp-hist-col .sbo {
-  grid-area: sbo;
-  gap: 10px;
+.sp-hist-col .sbo-text {
+  font-size: 0.66rem;
+  gap: 4px;
 }
 .sp-hist-col .hcell {
-  width: 21px;
-  height: 28px;
+  width: 18px;
+  height: 24px;
 }
 .sp-hist-col .hcell .seg7 {
-  font-size: 18px;
+  font-size: 15px;
 }
 .sp-rank-scroll {
   flex: 1 1 auto;
@@ -3875,12 +3873,12 @@
   left: 0;
   right: 0;
   top: 0;
-  height: 30px;
+  height: 26px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 7px;
-  border-radius: 8px;
+  gap: 5px;
+  padding: 0 6px;
+  border-radius: 7px;
   background: var(--panel-2);
   border: 1px solid transparent;
   transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1), background 0.2s ease,
@@ -3894,11 +3892,11 @@
 }
 .rank-pos {
   flex: 0 0 auto;
-  min-width: 16px;
+  min-width: 14px;
   text-align: center;
   font-family: var(--font-digit);
   font-weight: 800;
-  font-size: 0.82rem;
+  font-size: 0.74rem;
   color: var(--muted);
 }
 .sp-rank-item.solved .rank-pos {
@@ -3911,12 +3909,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
 }
 .rank-att {
   flex: 0 0 auto;
   font-family: var(--font-digit);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   color: var(--muted);
 }
 .sp-rank-item.solved .rank-att {

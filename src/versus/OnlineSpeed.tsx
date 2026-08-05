@@ -438,7 +438,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     const elapsed = startAt ? now - startAt : 0;
     const remaining = limitMs ? Math.max(0, limitMs - elapsed) : 0;
     const low = limitMs > 0 && remaining < 30000;
-    const ROW = 34; // 순위 행 높이(px) — 실시간 이동 애니메이션 기준.
+    const ROW = 30; // 순위 행 스트라이드(px, item 26 + gap 4) — 실시간 이동 애니메이션 기준.
     // 안정된 키 순서(플레이어 index)로 렌더하고, 각 행을 '현재 순위' 위치로 translate → 순위 바뀌면 미끄러짐.
     const byIndex = [...standings].sort((a, b) => a.index - b.index);
     const rankOf = (idx: number) => standings.findIndex((s) => s.index === idx);
@@ -478,10 +478,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
                       style={{ transform: `translateY(${r * ROW}px)` }}
                     >
                       <span className="rank-pos">{s.solved ? (r < 3 ? MEDALS[r] : r + 1) : '·'}</span>
-                      <span className="rank-name">
-                        {s.nick}
-                        {s.index === myIndex ? '(나)' : ''}
-                      </span>
+                      <span className="rank-name">{s.nick}</span>
                       <span className="rank-att">{s.attempts}</span>
                     </div>
                   );
@@ -495,7 +492,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
               <span>내 기록</span>
               <span className="attempts">{myHistory.length}</span>
             </div>
-            <History guesses={myHistory} />
+            <History guesses={myHistory} sboText />
           </div>
         </section>
 
