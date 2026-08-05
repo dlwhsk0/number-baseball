@@ -1,9 +1,8 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getSocket } from '../net/socket';
-import { gameReducer, initGame, toggleMemoMark, type GuessRecord, type MemoMark } from '../game/useGame';
-import { Keypad } from '../components/Keypad';
+import type { GuessRecord } from '../game/useGame';
+import { GuessPad } from '../components/GuessPad';
 import { History } from '../components/History';
-import { Seg7 } from '../components/Seg7';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { SpeedStanding, SpeedHistoryEntry } from '../net/protocol';
 
@@ -64,54 +63,8 @@ function RaceInput({
   digits: number;
   onSubmit: (value: string) => void;
 }) {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () =>
-    initGame('', Infinity, digits, false),
-  );
-  // 메모는 추측을 거듭해도 유지돼야 해서 리듀서 밖 상태로 둔다(제출 시 입력칸만 리셋).
-  const [memo, setMemo] = useState<Record<string, MemoMark>>({});
-  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
-  const full = !state.slots.includes('');
-  return (
-    <section className="board">
-      <div
-        className="input-display"
-        aria-label="현재 입력"
-        style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-      >
-        {state.slots.map((d, i) => (
-          <button
-            key={i}
-            type="button"
-            className={`slot cell${d ? ' filled' : ''}`}
-            disabled={!d}
-            aria-label={d ? `${i + 1}칸 ${d} 지우기` : `${i + 1}칸`}
-            onClick={() => dispatch({ type: 'clearSlot', index: i })}
-          >
-            <Seg7 char={d} />
-          </button>
-        ))}
-      </div>
-      <Keypad
-        slots={state.slots}
-        memo={memo}
-        memoMark={memoMark}
-        disabled={false}
-        markButtons
-        showSubmit
-        submitLabel="던지기"
-        onDigit={(digit) => dispatch({ type: 'push', digit })}
-        onMemo={(d) => memoMark && setMemo((m) => toggleMemoMark(m, d, memoMark))}
-        onDelete={() => dispatch({ type: 'pop' })}
-        onSubmit={() => {
-          if (!full) return;
-          onSubmit(state.slots.join(''));
-          dispatch({ type: 'reset', secret: '', maxAttempts: Infinity, digits, beginner: false });
-        }}
-        onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
-        onClearMemo={() => setMemo({})}
-      />
-    </section>
-  );
+  // 제출하면 서버로 보내고 입력칸만 비운다(메모·후보는 GuessPad 내부에서 유지).
+  return <GuessPad digits={digits} onSubmit={onSubmit} />;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];

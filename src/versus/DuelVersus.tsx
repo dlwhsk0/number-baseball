@@ -1,14 +1,8 @@
-import { useReducer, useState } from 'react';
-import {
-  gameReducer,
-  initGame,
-  toggleMemoMark,
-  type GuessRecord,
-  type MemoMark,
-} from '../game/useGame';
-import { Keypad } from '../components/Keypad';
+import { useState } from 'react';
+import { toggleMemoMark, type GuessRecord, type MemoMark } from '../game/useGame';
+import { judge } from '../game/logic';
+import { GuessPad } from '../components/GuessPad';
 import { History } from '../components/History';
-import { Seg7 } from '../components/Seg7';
 
 interface Props {
   onExit: () => void;
@@ -231,11 +225,6 @@ function SecretEntry({
   digits: number;
   onConfirm: (secret: string) => void;
 }) {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () =>
-    initGame('', Infinity, digits, false),
-  );
-  const full = !state.slots.includes('');
-
   return (
     <div className="versus">
       <div className="turn-bar">
@@ -245,35 +234,7 @@ function SecretEntry({
       <p className="versus-desc">
         서로 다른 {digits === 4 ? '네' : '세'} 자리(맨 앞 0 제외). 확인하면 상대가 맞히게 돼요.
       </p>
-      <section className="board">
-        <div
-          className="input-display"
-          style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-        >
-          {state.slots.map((d, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`slot cell${d ? ' filled' : ''}`}
-              disabled={!d}
-              onClick={() => dispatch({ type: 'clearSlot', index: i })}
-            >
-              <Seg7 char={d} />
-            </button>
-          ))}
-        </div>
-        <Keypad
-          slots={state.slots}
-          memo={{}}
-          disabled={false}
-          showMemo={false}
-          submitLabel="확인"
-          onDigit={(digit) => dispatch({ type: 'push', digit })}
-          onMemo={() => {}}
-          onDelete={() => dispatch({ type: 'pop' })}
-          onSubmit={() => full && onConfirm(state.slots.join(''))}
-        />
-      </section>
+      <GuessPad digits={digits} variant="secret" onSubmit={onConfirm} />
     </div>
   );
 }
@@ -298,13 +259,13 @@ function DuelTurn({
   onClearMemo: () => void;
   onDone: (record: GuessRecord) => void;
 }) {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () =>
-    initGame(opponentSecret, Infinity, digits, false),
-  );
-  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
-  const record = state.guesses[0] ?? null;
+  const [record, setRecord] = useState<GuessRecord | null>(null);
   const solved = record ? record.judgement.strikes === digits : false;
   const outCount = record ? digits - record.judgement.strikes - record.judgement.balls : 0;
+
+  const submit = (value: string) => {
+    setRecord({ guess: value, judgement: judge(opponentSecret, value) });
+  };
 
   return (
     <div className="versus">
@@ -332,48 +293,22 @@ function DuelTurn({
             </button>
           </div>
         ) : (
-          <>
-            <div
-              className="input-display"
-              style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-            >
-              {state.slots.map((d, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`slot cell${d ? ' filled' : ''}`}
-                  disabled={!d}
-                  onClick={() => dispatch({ type: 'clearSlot', index: i })}
-                >
-                  <Seg7 char={d} />
-                </button>
-              ))}
-            </div>
-            <Keypad
-              slots={state.slots}
-              memo={memo}
-              memoMark={memoMark}
-              disabled={false}
-              markButtons
-              showSubmit
-              submitLabel="던지기"
-              onDigit={(digit) => dispatch({ type: 'push', digit })}
-              onMemo={(d) => memoMark && onMemo(d, memoMark)}
-              onDelete={() => dispatch({ type: 'pop' })}
-              onSubmit={() => dispatch({ type: 'submit' })}
-              onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
-              onClearMemo={onClearMemo}
-            />
-          </>
+          <GuessPad
+            digits={digits}
+            onSubmit={submit}
+            memo={memo}
+            onMemoToggle={onMemo}
+            onMemoClear={onClearMemo}
+          />
         )}
       </section>
 
       <section className="history-section">
         <div className="history-head">
           <span>내 추측</span>
-          <span className="attempts">{history.length + state.guesses.length}회</span>
+          <span className="attempts">{history.length + (record ? 1 : 0)}회</span>
         </div>
-        <History guesses={[...history, ...state.guesses]} />
+        <History guesses={record ? [...history, record] : history} />
       </section>
     </div>
   );
