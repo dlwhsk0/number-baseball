@@ -36,6 +36,8 @@ export interface GuessPadProps {
 
   // ----- 온라인 턴제 스테이지 스왑: active면 입력칸, 아니면 이 노드(결과/대기)를 같은 자리에. -----
   stageContent?: ReactNode;
+  /** 루트 board에 덧붙일 클래스(예: online-board — 입력칸 프레임). */
+  boardClass?: string;
 }
 
 const NUMS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -62,6 +64,7 @@ export function GuessPad({
   onNoteToggle,
   onNoteClear,
   stageContent,
+  boardClass,
 }: GuessPadProps) {
   const isGuess = variant === 'guess';
   // 입력칸(슬롯)은 gameReducer의 push/pop/clearSlot/reset만 사용(판정 없음, secret='').
@@ -183,7 +186,9 @@ export function GuessPad({
   );
 
   return (
-    <section className={`board guesspad${active ? '' : ' memo-only'}`}>
+    <section
+      className={`board guesspad${boardClass ? ` ${boardClass}` : ''}${active ? '' : ' memo-only'}`}
+    >
       {showInput &&
         (stageContent !== undefined ? (
           <div className="play-stage">{active ? inputDisplay : stageContent}</div>

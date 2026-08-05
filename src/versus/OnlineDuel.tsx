@@ -1,14 +1,8 @@
-import { useEffect, useReducer, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getSocket } from '../net/socket';
-import {
-  gameReducer,
-  initGame,
-  toggleMemoMark,
-  type GuessRecord,
-  type MemoMark,
-} from '../game/useGame';
+import { toggleMemoMark, type GuessRecord, type MemoMark } from '../game/useGame';
 import type { Judgement } from '../game/logic';
-import { Keypad } from '../components/Keypad';
+import { GuessPad } from '../components/GuessPad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
 import { RevealCard } from '../components/RevealCard';
@@ -100,126 +94,6 @@ function WaitingLine() {
   return <p className="wait-line">{WAIT_PHRASES[i]}</p>;
 }
 
-/**
- * 입력 칸 + 키패드. 위치를 고정하려고 항상 렌더한다.
- * - active(내 차례): 숫자 입력·제출 가능, ✎로 메모 토글.
- * - !active(상대 차례·발표 중): 입력·제출은 막고 숫자 탭은 메모만 순환(미리 메모용).
- */
-function OnlineInput({
-  digits,
-  active = true,
-  submitLabel,
-  onSubmit,
-  onChange,
-  memo = {},
-  onMemo,
-  onClearMemo,
-  showMemo = false,
-  stage,
-}: {
-  digits: number;
-  active?: boolean;
-  submitLabel: string;
-  onSubmit: (value: string) => void;
-  onChange?: (value: string) => void;
-  memo?: Record<string, MemoMark>;
-  onMemo?: (d: string, mark: MemoMark) => void;
-  onClearMemo?: () => void;
-  showMemo?: boolean;
-  /** 있으면 상단 '스테이지' 박스를 쓴다: 내 차례=입력 세그먼트, 아니면 이 노드(결과/대기 등). */
-  stage?: ReactNode;
-}) {
-  const [state, dispatch] = useReducer(gameReducer, undefined, () =>
-    initGame('', Infinity, digits, false),
-  );
-  // 활성 메모 표시. 시작은 항상 '없음'(메모 버튼 안 눌린 상태) — 눌러서 표시 종류를 고른다.
-  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
-  const full = !state.slots.includes('');
-  // 입력 변화를 부모에 알림(실시간 미리보기 중계용). 콜백 identity와 무관하게 최신값 사용.
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
-  useEffect(() => {
-    if (active) onChangeRef.current?.(state.slots.join(''));
-  }, [state.slots, active]);
-
-  const inputDisplay = (
-    <div
-      className="input-display"
-      aria-label="현재 입력"
-      style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-    >
-      {state.slots.map((d, i) => (
-        <button
-          key={i}
-          type="button"
-          className={`slot cell${d ? ' filled' : ''}`}
-          disabled={!d}
-          aria-label={d ? `${i + 1}번째 칸 ${d} 지우기` : `${i + 1}번째 빈 칸`}
-          onClick={() => dispatch({ type: 'clearSlot', index: i })}
-        >
-          <Seg7 char={d} />
-        </button>
-      ))}
-    </div>
-  );
-
-  return (
-    <section className={`board online-board${active ? '' : ' memo-only'}`}>
-      {/* 스테이지 모드: 하나의 박스에서 내 차례=입력칸 / 아니면 결과·대기 노드가 전환. */}
-      {stage !== undefined ? (
-        <div className="play-stage">{active ? inputDisplay : stage}</div>
-      ) : (
-        active && inputDisplay
-      )}
-      <Keypad
-        slots={active ? state.slots : Array(digits).fill('')}
-        memo={memo}
-        memoMark={memoMark}
-        disabled={false}
-        markButtons={showMemo}
-        showSubmit={showMemo}
-        submitLabel={submitLabel}
-        onDigit={(digit) => active && dispatch({ type: 'push', digit })}
-        onMemo={(d) => memoMark && onMemo?.(d, memoMark)}
-        onDelete={() => active && dispatch({ type: 'pop' })}
-        onSubmit={() => active && full && onSubmit(state.slots.join(''))}
-        onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
-        onClearMemo={onClearMemo}
-      />
-    </section>
-  );
-}
-
-/** 메모 전용 키패드(입력칸 없음) — 비밀 정하는 동안 미리 메모용. */
-function MemoPad({
-  digits,
-  memo,
-  onMemo,
-  onClearMemo,
-}: {
-  digits: number;
-  memo: Record<string, MemoMark>;
-  onMemo: (d: string, mark: MemoMark) => void;
-  onClearMemo: () => void;
-}) {
-  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
-  return (
-    <Keypad
-      slots={Array(digits).fill('')}
-      memo={memo}
-      memoMark={memoMark}
-      disabled={false}
-      submitLabel="확인"
-      onDigit={() => {}}
-      onMemo={(d) => memoMark && onMemo(d, memoMark)}
-      onDelete={() => {}}
-      onSubmit={() => {}}
-      markButtons
-      onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
-      onClearMemo={onClearMemo}
-    />
-  );
-}
 
 /** 내 숫자 훔쳐보기 방지 — 기본은 블러, 꾹 누르는 동안에만 보인다. */
 function SecretPeek({ secret }: { secret: string }) {
@@ -764,7 +638,15 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
               <LoadingDots />
               <p className="wait-line">상대가 숫자를 정하는 중…</p>
             </div>
-            <MemoPad digits={digits} memo={memo} onMemo={toggleMemo} onClearMemo={clearMemo} />
+            <GuessPad
+              digits={digits}
+              active={false}
+              showInput={false}
+              memo={memo}
+              onMemoToggle={toggleMemo}
+              onMemoClear={clearMemo}
+              onSubmit={() => {}}
+            />
           </>
         ) : (
           <>
@@ -772,7 +654,12 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
               상대가 맞힐 나의 숫자를 정하세요(서로 다른 {digits === 4 ? '네' : '세'} 자리, 맨 앞 0
               제외).
             </p>
-            <OnlineInput digits={digits} submitLabel="확인" onSubmit={submitSecret} />
+            <GuessPad
+              digits={digits}
+              variant="secret"
+              onSubmit={submitSecret}
+              boardClass="online-board"
+            />
           </>
         )}
         {error && <p className="online-error">{error}</p>}
@@ -902,7 +789,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
           </div>
 
           {/* 고정 높이 스테이지 + 고정 키패드 — 결과/상대입력/대기 높이가 달라도 키패드 자리 유지. */}
-          <OnlineInput
+          <GuessPad
             key={`${history.length}-${inputActive ? 'in' : 'memo'}`}
             digits={digits}
             active={inputActive}
@@ -910,10 +797,10 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
             onSubmit={submitGuess}
             onChange={emitInput}
             memo={memo}
-            onMemo={toggleMemo}
-            onClearMemo={clearMemo}
-            showMemo
-            stage={stageContent}
+            onMemoToggle={toggleMemo}
+            onMemoClear={clearMemo}
+            stageContent={stageContent}
+            boardClass="online-board"
           />
         </div>
         {error && <p className="online-error">{error}</p>}
