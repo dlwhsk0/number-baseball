@@ -101,6 +101,43 @@ describe('gameReducer — 제출', () => {
   });
 });
 
+describe('gameReducer — judge(슬롯 밖 추측 판정, GuessPad용)', () => {
+  it('추측 문자열을 판정해 히스토리에 쌓는다(슬롯은 안 건드림)', () => {
+    const s = gameReducer(start('123'), { type: 'judge', guess: '135' });
+    expect(s.guesses).toHaveLength(1);
+    expect(s.guesses[0]).toEqual({ guess: '135', judgement: { strikes: 1, balls: 1, isOut: false } });
+    expect(s.slots).toEqual(['', '', '']);
+  });
+
+  it('자릿수와 길이가 다르면 무시된다', () => {
+    const s = gameReducer(start('123'), { type: 'judge', guess: '13' });
+    expect(s.guesses).toHaveLength(0);
+  });
+
+  it('정답이면 won, 시도 소진이면 lost', () => {
+    expect(gameReducer(start('123'), { type: 'judge', guess: '123' }).status).toBe('won');
+    let s = start('123', 1);
+    s = gameReducer(s, { type: 'judge', guess: '456' });
+    expect(s.status).toBe('lost');
+  });
+
+  it('힌트: 전부 아웃이면 그 숫자들이 자동 아웃 표시(submit과 동일)', () => {
+    const s = gameReducer(initGame('123', 10, 3, true), { type: 'judge', guess: '456' });
+    expect(s.memo).toEqual({ '4': 'out', '5': 'out', '6': 'out' });
+  });
+
+  it('힌트: 0아웃(전부 있음)이면 자동 볼 표시', () => {
+    const s = gameReducer(initGame('123', 10, 3, true), { type: 'judge', guess: '231' });
+    expect(s.memo).toEqual({ '2': 'ball', '3': 'ball', '1': 'ball' });
+  });
+
+  it('게임이 끝나면 judge도 막힌다', () => {
+    let s = gameReducer(start('123'), { type: 'judge', guess: '123' }); // won
+    s = gameReducer(s, { type: 'judge', guess: '456' });
+    expect(s.guesses).toHaveLength(1);
+  });
+});
+
 describe('gameReducer — reset', () => {
   it('reset은 새 정답으로 초기화한다', () => {
     let s = gameReducer(type(start('123'), '123'), { type: 'submit' });

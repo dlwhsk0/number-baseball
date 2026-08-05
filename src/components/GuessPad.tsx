@@ -36,11 +36,13 @@ export interface GuessPadProps {
 
   // ----- 온라인 턴제 스테이지 스왑: active면 입력칸, 아니면 이 노드(결과/대기)를 같은 자리에. -----
   stageContent?: ReactNode;
-  /** 루트 board에 덧붙일 클래스(예: online-board — 입력칸 프레임). */
+  /** 루트 board에 덧붙일 클래스(예: online-board — 입력칸 프레임, batter-box — 솔로 타자석). */
   boardClass?: string;
+  /** board 안에 겹쳐 그릴 노드(예: 솔로 결과 발표 카드). */
+  overlay?: ReactNode;
 }
 
-const NUMS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const NUMS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
 /**
  * 정답 입력 세그먼트 + 키패드 + 메모(O/B/S) + 자리별 후보 메모를 하나로 묶은 공용 보드.
@@ -65,6 +67,7 @@ export function GuessPad({
   onNoteClear,
   stageContent,
   boardClass,
+  overlay,
 }: GuessPadProps) {
   const isGuess = variant === 'guess';
   // 입력칸(슬롯)은 gameReducer의 push/pop/clearSlot/reset만 사용(판정 없음, secret='').
@@ -249,6 +252,8 @@ export function GuessPad({
           </div>
         </div>
       )}
+
+      {overlay}
     </section>
   );
 }

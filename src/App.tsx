@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { useGame, type MemoMark, type GuessRecord } from './game/useGame';
-import { Keypad } from './components/Keypad';
+import { useGame, type GuessRecord } from './game/useGame';
+import { GuessPad } from './components/GuessPad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
 import { RevealCard } from './components/RevealCard';
-import { Seg7 } from './components/Seg7';
 import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -49,8 +48,9 @@ function getInitialHint(): boolean {
 export default function App() {
   const [digits, setDigitsPref] = useState<number>(getInitialDigits);
   const [hint, setHintPref] = useState<boolean>(getInitialHint);
-  const { state, pushDigit, popDigit, clearSlot, submit, toggleMemo, clearMemo, setHint, reset } =
-    useGame(digits, hint);
+  const { state, judgeGuess, toggleMemo, clearMemo, setHint, reset } = useGame(digits, hint);
+  // GuessPad 입력칸·후보 메모를 새 판/자릿수 변경 시 비우는 신호(값이 바뀌면 리셋).
+  const [padReset, setPadReset] = useState(0);
   const [section, setSection] = useState<Section>('solo');
   const [online, setOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -117,23 +117,6 @@ export default function App() {
       window.removeEventListener('offline', off);
     };
   }, []);
-  const [memoMark, setMemoMark] = useState<MemoMark | null>(null);
-  // 자리별 추리 메모(솔로). notes[i] = i번 칸의 후보 숫자들(빈 배열=미정). 새 판·자릿수 변경 시 초기화.
-  const [notes, setNotes] = useState<string[][]>(() =>
-    Array.from({ length: digits }, () => []),
-  );
-  const toggleNote = (pos: number, digit: string) =>
-    setNotes((n) =>
-      n.map((arr, i) => {
-        if (i !== pos) return arr;
-        return arr.includes(digit) ? arr.filter((d) => d !== digit) : [...arr, digit];
-      }),
-    );
-  const clearNote = (pos: number) =>
-    setNotes((n) => n.map((arr, i) => (i === pos ? [] : arr)));
-  const resetNotes = (d: number) => setNotes(Array.from({ length: d }, () => []));
-  // 메모 편집 중인 칸(길게 눌러 열림). null이면 닫힘.
-  const [editingPos, setEditingPos] = useState<number | null>(null);
   // 추측할 때마다 잠깐 뜨는 결과 발표 카드(승리/패배 아닌 진행 중 추측만).
   const [soloReveal, setSoloReveal] = useState<GuessRecord | null>(null);
   const prevGuessCountRef = useRef(0);
@@ -280,11 +263,10 @@ export default function App() {
     },
   });
 
-  // 빈 판(진행 중 난이도 변경 확인용).
+  // 빈 판(진행 중 난이도 변경 확인용). 입력칸은 GuessPad 소유 → 기록·메모로만 판단.
   const pristine =
     state.status === 'playing' &&
     state.guesses.length === 0 &&
-    state.slots.every((s) => s === '') &&
     Object.keys(state.memo).length === 0;
 
   const clearReveal = () => {
@@ -292,36 +274,9 @@ export default function App() {
     setSoloReveal(null);
   };
 
-  // 입력칸 길게 누르기 → 그 칸 추리 메모 편집(우상단 후보). 짧게 탭은 기존대로 지우기.
-  const slotHoldRef = useRef<number | undefined>(undefined);
-  const slotHoldFiredRef = useRef(false);
-  const startSlotHold = (index: number) => {
-    slotHoldFiredRef.current = false;
-    slotHoldRef.current = window.setTimeout(() => {
-      slotHoldFiredRef.current = true;
-      setEditingPos(index);
-    }, 400);
-  };
-  const cancelSlotHold = () => {
-    if (slotHoldRef.current !== undefined) {
-      window.clearTimeout(slotHoldRef.current);
-      slotHoldRef.current = undefined;
-    }
-  };
-  const onSlotClick = (index: number) => {
-    // 길게 눌러 메모를 연 직후의 클릭은 무시(지워지지 않게).
-    if (slotHoldFiredRef.current) {
-      slotHoldFiredRef.current = false;
-      return;
-    }
-    if (state.slots[index]) clearSlot(index); // 채워진 칸만 탭으로 지우기
-  };
-
   const newGame = () => {
-    setMemoMark(null);
     clearReveal();
-    resetNotes(digits);
-    setEditingPos(null);
+    setPadReset((n) => n + 1);
     reset(digits, hint);
   };
 
@@ -336,10 +291,8 @@ export default function App() {
   const doChangeDigits = (d: number) => {
     setDigitsPref(d);
     persist('nb_digits', String(d));
-    setMemoMark(null);
     clearReveal();
-    resetNotes(d);
-    setEditingPos(null);
+    setPadReset((n) => n + 1);
     reset(d, hint);
   };
 
@@ -459,106 +412,29 @@ export default function App() {
         )}
       </section>
 
-      {/* 하단: 타자석 — 입력(게임 중에만) */}
+      {/* 하단: 타자석 — 입력(게임 중에만). 입력·키패드·메모·후보는 공용 GuessPad. */}
       {!finished && (
-        <section className="board batter-box">
-          <div
-            className="input-display"
-            aria-label="현재 입력"
-            style={{ gridTemplateColumns: `repeat(${state.slots.length}, 1fr)` }}
-          >
-            {state.slots.map((d, i) => {
-              const cands = [...(notes[i] ?? [])].sort();
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className={`slot cell${d ? ' filled' : ''}${
-                    editingPos === i ? ' editing' : ''
-                  }`}
-                  aria-label={`${i + 1}번째 칸${d ? ` ${d}` : ' 비어있음'} — 길게 눌러 추리 메모`}
-                  onPointerDown={() => startSlotHold(i)}
-                  onPointerUp={cancelSlotHold}
-                  onPointerLeave={cancelSlotHold}
-                  onClick={() => onSlotClick(i)}
-                  onContextMenu={(e) => e.preventDefault()}
-                >
-                  <Seg7 char={d} />
-                  {cands.length > 0 && (
-                    <span className="slot-cands" aria-hidden="true">
-                      {cands.join('')}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <Keypad
-            slots={state.slots}
-            memo={state.memo}
-            memoMark={memoMark}
-            disabled={finished}
-            markButtons
-            showSubmit
-            submitLabel="던지기"
-            onDigit={pushDigit}
-            onMemo={(d) => memoMark && toggleMemo(d, memoMark)}
-            onPickMark={(m) => setMemoMark((cur) => (cur === m ? null : m))}
-            onClearMemo={clearMemo}
-            onDelete={popDigit}
-            onSubmit={submit}
-          />
-
-          {/* 길게 누른 칸의 추리 메모 편집 — 키패드 위 오버레이(레이아웃 안 밀림). */}
-          {editingPos !== null && (
-            <div className="note-pop" role="dialog" aria-label={`${editingPos + 1}번 칸 후보`}>
-              <div className="note-pop-head">
-                <span className="note-pop-title">{editingPos + 1}번 칸 후보</span>
-                <button
-                  type="button"
-                  className="note-pop-clear"
-                  disabled={(notes[editingPos] ?? []).length === 0}
-                  onClick={() => clearNote(editingPos)}
-                >
-                  지우기
-                </button>
-                <button
-                  type="button"
-                  className="note-pop-close"
-                  aria-label="닫기"
-                  onClick={() => setEditingPos(null)}
-                >
-                  ✕
-                </button>
+        <GuessPad
+          digits={state.digits}
+          disabled={finished}
+          resetSignal={padReset}
+          onSubmit={judgeGuess}
+          memo={state.memo}
+          onMemoToggle={toggleMemo}
+          onMemoClear={clearMemo}
+          boardClass="batter-box"
+          overlay={
+            soloReveal ? (
+              <div className="solo-reveal" aria-live="polite">
+                <RevealCard
+                  guess={soloReveal.guess}
+                  judgement={soloReveal.judgement}
+                  digits={state.digits}
+                />
               </div>
-              <div className="note-pop-nums">
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map((dd) => (
-                  <button
-                    key={dd}
-                    type="button"
-                    className={`note-num${(notes[editingPos] ?? []).includes(dd) ? ' on' : ''}`}
-                    aria-pressed={(notes[editingPos] ?? []).includes(dd)}
-                    onClick={() => toggleNote(editingPos, dd)}
-                  >
-                    {dd}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 추측 직후 잠깐 뜨는 결과 발표 카드(입력 영역 위로 팝업, 입력은 계속 가능). */}
-          {soloReveal && (
-            <div className="solo-reveal" aria-live="polite">
-              <RevealCard
-                guess={soloReveal.guess}
-                judgement={soloReveal.judgement}
-                digits={state.digits}
-              />
-            </div>
-          )}
-        </section>
+            ) : undefined
+          }
+        />
       )}
         </>
       ) : launch === null ? (

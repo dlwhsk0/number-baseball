@@ -36,6 +36,8 @@ export type GameAction =
   | { type: 'clearSlot'; index: number }
   | { type: 'toggleLock'; index: number }
   | { type: 'submit' }
+  /** 슬롯 밖에서 만든 추측 문자열을 판정(입력칸은 GuessPad가 소유). */
+  | { type: 'judge'; guess: string }
   | { type: 'memo'; digit: string; mark: MemoMark }
   | { type: 'clearMemo' }
   | { type: 'setBeginner'; beginner: boolean }
@@ -163,6 +165,29 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const nextSlots = state.slots.map((d, i) => (state.locked[i] ? d : ''));
       return { ...state, guesses, slots: nextSlots, status, memo };
     }
+    case 'judge': {
+      // submit과 동일한 판정·힌트 로직이되, 입력값을 인자로 받고 슬롯은 건드리지 않는다.
+      if (state.status !== 'playing') return state;
+      const guess = action.guess;
+      if (guess.length !== state.digits) return state;
+      const judgement = judge(state.secret, guess);
+      const guesses = [...state.guesses, { guess, judgement }];
+      let status: GameStatus = 'playing';
+      if (isWin(judgement, state.digits)) status = 'won';
+      else if (guesses.length >= state.maxAttempts) status = 'lost';
+
+      let memo = state.memo;
+      if (state.beginner) {
+        if (judgement.isOut) {
+          memo = { ...state.memo };
+          for (const d of guess) memo[d] = 'out';
+        } else if (judgement.strikes + judgement.balls === state.digits && status !== 'won') {
+          memo = { ...state.memo };
+          for (const d of guess) if (memo[d] !== 'strike') memo[d] = 'ball';
+        }
+      }
+      return { ...state, guesses, status, memo };
+    }
     case 'memo': {
       if (state.status !== 'playing') return state;
       return { ...state, memo: toggleMemoMark(state.memo, action.digit, action.mark) };
@@ -196,6 +221,8 @@ export function useGame(initialDigits = 3, initialHint = false, maxAttempts = 10
     clearSlot: (index: number) => dispatch({ type: 'clearSlot', index }),
     toggleLock: (index: number) => dispatch({ type: 'toggleLock', index }),
     submit: () => dispatch({ type: 'submit' }),
+    /** GuessPad가 구성한 추측 문자열을 판정. */
+    judgeGuess: (guess: string) => dispatch({ type: 'judge', guess }),
     toggleMemo: (digit: string, mark: MemoMark) => dispatch({ type: 'memo', digit, mark }),
     clearMemo: () => dispatch({ type: 'clearMemo' }),
     /** 힌트(개인 기능) 라이브 토글. */
