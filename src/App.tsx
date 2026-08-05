@@ -242,6 +242,14 @@ export default function App() {
     setCanInstall(false);
     dismissIconNotice();
   };
+  // 설치된 PWA 안에선 설치 다이얼로그를 못 띄우므로, 외부 브라우저로 열어 거기서 설치하게 한다.
+  const openInBrowser = () => {
+    try {
+      window.open(window.location.origin, '_blank', 'noopener');
+    } catch {
+      /* 무시 */
+    }
+  };
   const dismissIntro = () => {
     try {
       sessionStorage.setItem('nb_intro', '1');
@@ -680,7 +688,7 @@ export default function App() {
               {canInstall
                 ? '한 번에 설치돼요.'
                 : standalone
-                ? '적용하려면 홈 화면에서 앱을 삭제하고 다시 추가해 주세요.'
+                ? '홈 화면 아이콘을 삭제한 뒤, 브라우저에서 다시 설치하면 적용돼요.'
                 : '공유 메뉴 → “홈 화면에 추가”로 설치해요.'}
             </span>
           </div>
@@ -688,6 +696,20 @@ export default function App() {
             <>
               <button type="button" className="reinstall-close" onClick={doInstall}>
                 설치하기
+              </button>
+              <button
+                type="button"
+                className="reinstall-x"
+                aria-label="닫기"
+                onClick={dismissIconNotice}
+              >
+                ✕
+              </button>
+            </>
+          ) : standalone ? (
+            <>
+              <button type="button" className="reinstall-close" onClick={openInBrowser}>
+                브라우저에서 열기
               </button>
               <button
                 type="button"
