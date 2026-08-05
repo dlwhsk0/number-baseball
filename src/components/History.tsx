@@ -36,10 +36,11 @@ export function History({ guesses, sboText = false }: Props) {
               ))}
             </span>
             {sboText ? (
+              // 0인 유형은 숨기되(헷갈림 방지) S·B·O 각 자리는 고정폭으로 안 밀리게.
               <span className="sbo sbo-text">
-                <b className="mark-s">{c.strike}S</b>
-                <b className="mark-b">{c.ball}B</b>
-                <b className="mark-o">{c.out}O</b>
+                <b className="mark-s">{c.strike > 0 ? `${c.strike}S` : ''}</b>
+                <b className="mark-b">{c.ball > 0 ? `${c.ball}B` : ''}</b>
+                <b className="mark-o">{c.out > 0 ? `${c.out}O` : ''}</b>
               </span>
             ) : (
               <span className="sbo">

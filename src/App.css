@@ -2534,6 +2534,12 @@
   font-weight: 800;
   white-space: nowrap;
 }
+/* S·B·O 각 자리 고정폭 — 0인 유형은 빈칸이지만 자리는 유지(정렬 안 밀림). */
+.sbo-text b {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: center;
+}
 .duel-col.opp .history-row {
   grid-template-columns: 12px 1fr auto;
   gap: 3px;
