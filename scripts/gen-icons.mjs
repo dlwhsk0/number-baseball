@@ -109,6 +109,9 @@ await Promise.all([
   render('pwa-512x512-light.png', 512, 0, svgLight),
   render('maskable-512x512-light.png', 512, 0.09, svgLight),
   render('apple-touch-icon-light.png', 180, 0.06, svgLight),
+  // 600x600 (스토어·마케팅 등 큰 사이즈)
+  render('icon-600x600.png', 600, 0),
+  render('icon-600x600-light.png', 600, 0, svgLight),
 ]);
 await writeFile(join(publicDir, 'favicon.svg'), svg(0));
 await writeFile(join(publicDir, 'favicon-light.svg'), svgLight(0));
