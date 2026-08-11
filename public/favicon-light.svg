@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">
+  <defs>
+    <linearGradient id="faceL" x1="0" y1="0.24" x2="0" y2="1" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5aff6b"/>
+      <stop offset="1" stop-color="#2ee047"/>
+    </linearGradient>
+    <filter id="shadowL" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="0.012" stdDeviation="0.022" flood-color="#0a2a15" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="1" height="1" rx="0.2" fill="#eef1f5"/>
+  <g filter="url(#shadowL)">
+    <!-- 베벨(밝은 테두리) + 진한 그린 외곽선 -->
+    <polygon points="0.5,0.2400000000000001 1.4,1.1400000000000001 0.5,2.04 -0.4,1.1400000000000001" fill="#ffffff" stroke="#2ee047" stroke-width="0.027" stroke-linejoin="round"/>
+    <!-- 윗면(그린 액센트) -->
+    <polygon points="0.5,0.3660000000000001 1.274,1.1400000000000001 0.5,1.9140000000000001 -0.274,1.1400000000000001" fill="url(#faceL)"/>
+  </g>
+</svg>

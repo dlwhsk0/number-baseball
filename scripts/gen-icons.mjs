@@ -59,17 +59,57 @@ function svg(pad = 0) {
 </svg>`;
 }
 
-async function render(name, size, pad) {
-  const buf = Buffer.from(svg(pad));
+// 라이트 모드 버전(동일 '베이스 한 구석' 디자인의 밝은 팔레트).
+//   밝은 타일 위에 그린 베이스(액센트 전면) + 흰 베벨 + 진한 그린 외곽선 + 은은한 그림자.
+const L_BG = '#eef1f5';
+const L_RIM = '#ffffff'; // 베벨(밝은 테두리)
+const L_EDGE = '#2ee047'; // 외곽선(진한 그린)
+
+function svgLight(pad = 0) {
+  const R = 0.9 - pad * 0.5;
+  const tipY = 0.24 + pad * 0.95;
+  const cx = 0.5;
+  const cy = tipY + R;
+  const bevel = R * 0.14;
+  const edgeW = R * 0.03;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">
+  <defs>
+    <linearGradient id="faceL" x1="0" y1="${tipY}" x2="0" y2="1" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5aff6b"/>
+      <stop offset="1" stop-color="${L_EDGE}"/>
+    </linearGradient>
+    <filter id="shadowL" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="0.012" stdDeviation="0.022" flood-color="#0a2a15" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="1" height="1" rx="0.2" fill="${L_BG}"/>
+  <g filter="url(#shadowL)">
+    <!-- 베벨(밝은 테두리) + 진한 그린 외곽선 -->
+    <polygon points="${diamond(cx, cy, R)}" fill="${L_RIM}" stroke="${L_EDGE}" stroke-width="${edgeW}" stroke-linejoin="round"/>
+    <!-- 윗면(그린 액센트) -->
+    <polygon points="${diamond(cx, cy, R - bevel)}" fill="url(#faceL)"/>
+  </g>
+</svg>`;
+}
+
+async function render(name, size, pad, maker = svg) {
+  const buf = Buffer.from(maker(pad));
   await sharp(buf, { density: 512 }).resize(size, size).png().toFile(join(publicDir, name));
   console.log('wrote', name, `${size}x${size}`);
 }
 
+// 다크(기본, 매니페스트가 참조) + 라이트('-light' 접미사, 대체 브랜드 자산).
 await Promise.all([
   render('pwa-192x192.png', 192, 0),
   render('pwa-512x512.png', 512, 0),
   render('maskable-512x512.png', 512, 0.09),
   render('apple-touch-icon.png', 180, 0.06),
+  render('pwa-192x192-light.png', 192, 0, svgLight),
+  render('pwa-512x512-light.png', 512, 0, svgLight),
+  render('maskable-512x512-light.png', 512, 0.09, svgLight),
+  render('apple-touch-icon-light.png', 180, 0.06, svgLight),
 ]);
 await writeFile(join(publicDir, 'favicon.svg'), svg(0));
-console.log('wrote favicon.svg');
+await writeFile(join(publicDir, 'favicon-light.svg'), svgLight(0));
+console.log('wrote favicon.svg, favicon-light.svg');
