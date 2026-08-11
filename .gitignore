@@ -32,3 +32,6 @@ dev-dist
 
 # 서버 재배포 접속 정보(민감) — 커밋 금지
 scripts/deploy.env
+
+# 오프라인 전용 빌드 결과물(앱인토스 콘솔 업로드 · 원스토어 APK 래핑용)
+dist-offline

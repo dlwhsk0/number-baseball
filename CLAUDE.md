@@ -128,6 +128,20 @@
   ③**키패드 메모 직접 눌러보기**(`Keypad markButtons` 실동작) ④**칸 길게 눌러 후보 메모 직접 해보기**(400ms 롱프레스→`note-pop`, 숨은 기능 안내)
   ⑤대결·설정 요약. 좌상단 ✕/ESC/배경 탭으로 닫고, 열려 있는 동안 배경 스크롤 잠금.
 
+## 빌드 타깃 (오프라인 전용 빌드)
+- `pnpm build` → `dist/`: 기본 웹/PWA(Vercel). 온라인 대전 포함.
+- `pnpm build:offline` → `dist-offline/`: **서버 없이 도는 오프라인 전용**. 앱인토스 미니앱 업로드용이자
+  원스토어 APK(Capacitor 웹뷰 래핑)용. (`dev:offline`/`preview:offline`도 있음.)
+- 스위치는 `VITE_TARGET=offline` 하나. `vite.config.ts`가 이걸 보고:
+  - `@versus/online` → `src/versus/online.offline.ts`(빈 스텁)로 **alias** → `OnlineSpeed`/`OnlineDuel`/
+    `socket.io-client`가 번들에서 통째로 빠짐. **그래서 App은 온라인 코드를 반드시 `@versus/online`
+    배럴로만 import해야 한다**(직접 import하면 소켓이 다시 딸려옴).
+  - `vite-plugin-pwa` 제외 + `virtual:pwa-register/react` → `src/pwa/register-noop.ts`
+  - `base:'./'`(file:// 대응), `__OFFLINE_BUILD__` 주입 → `src/target.ts`의 `IS_OFFLINE_BUILD`
+- UI: `ONLINE_ENABLED`가 false면 멀티 메뉴에서 닉네임·자릿수·[방 만들기]·[코드로 입장]이 사라지고
+  종류 세그먼트 + [한 기기로 하기]만 남는다. `IS_OFFLINE_BUILD`면 PWA 아이콘 재설치 배너도 안 뜸.
+- 출시 절차(등급분류·원스토어·콘솔): [`docs/apps-in-toss.md`](docs/apps-in-toss.md)
+
 ## 빌드 단계 (체크리스트)
 - [x] 단계 0: 스캐폴딩 + CLAUDE.md
 - [x] 단계 1: 게임 로직(정답 생성 / 판정) + 단위 테스트

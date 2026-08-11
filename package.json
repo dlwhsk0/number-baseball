@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "dev:offline": "VITE_TARGET=offline vite",
+    "build:offline": "VITE_TARGET=offline tsc -b && VITE_TARGET=offline vite build",
+    "preview:offline": "VITE_TARGET=offline vite preview",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run"

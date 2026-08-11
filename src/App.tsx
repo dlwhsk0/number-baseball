@@ -11,9 +11,9 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { FieldBackdrop } from './components/FieldBackdrop';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
-import { OnlineDuel } from './versus/OnlineDuel';
-import { OnlineSpeed } from './versus/OnlineSpeed';
-import { peekRoom } from './net/peek';
+// 온라인 대전은 반드시 이 배럴로만 참조한다 — 오프라인 빌드에선 빈 스텁으로 alias된다.
+import { ONLINE_ENABLED, OnlineDuel, OnlineSpeed, peekRoom } from '@versus/online';
+import { IS_OFFLINE_BUILD } from './target';
 import './App.css';
 
 type Section = 'solo' | 'multi';
@@ -184,6 +184,8 @@ export default function App() {
     }
   };
   useEffect(() => {
+    // 오프라인 빌드(앱인토스·APK)는 홈 화면 설치 개념이 없다(컨테이너가 따로 있음) → 안내를 안 띄운다.
+    if (IS_OFFLINE_BUILD) return;
     try {
       if (localStorage.getItem('nb_icon_seen') === ICON_VERSION) return;
       setStandalone(
@@ -527,32 +529,37 @@ export default function App() {
       ) : launch === null ? (
         <div className="versus versus-center">
           <div className="online-menu-card">
-            <label className="versus-field">
-              <span className="versus-label">닉네임</span>
-              <input
-                className="online-input"
-                value={mNick}
-                maxLength={12}
-                placeholder="플레이어"
-                onChange={(e) => setMNick(e.target.value)}
-              />
-            </label>
-            <div className="versus-field">
-              <span className="versus-label">자릿수</span>
-              <div className="seg" role="group" aria-label="자릿수">
-                {[3, 4].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    className={`seg-btn${mDigits === d ? ' active' : ''}`}
-                    aria-pressed={mDigits === d}
-                    onClick={() => setMDigits(d)}
-                  >
-                    {d}자리
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* 닉네임·자릿수는 온라인 방 만들기/입장에만 쓰인다. 로컬은 각 화면에서 따로 받음. */}
+            {ONLINE_ENABLED && (
+              <>
+                <label className="versus-field">
+                  <span className="versus-label">닉네임</span>
+                  <input
+                    className="online-input"
+                    value={mNick}
+                    maxLength={12}
+                    placeholder="플레이어"
+                    onChange={(e) => setMNick(e.target.value)}
+                  />
+                </label>
+                <div className="versus-field">
+                  <span className="versus-label">자릿수</span>
+                  <div className="seg" role="group" aria-label="자릿수">
+                    {[3, 4].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        className={`seg-btn${mDigits === d ? ' active' : ''}`}
+                        aria-pressed={mDigits === d}
+                        onClick={() => setMDigits(d)}
+                      >
+                        {d}자리
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
             <div className="versus-field">
               <span className="versus-label">종류</span>
               <div className="seg" role="group" aria-label="게임 종류">
@@ -581,6 +588,8 @@ export default function App() {
                 : '서로 상대가 맞힐 숫자를 정하고, 번갈아 맞혀요. 먼저 맞히면 승리! (1:1)'}
             </p>
 
+            {ONLINE_ENABLED && (
+              <>
             <button
               type="button"
               className={`versus-primary${online ? '' : ' disabled'}`}
@@ -634,10 +643,12 @@ export default function App() {
             </div>
 
             <div className="online-or" aria-hidden="true"><span>또는</span></div>
+              </>
+            )}
 
             <button
               type="button"
-              className="versus-secondary"
+              className={ONLINE_ENABLED ? 'versus-secondary' : 'versus-primary'}
               onClick={() => setLaunch({ conn: 'local', gameType })}
             >
               📱 한 기기로 하기
