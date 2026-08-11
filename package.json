@@ -9,16 +9,21 @@
     "dev:offline": "VITE_TARGET=offline vite",
     "build:offline": "VITE_TARGET=offline tsc -b && VITE_TARGET=offline vite build",
     "preview:offline": "VITE_TARGET=offline vite preview",
+    "build:native": "VITE_TARGET=native tsc -b && VITE_TARGET=native vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@oxlint/binding-darwin-arm64": "^1.73.0",
     "@oxlint/binding-linux-x64-gnu": "^1.73.0",
     "@rolldown/binding-darwin-arm64": "1.1.5",

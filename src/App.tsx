@@ -14,6 +14,7 @@ import { DuelVersus } from './versus/DuelVersus';
 // 온라인 대전은 반드시 이 배럴로만 참조한다 — 오프라인 빌드에선 빈 스텁으로 alias된다.
 import { ONLINE_ENABLED, OnlineDuel, OnlineSpeed, peekRoom } from '@versus/online';
 import { IS_OFFLINE_BUILD } from './target';
+import { useAndroidBackButton } from '@native/back-button';
 import './App.css';
 
 type Section = 'solo' | 'multi';
@@ -411,6 +412,19 @@ export default function App() {
     if (onlineActive) setPendingLeave(() => fn);
     else fn();
   };
+
+  // 안드로이드 하드웨어 뒤로가기(APK 전용) — 위에서부터 닫을 게 있으면 닫고, 없으면 종료 확인.
+  useAndroidBackButton(() => {
+    if (devUnlocked) return setDevUnlocked(false), true;
+    if (showRules) return closeRules(), true;
+    if (hintInfo) return setHintInfo(false), true;
+    if (pendingDigits !== null) return setPendingDigits(null), true;
+    if (showSettings) return setShowSettings(false), true;
+    if (pendingLeave) return setPendingLeave(null), true;
+    if (launch !== null) return setLaunch(null), true; // 대결 화면 → 멀티 메뉴
+    if (section === 'multi') return setSection('solo'), true;
+    return false; // 솔로 최상위 — 종료 절차로
+  }, () => showNet('한 번 더 누르면 종료돼요'));
 
   return (
       <main className="app">

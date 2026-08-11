@@ -12,7 +12,8 @@
     // 실제 해석은 vite alias가 한다(앱인토스 빌드에선 online.offline.ts).
     // 타입 검사는 항상 진짜 구현 기준 — 스텁이 시그니처를 어기면 에러가 난다.
     "paths": {
-      "@versus/online": ["./src/versus/online.ts"]
+      "@versus/online": ["./src/versus/online.ts"],
+      "@native/back-button": ["./src/native/backButton.native.ts"]
     },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

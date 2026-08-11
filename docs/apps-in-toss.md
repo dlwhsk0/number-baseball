@@ -35,47 +35,78 @@ A와 B는 병렬로 진행 가능. **A가 끝나야 B의 검토 요청을 넣을
 연령 등급이 자동 부여되고, 그 결과가 게임물관리위원회 **'자체등급분류 게임물'** 로 통보된다.
 개발자 등록비가 **무료**고 심사가 빠른 게 장점.
 
-### 1-A-0. 넘어야 할 산 — 웹앱을 APK로 감싸야 한다
+### 1-A-0. 웹앱을 APK로 감싸기 (Capacitor — **셋업 완료**)
 
-원스토어는 **APK 또는 AAB 바이너리**를 요구한다. 이 프로젝트는 Vite SPA라 안드로이드 껍데기가 필요하다.
-**Capacitor**로 감싸는 걸 권장한다(웹 자산을 APK 안에 넣어서 서버·네트워크 없이 그대로 돈다
-→ 오프라인 전용 빌드와 궁합이 딱 맞고, 원스토어 심사에서 네트워크 이슈가 안 생긴다).
+원스토어는 **APK 또는 AAB 바이너리**를 요구한다. 이 프로젝트는 Vite SPA라 안드로이드 껍데기가 필요해서
+**Capacitor**를 붙여 뒀다(`android/` 디렉터리). 웹 자산이 APK 안에 통째로 들어가므로 서버·네트워크를
+전혀 안 탄다 — 오프라인 전용 빌드와 궁합이 딱 맞고, 원스토어 심사에서 네트워크 이슈가 안 생긴다.
 
-준비물: **JDK 17** + **Android SDK**(Android Studio 설치가 제일 쉬움).
+> 대안이던 TWA(Bubblewrap)는 **앱이 Vercel 서버에 의존**하고 온라인 대전이 그대로 노출돼서 안 쓴다.
+
+**준비물**: JDK 21 + Android SDK(Android Studio). `android/local.properties`의 `sdk.dir`은 로컬 전용(gitignore).
+
+#### AAB 빌드 (릴리스)
 
 ```sh
-# 1) Capacitor 설치 (dist-offline을 웹 루트로)
-pnpm add @capacitor/core @capacitor/android
-pnpm add -D @capacitor/cli
-pnpm exec cap init "숫자 야구" im.example.numberbaseball --web-dir dist-offline
-#    ↑ appId는 한 번 정하면 못 바꾼다. 본인 도메인 역순으로.
+# 1) 릴리스 서명키 만들기 — 최초 1회.
+#    ⚠️ jks 파일과 비밀번호를 잃어버리면 앱 업데이트가 영원히 불가능하다. 안전한 곳에 백업.
+keytool -genkey -v -keystore android/nb-release.jks \
+        -keyalg RSA -keysize 2048 -validity 10000 -alias nb
 
-# 2) 오프라인 전용 빌드 → 안드로이드 프로젝트에 동기화
-pnpm build:offline
-pnpm exec cap add android
-pnpm exec cap sync
+# 2) android/keystore.properties 작성 (gitignore 되어 있음)
+cat > android/keystore.properties <<'EOF'
+storeFile=nb-release.jks
+storePassword=…
+keyAlias=nb
+keyPassword=…
+EOF
 
-# 3) 릴리스 서명키 생성 (jks 파일과 비밀번호는 절대 잃어버리면 안 됨 — 업데이트 불가해짐)
-keytool -genkey -v -keystore nb-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias nb
-
-# 4) AAB 빌드
+# 3) 빌드
+pnpm build:native                 # → dist-native/
+pnpm exec cap sync android        # → android/app/src/main/assets/public/
 cd android && ./gradlew bundleRelease
-#    → android/app/build/outputs/bundle/release/app-release.aab
+#   → android/app/build/outputs/bundle/release/app-release.aab  (약 3.2 MB)
 ```
 
-`android/app/build.gradle`에서 `versionCode`(정수, 업로드마다 증가)·`versionName`(예: `1.0.0`) 설정.
-서명 설정은 `android/app/build.gradle`의 `signingConfigs`에 keystore 경로/별칭/비밀번호를 넣는다
-(비밀번호는 `gradle.properties`나 환경변수로 빼고 **커밋 금지**).
+`keystore.properties`가 없으면 서명 없이 빌드된다(로컬 확인용). **원스토어 업로드는 서명 필수.**
 
-체크할 것:
-- **가로/세로 고정**: 이 앱은 세로 전용 → `AndroidManifest.xml`의 `android:screenOrientation="portrait"`.
-- **뒤로가기 버튼**: 안드로이드 하드웨어 백 버튼이 앱을 그냥 종료해 버리지 않는지 확인.
-  현재 라우터가 없으니 Capacitor의 `App.addListener('backButton', …)`으로 처리 필요할 수 있음.
-- **상태바/노치**: `env(safe-area-inset-*)` 반영 확인(`.app`이 `100dvh`라 특히).
-- 오프라인 빌드는 `base: './'`라 `file://` 로딩에서도 자산 경로가 깨지지 않는다.
+#### 에뮬레이터/실기기 확인
 
-> 대안: TWA(Bubblewrap)로 Vercel 배포본을 감싸는 방법도 있지만, 그러면 **앱이 서버에 의존**하고
-> 온라인 대전이 그대로 노출된다. 서버 부하를 피하는 게 목적이니 **Capacitor 권장**.
+```sh
+pnpm build:native && pnpm exec cap sync android
+cd android && ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n io.github.dlwhsk0.numberbaseball/.MainActivity
+```
+
+#### 이미 해 둔 설정
+
+| 항목 | 위치 | 내용 |
+|---|---|---|
+| appId | `capacitor.config.ts` | `io.github.dlwhsk0.numberbaseball` — **첫 업로드 뒤엔 변경 불가** |
+| 웹 루트 | `capacitor.config.ts` | `dist-native` (`pnpm build:native` 결과물) |
+| 배경색 | `capacitor.config.ts` | `#05060a` — 웹뷰 뜨기 전 흰 번쩍임 방지 |
+| 세로 고정 | `AndroidManifest.xml` | `android:screenOrientation="portrait"` |
+| 다크 테마 | `res/values/styles.xml` | 시스템이 라이트여도 항상 어둡게, 상태바 아이콘 밝게 |
+| 스플래시 | `res/drawable/splash.xml` | 검정 + 가운데 로고(layer-list, 해상도 무관) |
+| 런처 아이콘 | `res/mipmap-*` | `node scripts/gen-android-assets.mjs`로 생성(PWA와 같은 아트) |
+| 버전 | `app/build.gradle` | `versionCode 1` / `versionName "1.0.0"` — **업로드마다 versionCode 증가** |
+| 서명 | `app/build.gradle` | `android/keystore.properties`에서 읽음 |
+| 뒤로가기 | `src/native/backButton.native.ts` | 모달→대결화면→멀티탭 순으로 닫고, 최상위에선 2번 눌러야 종료 |
+
+**검증 완료**(Android 15 에뮬레이터): 앱 실행 · 세이프에어리어 정상 · 멀티 탭에 온라인 항목 없음 ·
+뒤로가기 1회는 화면 복귀, 최상위에서 연속 2회만 종료 · 런처 아이콘 정상 표시.
+
+#### 아이콘을 바꾸려면
+
+```sh
+pnpm add -D sharp
+node scripts/gen-icons.mjs           # PWA/파비콘 (public/)
+node scripts/gen-android-assets.mjs  # 런처 아이콘·스플래시 (android/.../res/)
+git checkout package.json pnpm-lock.yaml   # sharp는 애드혹 — 되돌리기
+```
+
+아트는 `scripts/icon-art.mjs` 한 군데(웹·안드로이드 공용).
 
 ### 1-A-1. 원스토어 개발자센터 가입
 
@@ -244,43 +275,49 @@ export default defineConfig({
 
 ## 4. 이 레포의 오프라인 전용 빌드
 
-```sh
-pnpm build:offline    # → dist-offline/  (온라인 대전·PWA 제외)
-pnpm dev:offline      # 오프라인 모드로 로컬 개발
-pnpm preview:offline
-```
+타깃이 세 개다.
 
-앱인토스 업로드와 원스토어 APK(Capacitor `webDir`)에 **같은 결과물**을 쓴다.
+| 명령 | 결과물 | 쓰는 곳 | 온라인 대전 | PWA(SW) | Capacitor |
+|---|---|---|---|---|---|
+| `pnpm build` | `dist/` | 웹·Vercel | ✅ | ✅ | ✗ |
+| `pnpm build:offline` | `dist-offline/` | **앱인토스 콘솔 업로드** | ✗ | ✗ | ✗ |
+| `pnpm build:native` | `dist-native/` | **원스토어 APK/AAB** | ✗ | ✗ | ✅ |
 
-동작 방식:
+(`pnpm dev:offline` / `preview:offline`으로 오프라인 모드를 로컬에서 볼 수 있다.)
 
-- `vite.config.ts`가 `VITE_TARGET=offline`을 보고
-  - `@versus/online` → `src/versus/online.offline.ts`(빈 스텁)로 **alias**
-    → `OnlineSpeed`/`OnlineDuel`/`socket.io-client`가 **번들에 아예 안 들어감**
-  - `vite-plugin-pwa` 제외 + `virtual:pwa-register/react` → no-op 훅
-  - `base: './'`(file:// 대응), `outDir: 'dist-offline'`
-  - `__OFFLINE_BUILD__` 상수 주입 → `src/target.ts`의 `IS_OFFLINE_BUILD`
+동작 방식 — `vite.config.ts`가 `VITE_TARGET`을 보고:
+
+- `@versus/online` → `src/versus/online.offline.ts`(빈 스텁)로 **alias**
+  → `OnlineSpeed`/`OnlineDuel`/`socket.io-client`가 **번들에 아예 안 들어감**
+- `@native/back-button` → `native` 타깃만 진짜 구현, 나머지는 빈 훅 → `@capacitor/*` 미포함
+- `vite-plugin-pwa` 제외 + `virtual:pwa-register/react` → no-op 훅
+- `base: './'`(file:// 대응), 타깃별 `outDir`
+- `__OFFLINE_BUILD__` 상수 주입 → `src/target.ts`의 `IS_OFFLINE_BUILD`
+
+UI 쪽:
 - `App.tsx`는 `ONLINE_ENABLED`(배럴에서 옴)로 멀티 메뉴를 분기.
   오프라인 빌드에선 **닉네임·자릿수·[방 만들기]·[코드로 입장]이 사라지고**
   `종류 [⚡스피드|🥎주고받기]` + **[📱 한 기기로 하기]** 만 남는다.
 - `IS_OFFLINE_BUILD`면 PWA 아이콘 재설치 안내 배너도 뜨지 않는다.
 
-검증(빌드 결과 비교):
+빌드 결과 비교:
 
-| | `dist` (웹/Vercel) | `dist-offline` |
-|---|---|---|
-| JS | 314 KB (gzip 95.8 KB) | **240 KB (gzip 73.5 KB)** |
-| `sw.js` / manifest | 있음 | 없음 |
-| socket.io · `wss://` · '방 만들기' 문자열 | 있음 | **없음** |
+| | `dist` (웹) | `dist-offline` (앱인토스) | `dist-native` (APK) |
+|---|---|---|---|
+| JS | 314 KB (gzip 95.8) | **240 KB (gzip 73.5)** | 242 KB + capacitor 청크 9 KB |
+| `sw.js` / manifest | 있음 | 없음 | 없음 |
+| socket.io · `wss://` · '방 만들기' | 있음 | **없음** | **없음** |
+| `@capacitor/*` | 없음 | **없음** | 있음 |
 
 **주의**: 온라인 대전 코드를 건드릴 땐 `App.tsx`가 `./versus/OnlineDuel`을 직접 import하지 않도록
 반드시 `@versus/online` 배럴을 경유할 것. 직접 import하면 오프라인 빌드에 소켓이 다시 딸려온다.
+같은 이유로 `@capacitor/*`는 `backButton.native.ts` 밖에서 import하지 말 것.
 
 ---
 
 ## 5. 진행 순서 요약
 
-1. [ ] Capacitor로 안드로이드 껍데기 만들기 + 서명키 생성 → AAB 빌드
+1. [x] ~~Capacitor로 안드로이드 껍데기 만들기~~ → **완료**. 남은 건 **서명키 생성 + AAB 빌드**(1-A-0)
 2. [ ] 원스토어 개발자센터 가입(무료) → 앱 등록 → **IARC 설문(전체이용가)** → 심사 통과 → 출시
 3. [ ] 게임위 '자체등급분류 게임물 조회'에서 등급분류번호·일자·내용정보 확인
 4. [ ] 앱인토스 콘솔 가입 → 앱 등록(유형: **게임**, appName 확정)
