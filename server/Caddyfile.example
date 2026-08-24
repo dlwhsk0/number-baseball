@@ -1,8 +1,0 @@
-# 숫자 야구 온라인 서버 — 리버스 프록시 + 자동 TLS(Let's Encrypt).
-# /etc/caddy/Caddyfile 로 복사하고 <HOST>를 실제 접속 호스트로 바꾼다.
-#   - 도메인이 있으면:  game.example.com
-#   - 도메인이 없으면 sslip.io 사용:  <공인IP>.sslip.io   (예: 140.238.1.2.sslip.io)
-# Caddy가 이 호스트로 인증서를 발급하고, wss(WebSocket) 업그레이드도 자동 프록시한다.
-<HOST> {
-    reverse_proxy localhost:3001
-}
