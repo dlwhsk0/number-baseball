@@ -1,28 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1">
   <defs>
-    <radialGradient id="halo" cx="0.5" cy="0.3" r="0.6">
-      <stop offset="0" stop-color="#4dff5e" stop-opacity="0.30"/>
-      <stop offset="0.55" stop-color="#4dff5e" stop-opacity="0.06"/>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#4dff5e" stop-opacity="0.35"/>
+      <stop offset="0.6" stop-color="#4dff5e" stop-opacity="0.08"/>
       <stop offset="1" stop-color="#4dff5e" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="faceG" x1="0" y1="0.24" x2="0" y2="1" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#f4fdf6"/>
-    </linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="0.0252" result="b"/>
-      <feMerge>
-        <feMergeNode in="b"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <filter id="g" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="0.0120" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
   <rect width="1" height="1" rx="0.2" fill="#05060a"/>
-  <circle cx="0.5" cy="0.29" r="0.58" fill="url(#halo)"/>
-  <g filter="url(#glow)">
-    <!-- 베벨(테두리 경사) + 네온 발광 외곽선 -->
-    <polygon points="0.5,0.2400000000000001 1.4,1.1400000000000001 0.5,2.04 -0.4,1.1400000000000001" fill="#bdf0c8" stroke="#4dff5e" stroke-width="0.0252" stroke-linejoin="round"/>
-    <!-- 윗면 -->
-    <polygon points="0.5,0.3660000000000001 1.274,1.1400000000000001 0.5,1.9140000000000001 -0.274,1.1400000000000001" fill="url(#faceG)"/>
+  <circle cx="0.5" cy="0.5" r="0.435" fill="url(#halo)"/>
+  <g filter="url(#g)">
+    <circle cx="0.5" cy="0.5" r="0.300" fill="#0a1410" stroke="#4dff5e" stroke-width="0.0321"/>
+    <path d="M 0.4 0.20999999999999996 C 0.255 0.34, 0.255 0.66, 0.4 0.79" fill="none" stroke="#ff4d6d" stroke-width="0.0261" stroke-linecap="round"/>
+    <path d="M 0.6 0.20999999999999996 C 0.745 0.34, 0.745 0.66, 0.6 0.79" fill="none" stroke="#ff4d6d" stroke-width="0.0261" stroke-linecap="round"/>
+    <line x1="0.356" y1="0.308" x2="0.327" y2="0.263" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.325" y1="0.399" x2="0.285" y2="0.362" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.315" y1="0.500" x2="0.268" y2="0.473" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.325" y1="0.602" x2="0.274" y2="0.585" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.357" y1="0.694" x2="0.303" y2="0.690" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/>
+    <line x1="0.685" y1="0.285" x2="0.631" y2="0.285" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.721" y1="0.388" x2="0.669" y2="0.374" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.733" y1="0.499" x2="0.685" y2="0.474" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.721" y1="0.611" x2="0.679" y2="0.576" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/><line x1="0.686" y1="0.714" x2="0.653" y2="0.671" stroke="#ff4d6d" stroke-width="0.0201" stroke-linecap="round"/>
   </g>
 </svg>
