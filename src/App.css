@@ -359,6 +359,11 @@
   pointer-events: none;
   z-index: 0;
 }
+/* 솔로 전광판은 상단 'HISTORY' 헤더가 있어, 헤더 아래 히스토리 영역 기준으로 살짝 내려 정중앙. */
+:root[data-theme='doosan']
+  .scoreboard:not(.duel-board):not(.sp-race-board):not(.sp-scoreboard)::after {
+  top: calc(50% + 14px);
+}
 .settings-title {
   margin: 0 0 2px;
   text-align: center;
