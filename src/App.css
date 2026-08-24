@@ -350,14 +350,12 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(54%, 230px);
-  max-height: 76%;
+  width: min(60%, 250px);
+  max-height: 80%;
   object-fit: contain;
-  opacity: 0.12;
+  opacity: 0.16; /* 투명 SVG라 로고만 은은하게(흰 박스 없음) */
   pointer-events: none;
   z-index: 0;
-  -webkit-mask-image: radial-gradient(circle, #000 48%, transparent 73%);
-  mask-image: radial-gradient(circle, #000 48%, transparent 73%);
 }
 .settings-title {
   margin: 0 0 2px;
