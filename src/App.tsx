@@ -640,7 +640,7 @@ export default function App() {
               className="versus-secondary"
               onClick={() => setLaunch({ conn: 'local', gameType })}
             >
-              📱 한 기기로 하기
+              📱 오프라인으로 하기
             </button>
           </div>
         </div>
