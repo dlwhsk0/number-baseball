@@ -71,6 +71,7 @@
     Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **배포는 Dokploy**(셀프호스팅, Docker+Traefik). 방 상태가 메모리에만 있어 **반드시 단일 인스턴스(replicas=1)**.
     (상세 절차·트러블슈팅: [`docs/dokploy-deploy.md`](docs/dokploy-deploy.md).)
     루트 **`Dockerfile`**(루트 컨텍스트에서 `server/`만 빌드, Node22-alpine·pnpm·`/health`)로 빌드. Dokploy는 GitHub(`dlwhsk0/number-baseball`, `main`) 연동 → **`main`에 push하면 자동 재배포**(Webhook). 도메인 `wss://homerun.techeer.cloud-yaho.cloud`(Techeer 공유 Dokploy, `*.techeer.cloud-yaho.cloud` 와일드카드 DNS + Traefik Let's Encrypt), 컨테이너 포트 3001, env `CORS_ORIGIN`=프론트 Vercel 주소. 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/<name>.mjs`.
+    **관측**: `GET /metrics`(Prometheus, `server/src/metrics.ts` — 방 생성/입장/시작/종료/추측 카운터·활성방/소켓 게이지·기본 지표) + pino 구조화 로그(`server/src/logger.ts`, stdout→Dokploy 로그). env `LOG_LEVEL`·`METRICS_TOKEN`.
     (옛 오라클 VM + Caddy + pm2 방식은 **폐기·제거됨**(관련 스크립트/설정 삭제, 이력은 태그 `v1.0.0-pre-dokploy`) — 롤백 필요 시 Vercel `VITE_SERVER_URL`을 옛 주소 `wss://b-ball.duckdns.org`로.)
     연출: 추측 후 **결과 발표 텀**(서버 `reveal` → `REVEAL_MS` 뒤 turn/over, 그동안 `pending`으로 입력 차단), 특이 이벤트 리액션,
     상대 입장 직후 **VS 매치업 연출**(`vsIntro` — `phase` 이벤트 받으면 양쪽 닉네임 슬라이드+`VS` 팝 ~2.4초 뒤 비밀 정하기로. 재대결도 동일, 재접속 복귀 땐 생략),

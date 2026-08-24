@@ -23,6 +23,15 @@ pnpm start        # node dist/index.js
 - `PORT` — 리슨 포트(기본 `3001`).
 - `CORS_ORIGIN` — 허용 오리진. 쉼표로 여러 개. 배포 시 프론트 도메인만 지정(예: `https://number-baseball-chi.vercel.app`). 미지정 시 전체 허용(개발용).
 - 그 외: `REVEAL_MS`, `GRACE_MS`, `SPEED_LIMIT_3_MS`, `SPEED_LIMIT_4_MS`.
+- 관측: `LOG_LEVEL`(pino, 기본 `info`), `METRICS_TOKEN`(설정 시 `/metrics`에 Bearer/`?token=` 필요).
+
+## 관측 (메트릭 · 로그)
+- **메트릭**: `GET /metrics`(Prometheus 포맷, `src/metrics.ts`). Prometheus로 스크레이프 → Grafana 대시보드.
+  - 카운터: `nb_rooms_created_total`·`nb_room_joins_total`·`nb_games_started_total`·`nb_games_over_total`·`nb_guesses_total`(모두 `mode` 라벨)·`nb_socket_connections_total`.
+  - 게이지: `nb_sockets_connected`·`nb_rooms_active{mode}`·`nb_players_in_rooms`(스크레이프 시점 계산).
+  - 기본: `process_*`/`nodejs_*`(CPU·메모리·이벤트루프 지연 등).
+  - `METRICS_TOKEN` 설정 시 인증 필요.
+- **로그**: pino 구조화 JSON → stdout(`src/logger.ts`). Docker/Dokploy 로그 뷰어에서 확인. 방코드·소켓id 컨텍스트 포함(연결/방 생성/입장/시작/종료/이탈). 로컬 가독성: `pnpm dev | npx pino-pretty`.
 
 ## 프로토콜(요약)
 - 클→서: `create{nick,digits}` · `join{nick,code}` · `setSecret{secret}` · `guess{guess}` · `rematch` (ack 콜백 있음)

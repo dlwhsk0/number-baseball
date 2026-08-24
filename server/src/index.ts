@@ -13,6 +13,7 @@ import {
   speedStandings,
   allSpeedSolved,
   activeCount,
+  roomStats,
   type Room,
 } from './rooms.js';
 import type {
@@ -23,6 +24,17 @@ import type {
   ResumeInfo,
   GuessRecord,
 } from './types.js';
+import { logger } from './logger.js';
+import {
+  register,
+  registerRuntimeGauges,
+  roomsCreated,
+  roomJoins,
+  gamesStarted,
+  gamesOver,
+  guesses,
+  connectionsTotal,
+} from './metrics.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 const ORIGIN = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*';
@@ -34,10 +46,37 @@ const speedLimitMs = (digits: number): number =>
   digits >= 4 ? SPEED_LIMIT_4_MS : SPEED_LIMIT_3_MS;
 const GRACE_MS = Number(process.env.GRACE_MS) || 90000;
 
+// /metrics 접근 토큰(선택). METRICS_TOKEN 설정 시 Bearer 또는 ?token= 필요.
+const METRICS_TOKEN = process.env.METRICS_TOKEN || '';
+
 const httpServer = createServer((req, res) => {
-  if (req.url === '/health') {
+  const url = req.url || '';
+  if (url === '/health') {
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('ok');
+    return;
+  }
+  if (url.startsWith('/metrics')) {
+    if (METRICS_TOKEN) {
+      const auth = req.headers.authorization === `Bearer ${METRICS_TOKEN}`;
+      const q = url.includes(`token=${METRICS_TOKEN}`);
+      if (!auth && !q) {
+        res.writeHead(401);
+        res.end();
+        return;
+      }
+    }
+    register
+      .metrics()
+      .then((body) => {
+        res.writeHead(200, { 'content-type': register.contentType });
+        res.end(body);
+      })
+      .catch((err) => {
+        logger.error({ err }, 'metrics 수집 실패');
+        res.writeHead(500);
+        res.end();
+      });
     return;
   }
   res.writeHead(404);
@@ -52,6 +91,12 @@ const io = new Server<ClientToServerEvents, ServerToClientEvents, Record<string,
     pingTimeout: 40000,
   },
 );
+
+// 스크레이프 시점에 현재 소켓·방 상태를 읽는 게이지 등록.
+registerRuntimeGauges({
+  socketCount: () => io.engine.clientsCount,
+  roomStats,
+});
 
 function sanitizeNick(nick: unknown): string {
   const n = String(nick ?? '').trim().slice(0, 12);
@@ -68,6 +113,8 @@ function endGame(room: Room, outcome: Outcome): void {
   };
   room.lastOver = payload;
   io.to(room.code).emit('over', payload);
+  gamesOver.inc({ mode: 'duel' });
+  logger.info({ code: room.code, outcome }, 'duel over');
 }
 
 function advanceAfterReveal(room: Room, guesser: 0 | 1): void {
@@ -120,6 +167,8 @@ function endSpeed(room: Room): void {
     secret: room.speedSecret ?? '',
     histories: speedHistories(room),
   });
+  gamesOver.inc({ mode: 'speed' });
+  logger.info({ code: room.code, players: activeCount(room) }, 'speed over');
 }
 // 전원 맞히면 종료(정상), 5분 초과 시 강제 종료는 startSpeed의 타이머가 endSpeed 호출.
 function maybeEndSpeed(room: Room): void {
@@ -130,6 +179,8 @@ function maybeEndSpeed(room: Room): void {
 
 io.on('connection', (socket) => {
   const data = socket.data;
+  connectionsTotal.inc();
+  logger.info({ sid: socket.id }, 'socket connected');
 
   socket.on('create', ({ nick, digits, mode }, ack) => {
     const d = digits === 4 ? 4 : 3;
@@ -138,6 +189,8 @@ io.on('connection', (socket) => {
     data.code = room.code;
     data.index = 0;
     socket.join(room.code);
+    roomsCreated.inc({ mode: m });
+    logger.info({ code: room.code, mode: m, digits: d, sid: socket.id }, 'room created');
     ack({ ok: true, code: room.code, index: 0, digits: d, mode: m, token: room.players[0].token });
   });
 
@@ -152,6 +205,8 @@ io.on('connection', (socket) => {
     data.code = c;
     data.index = res.index;
     socket.join(c);
+    roomJoins.inc({ mode: room.mode });
+    logger.info({ code: c, mode: room.mode, index: res.index, sid: socket.id }, 'player joined');
 
     if (room.mode === 'speed') {
       ack({
@@ -239,6 +294,8 @@ io.on('connection', (socket) => {
       limitMs: limit,
     });
     broadcastSpeedProgress(room);
+    gamesStarted.inc({ mode: 'speed' });
+    logger.info({ code: room.code, players: activeCount(room), digits: room.digits }, 'speed started');
   });
 
   // 스피드 재대결 — 종료된 방을 로비로 리셋(남은 인원 유지).
@@ -282,6 +339,8 @@ io.on('connection', (socket) => {
       room.turn = 0;
       room.pending = false;
       io.to(room.code).emit('start', { turn: 0, digits: room.digits });
+      gamesStarted.inc({ mode: 'duel' });
+      logger.info({ code: room.code, digits: room.digits }, 'duel started');
     }
   });
 
@@ -314,6 +373,7 @@ io.on('connection', (socket) => {
       }
       const judgement = judge(room.speedSecret, g);
       const now = Date.now();
+      guesses.inc({ mode: 'speed' });
       me.history.push({ guess: g, judgement });
       me.attempts = me.history.length; // 순위는 횟수+시간 합산 점수로(speedStandings). 지연 페널티 없음.
       if (isWin(judgement, room.digits)) {
@@ -347,6 +407,7 @@ io.on('connection', (socket) => {
       return;
     }
     const judgement = judge(opponentSecret, g);
+    guesses.inc({ mode: 'duel' });
     room.histories[p].push({ guess: g, judgement });
     if (isWin(judgement, room.digits)) room.solved[p] = true;
     ack({ ok: true });
@@ -498,6 +559,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    logger.info({ sid: socket.id, code: data.code }, 'socket disconnected');
     const room = getRoom(data.code);
     if (!room || data.index == null) return;
     const idx = data.index;
@@ -542,5 +604,6 @@ io.on('connection', (socket) => {
 });
 
 httpServer.listen(PORT, () => {
+  logger.info({ port: PORT }, '[number-baseball] online server listening');
   console.log(`[number-baseball] online server listening on :${PORT}`);
 });

@@ -183,6 +183,19 @@ export function activeCount(room: Room): number {
   return room.players.filter((p) => !p.gone).length;
 }
 
+/** 메트릭용 현재 상태 — 활성 방 수(모드별)·전체 인원. */
+export function roomStats(): { rooms: { duel: number; speed: number }; players: number } {
+  let duel = 0;
+  let speed = 0;
+  let players = 0;
+  for (const room of rooms.values()) {
+    if (room.mode === 'speed') speed++;
+    else duel++;
+    players += activeCount(room);
+  }
+  return { rooms: { duel, speed }, players };
+}
+
 /** 남아있는 전원이 맞혔는지(스피드 종료 판정). 참가자 0이면 false. */
 export function allSpeedSolved(room: Room): boolean {
   const active = room.players.filter((p) => !p.gone);
