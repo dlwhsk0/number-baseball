@@ -21,7 +21,7 @@ type GameType = 'speed' | 'duel';
 
 // 앱 아이콘 버전. 올릴 때마다 설치된 사용자에게 '홈 화면 재설치' 안내를 한 번 띄운다.
 // (PWA 홈 화면 아이콘은 OS가 설치 시점에 캐시 → 매니페스트만 바꿔선 안 바뀜.)
-const ICON_VERSION = '3';
+const ICON_VERSION = '2';
 type Launch =
   | { conn: 'online'; gameType: GameType; action: 'create' | 'join'; code?: string }
   | { conn: 'local'; gameType: GameType };
