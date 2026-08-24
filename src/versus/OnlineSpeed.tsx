@@ -396,7 +396,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     const isHost = myIndex === 0;
     return (
       <div className="versus versus-center">
-        <p className="handoff-sub">스피드 대결 — 인원을 모아요 ({roster.length}/4)</p>
+        <p className="handoff-sub">스피드 대결 — 인원을 모아요 ({roster.length}/6)</p>
         <div className="online-menu-card lobby-card">
           <div className="room-code" aria-label={`방 코드 ${code}`}>
             {code}

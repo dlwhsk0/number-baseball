@@ -341,19 +341,21 @@
 :root[data-theme='doosan'] .scoreboard {
   position: relative;
 }
-:root[data-theme='doosan'] .scoreboard > *:not(.doosan-watermark) {
+:root[data-theme='doosan'] .scoreboard > * {
   position: relative;
   z-index: 1;
 }
-.doosan-watermark {
+/* 두산 로고 워터마크 — 솔로·온라인(주고받기/스피드) 전광판 공통. 배경 레이어라 스크롤 안 함. */
+:root[data-theme='doosan'] .scoreboard::after {
+  content: '';
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(60%, 250px);
-  max-height: 80%;
-  object-fit: contain;
-  opacity: 0.16; /* 투명 SVG라 로고만 은은하게(흰 박스 없음) */
+  width: min(58%, 240px);
+  height: 78%;
+  background: url('/doosan-bears.svg') center / contain no-repeat;
+  opacity: 0.15;
   pointer-events: none;
   z-index: 0;
 }
