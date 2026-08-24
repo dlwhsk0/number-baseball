@@ -77,6 +77,30 @@
   box-shadow: inset 0 1px 2px rgba(20, 30, 50, 0.18);
 }
 
+/* ===== 두산 베어스 테마 — 숨은 이스터에그(설정 속 로고 탭). =====
+   다크/글라스 유지 + 네이비 바탕 + 레드 액센트(두산 컬러). */
+:root[data-theme='doosan'] {
+  color-scheme: dark;
+  --bg: #0b0f2a; /* 두산 네이비 */
+  --panel: rgba(26, 32, 74, 0.5);
+  --panel-2: rgba(40, 48, 96, 0.55);
+  --cell: rgba(11, 15, 40, 0.6);
+  --key: rgba(32, 40, 88, 0.52);
+  --text: #eef1ff;
+  --muted: #9aa6cf;
+  --border: rgba(150, 165, 220, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #eef2ff;
+  --glow: rgba(210, 220, 255, 0.42);
+  --accent: #e83a45; /* 두산 레드 — 확인·활성·입력 칸 */
+  --accent-glow: rgba(232, 58, 69, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #2b3358;
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

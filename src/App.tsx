@@ -266,38 +266,42 @@ export default function App() {
     setShowRules(true);
   }, [showIntro, seenRules]);
 
-  // 이스터에그: 라이트('주간') 모드. 다크가 무조건 기본 — 세션 한정이라 새로고침하면 다시 다크.
-  // 'history' 라벨을 길게 눌러 전환.
-  const [dayMode, setDayMode] = useState(false);
+  // 테마: 설정에서 다크/라이트 선택(저장). 두산 베어스는 숨은 이스터에그(설정 속 로고 탭).
+  const [theme, setTheme] = useState<'dark' | 'light' | 'doosan'>(() => {
+    const s = typeof localStorage !== 'undefined' ? localStorage.getItem('nb_theme') : null;
+    return s === 'light' || s === 'doosan' ? s : 'dark';
+  });
   const [eggMsg, setEggMsg] = useState<string | null>(null);
-  const holdRef = useRef<number | undefined>(undefined);
-  // 사용자가 실제로 테마를 토글했을 때만 토스트(마운트·StrictMode 재실행 땐 안 뜨게).
+  // 사용자가 실제로 테마를 바꿨을 때만 토스트(마운트·StrictMode 재실행 땐 안 뜨게).
   const userToggledThemeRef = useRef(false);
 
   useEffect(() => {
     const root = document.documentElement;
-    if (dayMode) root.setAttribute('data-theme', 'light');
-    else root.removeAttribute('data-theme');
+    if (theme === 'dark') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('nb_theme', theme);
+    } catch {
+      /* 저장 불가 무시 */
+    }
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', dayMode ? '#eef1f5' : '#000000');
+    if (meta)
+      meta.setAttribute(
+        'content',
+        theme === 'light' ? '#eef1f5' : theme === 'doosan' ? '#0b0f2a' : '#000000',
+      );
     if (!userToggledThemeRef.current) return;
     userToggledThemeRef.current = false;
-    setEggMsg(dayMode ? '☀️ 라이트 모드' : '🌙 다크 모드');
-    const t = window.setTimeout(() => setEggMsg(null), 1500);
+    setEggMsg(
+      theme === 'light' ? '☀️ 라이트 모드' : theme === 'doosan' ? '🐻 두산 베어스 테마!' : '🌙 다크 모드',
+    );
+    const t = window.setTimeout(() => setEggMsg(null), 1600);
     return () => window.clearTimeout(t);
-  }, [dayMode]);
+  }, [theme]);
 
-  const startHold = () => {
-    holdRef.current = window.setTimeout(() => {
-      userToggledThemeRef.current = true;
-      setDayMode((v) => !v);
-    }, 800);
-  };
-  const cancelHold = () => {
-    if (holdRef.current !== undefined) {
-      window.clearTimeout(holdRef.current);
-      holdRef.current = undefined;
-    }
+  const changeTheme = (t: 'dark' | 'light' | 'doosan') => {
+    userToggledThemeRef.current = true;
+    setTheme(t);
   };
 
   // 이스터에그 2: 하단 깃허브 로고를 여러 번 누르면 '개발자 모드' 해금(삼성 개발자모드 오마주).
@@ -472,15 +476,7 @@ export default function App() {
       {/* 상단: 전광판 — 기록, 게임 종료 시 결과 발표 */}
       <section className="history-section scoreboard">
         <div className="history-head">
-          <span
-            className="egg-trigger"
-            onPointerDown={startHold}
-            onPointerUp={cancelHold}
-            onPointerLeave={cancelHold}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            history
-          </span>
+          <span className="history-label">history</span>
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
@@ -768,6 +764,28 @@ export default function App() {
             <h3 className="settings-title">설정</h3>
 
             <div className="settings-row">
+              <span className="settings-label">테마</span>
+              <div className="seg" role="group" aria-label="테마">
+                <button
+                  type="button"
+                  className={`seg-btn${theme === 'dark' ? ' active' : ''}`}
+                  aria-pressed={theme === 'dark'}
+                  onClick={() => changeTheme('dark')}
+                >
+                  다크
+                </button>
+                <button
+                  type="button"
+                  className={`seg-btn${theme === 'light' ? ' active' : ''}`}
+                  aria-pressed={theme === 'light'}
+                  onClick={() => changeTheme('light')}
+                >
+                  라이트
+                </button>
+              </div>
+            </div>
+
+            <div className="settings-row">
               <span className="settings-label">자릿수</span>
               <div className="seg" role="group" aria-label="자릿수">
                 {[3, 4].map((d) => (
@@ -838,6 +856,16 @@ export default function App() {
               onClick={() => setShowSettings(false)}
             >
               닫기
+            </button>
+
+            {/* 숨은 이스터에그: 조용히 두산 테마로. 로고 파일 받으면 아래 이모지를 <img src="/doosan-mark.png" .../>로 교체. */}
+            <button
+              type="button"
+              className={`doosan-egg${theme === 'doosan' ? ' on' : ''}`}
+              aria-label="테마 이스터에그"
+              onClick={() => changeTheme(theme === 'doosan' ? 'dark' : 'doosan')}
+            >
+              🐻
             </button>
           </div>
         </div>

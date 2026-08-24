@@ -293,6 +293,7 @@
 
 /* 설정 시트(⚙ → 모달) */
 .settings-sheet {
+  position: relative;
   width: min(100%, 340px);
   display: flex;
   flex-direction: column;
@@ -305,6 +306,36 @@
   -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.4);
   backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(1.4);
   animation: modal-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+/* 숨은 이스터에그 트리거(두산 테마) — 설정 시트 구석에 은은하게. */
+.doosan-egg {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.14;
+  filter: grayscale(0.5);
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+}
+.doosan-egg:hover,
+.doosan-egg:focus-visible,
+.doosan-egg:active {
+  opacity: 0.55;
+  filter: none;
+}
+.doosan-egg.on {
+  opacity: 0.95;
+  filter: none;
+  transform: scale(1.08);
 }
 .settings-title {
   margin: 0 0 2px;
