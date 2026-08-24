@@ -1,0 +1,9 @@
+# 루트 Dockerfile 빌드 컨텍스트 최소화 — 서버 빌드에 필요한 server/ 만 쓰면 됨.
+**/node_modules
+**/dist
+.git
+.github
+store-assets
+public
+docs
+*.log

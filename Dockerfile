@@ -1,6 +1,6 @@
-# 숫자 야구 온라인 서버 — Docker/Dokploy 배포용.
-# 빌드 컨텍스트는 이 폴더(server/). 모노레포 하위지만 루트 의존 없이 독립 빌드된다.
-#   Dokploy 설정: Build Path(Base Directory)=/server, Dockerfile Path=Dockerfile
+# 숫자 야구 온라인 서버 — Docker/Dokploy 배포용 (리포 루트 컨텍스트).
+# Dokploy 기본 설정으로 바로 동작한다: Build Path=`/`, Docker File=`Dockerfile`.
+# 서버는 모노레포의 server/ 폴더 → 루트 컨텍스트에서 그 폴더만 빌드한다.
 #
 # 상태(방)는 메모리에만 있으므로 반드시 단일 인스턴스(replicas=1)로 실행할 것.
 
@@ -8,10 +8,10 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml ./
+COPY server/package.json server/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
-COPY tsconfig.json ./
-COPY src ./src
+COPY server/tsconfig.json ./
+COPY server/src ./src
 RUN pnpm build
 
 # --- 런타임 스테이지: 프로덕션 의존성만 ---
@@ -20,7 +20,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 RUN corepack enable
-COPY package.json pnpm-lock.yaml ./
+COPY server/package.json server/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 COPY --from=build /app/dist ./dist
 EXPOSE 3001

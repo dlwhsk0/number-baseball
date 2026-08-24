@@ -31,7 +31,7 @@
 - **VPS**: Ubuntu 22.04/24.04, RAM 2–4GB 권장, root(또는 sudo) 접근. 준비됨(`<SERVER_IP>`).
 - **방화벽/보안그룹 오픈**: `80`, `443`(웹/TLS), `22`(SSH), `3000`(Dokploy UI — 가능하면 내 IP로 제한).
 - **DNS**: `<SERVER_DOMAIN>`의 A 레코드를 `<SERVER_IP>`로. (인증서 발급 전에 먼저 전파돼 있어야 함.)
-- 레포에 **`server/Dockerfile`** 이미 있음(이 커밋). 로컬 `docker build`로 검증 완료(`/health` 200).
+- 레포 **루트에 `Dockerfile`** 있음(루트 컨텍스트에서 `server/` 빌드). 로컬 `docker build`로 검증 완료(`/health` 200).
 
 ---
 
@@ -92,14 +92,16 @@ curl -sSL https://dokploy.com/install.sh | sh
 
 ---
 
-## 4. 빌드 설정 (Dockerfile, 모노레포 하위 폴더)
-서버는 모노레포의 **`server/`** 하위 폴더다. **Build** 탭:
+## 4. 빌드 설정 (루트 Dockerfile — Dokploy 기본값 그대로)
+**Dockerfile을 리포 루트에 두었다.** 루트 컨텍스트에서 `server/` 만 빌드하도록 작성돼 있어
+**Dokploy 기본값 그대로** 동작한다. **Build** 탭:
 - **Build Type**: `Dockerfile`
-- **Build Path / Base Directory**: `/server`  ← 컨텍스트를 server 폴더로
-- **Dockerfile Path**: `Dockerfile`  (Base Directory 기준. UI에 따라 `server/Dockerfile` 전체경로를 요구하면 그렇게)
-- **Watch Paths**(자동배포 필터, 선택): `server/**` — server 폴더 변경 시에만 재빌드
+- **Build Path**: `/`  (기본값 그대로)
+- **Docker File**: `Dockerfile`  (기본값 그대로 — 비워도 됨)
+- **Watch Paths**(자동배포 필터, 선택): `server/**`, `Dockerfile`
 
-> Dockerfile은 컨텍스트를 `server/`로 가정하고 작성됨. `Build Path=/server`가 핵심.
+> 왜 루트에? Dokploy가 `server/Dockerfile` 하위 경로를 못 찾는 경우(`open Dockerfile: no such file`)가 잦아서,
+> **루트 Dockerfile + 기본 설정**이 가장 확실하다. (루트 Dockerfile이 `COPY server/...` 로 server 폴더만 가져옴.)
 
 ---
 
