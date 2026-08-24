@@ -1,0 +1,10 @@
+node_modules
+dist
+test
+*.log
+.env
+*.md
+Caddyfile.example
+.gitignore
+Dockerfile
+.dockerignore

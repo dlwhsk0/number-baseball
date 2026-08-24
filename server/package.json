@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "숫자 야구 온라인 턴제 대결 서버 (Socket.IO)",
+  "packageManager": "pnpm@10.15.1",
+  "pnpm": {
+    "ignoredBuiltDependencies": ["esbuild"]
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
