@@ -337,6 +337,28 @@
   filter: none;
   transform: scale(1.08);
 }
+/* 두산 테마 — 전광판 중앙에 흐릿한 로고 워터마크(가장자리 페이드로 박스 티 안 나게). */
+:root[data-theme='doosan'] .scoreboard {
+  position: relative;
+}
+:root[data-theme='doosan'] .scoreboard > *:not(.doosan-watermark) {
+  position: relative;
+  z-index: 1;
+}
+.doosan-watermark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(54%, 230px);
+  max-height: 76%;
+  object-fit: contain;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: radial-gradient(circle, #000 48%, transparent 73%);
+  mask-image: radial-gradient(circle, #000 48%, transparent 73%);
+}
 .settings-title {
   margin: 0 0 2px;
   text-align: center;

@@ -475,6 +475,9 @@ export default function App() {
         <>
       {/* 상단: 전광판 — 기록, 게임 종료 시 결과 발표 */}
       <section className="history-section scoreboard">
+        {theme === 'doosan' && (
+          <img className="doosan-watermark" src="/doosan-bears.png" alt="" aria-hidden="true" />
+        )}
         <div className="history-head">
           <span className="history-label">history</span>
           <span className="attempts">
