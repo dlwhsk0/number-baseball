@@ -174,9 +174,10 @@ GitHub 연동 시 Dokploy가 webhook을 건다 → `main`에 push하면 **자동
 - Dokploy는 배포 이력을 보관 → 이전 배포로 **Rollback** 가능.
 - 새 서버가 안정적으로 확인되면 구 VM 폐기.
 
-### 컷오버 후 정리(레포)
-- `CLAUDE.md`의 서버 섹션(오라클 VM/Caddy/pm2/`redeploy-server.sh`/`b-ball.duckdns.org`)을 Dokploy·새 도메인으로 갱신.
-- `scripts/redeploy-server.sh`, `server/Caddyfile.example`은 삭제 또는 "구 방식(deprecated)" 표기.
+### 컷오버 후 정리(레포) — ✅ 완료
+- `CLAUDE.md`·`server/README.md`·`server/.env.example` 서버 섹션을 Dokploy·새 도메인으로 갱신함.
+- `scripts/redeploy-server.sh`, `server/Caddyfile.example` **삭제함**(이력은 태그 `v1.0.0-pre-dokploy`).
+- 로컬 `scripts/deploy.env`(gitignore, 옛 SSH 정보)는 각자 로컬에서 삭제.
 
 ---
 
