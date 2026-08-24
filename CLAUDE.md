@@ -62,14 +62,16 @@
     (기획·아키텍처·트러블슈팅 상세: [`docs/online-multiplayer-design.md`](docs/online-multiplayer-design.md),
     [`docs/online-troubleshooting.md`](docs/online-troubleshooting.md).)
     턴제 규칙을 **서버 권위**로. 방 코드로 1:1 입장 → 비밀 설정 → 턴 동기화 → 결과·재대결. 로컬 상태는 서버 이벤트로만 전이.
-    서버는 `server/`(Node+Socket.IO, 정답 보관·판정). 접속 주소는 `VITE_SERVER_URL`(개발 기본 `http://localhost:3001`, 배포 `wss://도메인`).
+    서버는 `server/`(Node+Socket.IO, 정답 보관·판정). 접속 주소는 `VITE_SERVER_URL`(개발 기본 `http://localhost:3001`, 배포 `wss://homerun.techeer.cloud-yaho.cloud`).
     `protocol.ts`는 `server/src/types.ts`와 동일하게 유지. 규칙 로직 `logic.ts`는 프론트·서버 양쪽에 복제(함께 수정).
     **재접속 복구**: 끊겨도 서버가 방을 바로 안 지우고 유예(`GRACE_MS` 기본 90s — 모바일 백그라운드 대비 넉넉히).
     클라는 세션(코드·자리·토큰)을 **`sessionStorage`(`nb_online_session`)에 저장** → 탭이 리로드/백그라운드 복귀해도 마운트 시 복원해 자동 `rejoin`(그동안 "방에 다시 연결하는 중" 화면, 9s 타임아웃 폴백).
     소켓 재연결 시 `rejoin`으로 다시 합류하고 `resume`으로 상태 동기화. 나가기·방 만료·상대 이탈 시 세션 삭제. (`opponentDisconnected/Reconnected` 알림, `NetStatus` 배너.)
     **방장 소유 방 수명**(턴제): 방은 방장(index 0) 소유. **방장이 나가면 방 종료**(후공은 결과 화면), **후공이 나가면 방장은 방을 유지한 채 다시 대기(lobby)**(`resetDuelToWaiting`, 새 상대 입장 가능). 끊김도 유예 후 같은 규칙. 클라의 `opponentLeft`는 내 index로 분기(방장=대기 복귀, 후공=종료). **승패(`over`) 나면 저장 세션 해제**(새로고침·실수 이탈해도 재접속 안 함), 재대결 시작(`phase`) 때 다시 저장.
-    Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **서버 코드 바꾸면 VM 재배포 필요** — `scripts/redeploy-server.sh`
-    (접속 정보는 `scripts/deploy.env`, gitignore. VM `ubuntu@151.145.75.107`, 도메인 `wss://b-ball.duckdns.org`, pm2 `nb-server`). 수동: `git pull && pnpm -C server build && pm2 restart nb-server`.
+    Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **배포는 Dokploy**(셀프호스팅, Docker+Traefik). 방 상태가 메모리에만 있어 **반드시 단일 인스턴스(replicas=1)**.
+    (상세 절차·트러블슈팅: [`docs/dokploy-deploy.md`](docs/dokploy-deploy.md).)
+    루트 **`Dockerfile`**(루트 컨텍스트에서 `server/`만 빌드, Node22-alpine·pnpm·`/health`)로 빌드. Dokploy는 GitHub(`dlwhsk0/number-baseball`, `main`) 연동 → **`main`에 push하면 자동 재배포**(Webhook). 도메인 `wss://homerun.techeer.cloud-yaho.cloud`(Techeer 공유 Dokploy, `*.techeer.cloud-yaho.cloud` 와일드카드 DNS + Traefik Let's Encrypt), 컨테이너 포트 3001, env `CORS_ORIGIN`=프론트 Vercel 주소. 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/<name>.mjs`.
+    (옛 오라클 VM + Caddy + pm2(`scripts/redeploy-server.sh`, `b-ball.duckdns.org`)는 **폐기(deprecated)** — 롤백 필요 시 Vercel `VITE_SERVER_URL`을 옛 주소로.)
     연출: 추측 후 **결과 발표 텀**(서버 `reveal` → `REVEAL_MS` 뒤 turn/over, 그동안 `pending`으로 입력 차단), 특이 이벤트 리액션,
     상대 입장 직후 **VS 매치업 연출**(`vsIntro` — `phase` 이벤트 받으면 양쪽 닉네임 슬라이드+`VS` 팝 ~2.4초 뒤 비밀 정하기로. 재대결도 동일, 재접속 복귀 땐 생략),
     선공이 맞히면 후공 **역전 찬스**, 시작 발표, 상대 대기 랜덤 멘트, **내 숫자 peek**(블러+눌러서 토글 확인/숨김),
