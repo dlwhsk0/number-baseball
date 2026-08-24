@@ -24,6 +24,7 @@ COPY server/package.json server/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 COPY --from=build /app/dist ./dist
 EXPOSE 3001
+EXPOSE 9091
 
 # 컨테이너 자체 헬스체크(/health). Node 22 전역 fetch 사용.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=8s --retries=3 \

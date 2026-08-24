@@ -23,10 +23,10 @@ pnpm start        # node dist/index.js
 - `PORT` — 리슨 포트(기본 `3001`).
 - `CORS_ORIGIN` — 허용 오리진. 쉼표로 여러 개. 배포 시 프론트 도메인만 지정(예: `https://number-baseball-chi.vercel.app`). 미지정 시 전체 허용(개발용).
 - 그 외: `REVEAL_MS`, `GRACE_MS`, `SPEED_LIMIT_3_MS`, `SPEED_LIMIT_4_MS`.
-- 관측: `LOG_LEVEL`(pino, 기본 `info`), `METRICS_TOKEN`(설정 시 `/metrics`에 Bearer/`?token=` 필요).
+- 관측: `LOG_LEVEL`(pino, 기본 `info`), `METRICS_PORT`(메트릭 전용 포트, 기본 `9091`), `METRICS_TOKEN`(설정 시 `/metrics`에 Bearer/`?token=` 필요).
 
 ## 관측 (메트릭 · 로그)
-- **메트릭**: `GET /metrics`(Prometheus 포맷, `src/metrics.ts`). Prometheus로 스크레이프 → Grafana 대시보드.
+- **메트릭**: **게임 포트(`PORT`)와 분리된 별도 포트 `METRICS_PORT`(기본 9091)** 에서 `GET /metrics`(Prometheus 포맷, `src/metrics.ts`). **게임 포트에는 노출하지 않음** → Traefik이 도메인을 `PORT`로만 라우팅하므로 `https://도메인/metrics`는 404(공개 안 됨). Prometheus는 Docker 네트워크 내부에서 `http://<서비스>:9091/metrics`로 스크레이프.
   - 카운터: `nb_rooms_created_total`·`nb_room_joins_total`·`nb_games_started_total`·`nb_games_over_total`·`nb_guesses_total`(모두 `mode` 라벨)·`nb_socket_connections_total`.
   - 게이지: `nb_sockets_connected`·`nb_rooms_active{mode}`·`nb_players_in_rooms`(스크레이프 시점 계산).
   - 기본: `process_*`/`nodejs_*`(CPU·메모리·이벤트루프 지연 등).

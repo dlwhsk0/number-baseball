@@ -46,16 +46,24 @@ const speedLimitMs = (digits: number): number =>
   digits >= 4 ? SPEED_LIMIT_4_MS : SPEED_LIMIT_3_MS;
 const GRACE_MS = Number(process.env.GRACE_MS) || 90000;
 
-// /metrics 접근 토큰(선택). METRICS_TOKEN 설정 시 Bearer 또는 ?token= 필요.
-const METRICS_TOKEN = process.env.METRICS_TOKEN || '';
-
+// 게임용 공개 서버(PORT). Traefik이 도메인을 이 포트로만 라우팅 → /health만 공개.
 const httpServer = createServer((req, res) => {
-  const url = req.url || '';
-  if (url === '/health') {
+  if ((req.url || '') === '/health') {
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('ok');
     return;
   }
+  res.writeHead(404);
+  res.end();
+});
+
+// 메트릭은 게임 포트와 분리된 별도 포트(METRICS_PORT)로만 노출한다.
+// Traefik은 도메인을 PORT로만 라우팅하므로 /metrics는 도메인으로 공개되지 않고,
+// Prometheus가 Docker 네트워크 내부에서 http://<서비스>:METRICS_PORT/metrics 로만 스크레이프.
+const METRICS_PORT = Number(process.env.METRICS_PORT) || 9091;
+const METRICS_TOKEN = process.env.METRICS_TOKEN || ''; // 설정 시 Bearer/?token= 추가 요구(방어 심화)
+const metricsServer = createServer((req, res) => {
+  const url = req.url || '';
   if (url.startsWith('/metrics')) {
     if (METRICS_TOKEN) {
       const auth = req.headers.authorization === `Bearer ${METRICS_TOKEN}`;
@@ -606,4 +614,9 @@ io.on('connection', (socket) => {
 httpServer.listen(PORT, () => {
   logger.info({ port: PORT }, '[number-baseball] online server listening');
   console.log(`[number-baseball] online server listening on :${PORT}`);
+});
+
+// 메트릭 전용 서버(비공개 포트). 도메인으로 노출되지 않음.
+metricsServer.listen(METRICS_PORT, () => {
+  logger.info({ port: METRICS_PORT }, 'metrics server listening (비공개)');
 });
