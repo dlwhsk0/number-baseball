@@ -531,6 +531,12 @@
   display: grid;
   gap: 10px;
 }
+/* 솔로 입력행 — 높이 고정(=3자리 슬롯 높이). 4자리는 슬롯이 작아도 행 높이 유지 →
+   타자석 높이가 안 변해 전광판(flex:1) 박스 높이도 3·4자리 동일. */
+.batter-box .input-display {
+  min-height: 92px;
+  align-items: center;
+}
 
 /* 숫자 블럭 셀 — 슬롯·키패드·기록 공용(검정 셀 + 안쪽 그림자) */
 .cell {
