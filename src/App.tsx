@@ -48,11 +48,31 @@ function getInitialHint(): boolean {
   }
   return false;
 }
+const ATTEMPT_PRESETS = [5, 10, 15];
+function getInitialAttempts(): number {
+  try {
+    const n = Number(localStorage.getItem('nb_max_attempts'));
+    if (Number.isInteger(n) && n >= 1 && n <= 99) return n;
+  } catch {
+    /* 무시 */
+  }
+  return 10;
+}
 
 export default function App() {
   const [digits, setDigitsPref] = useState<number>(getInitialDigits);
   const [hint, setHintPref] = useState<boolean>(getInitialHint);
-  const { state, judgeGuess, toggleMemo, clearMemo, setHint, reset } = useGame(digits, hint);
+  const [maxAttempts, setMaxAttemptsPref] = useState<number>(getInitialAttempts);
+  // '직접' 입력 모드 여부(저장값이 프리셋이 아니면 켜진 상태로 시작) + 입력 텍스트.
+  const [attemptsCustom, setAttemptsCustom] = useState(
+    () => !ATTEMPT_PRESETS.includes(getInitialAttempts()),
+  );
+  const [attemptsInput, setAttemptsInput] = useState(() => String(getInitialAttempts()));
+  const { state, judgeGuess, toggleMemo, clearMemo, setHint, setMaxAttempts, reset } = useGame(
+    digits,
+    hint,
+    maxAttempts,
+  );
   // GuessPad 입력칸·후보 메모를 새 판/자릿수 변경 시 비우는 신호(값이 바뀌면 리셋).
   const [padReset, setPadReset] = useState(0);
   const [section, setSection] = useState<Section>('solo');
@@ -396,6 +416,24 @@ export default function App() {
       return;
     }
     doChangeDigits(d);
+  };
+
+  // 시도 제한도 라이브 변경(새 판 안 함) — 늘리면 즉시 더 시도, 줄이면 즉시 반영.
+  const applyAttempts = (n: number) => {
+    const v = Math.max(1, Math.min(99, Math.floor(n)));
+    setMaxAttemptsPref(v);
+    persist('nb_max_attempts', String(v));
+    setMaxAttempts(v);
+  };
+  const pickAttempts = (n: number) => {
+    setAttemptsCustom(false);
+    setAttemptsInput(String(n));
+    applyAttempts(n);
+  };
+  const onAttemptsInput = (raw: string) => {
+    setAttemptsInput(raw);
+    const n = parseInt(raw, 10);
+    if (!Number.isNaN(n) && n >= 1 && n <= 99) applyAttempts(n);
   };
 
   // 힌트는 라이브 토글(새 판 안 함) — 이후 제출부터 적용.
@@ -801,6 +839,55 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            <div className="settings-row">
+              <span className="settings-label">시도</span>
+              <div className="seg" role="group" aria-label="시도 횟수">
+                {ATTEMPT_PRESETS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`seg-btn${!attemptsCustom && maxAttempts === n ? ' active' : ''}`}
+                    aria-pressed={!attemptsCustom && maxAttempts === n}
+                    onClick={() => pickAttempts(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`seg-btn${attemptsCustom ? ' active' : ''}`}
+                  aria-pressed={attemptsCustom}
+                  onClick={() => {
+                    setAttemptsCustom(true);
+                    setAttemptsInput(String(maxAttempts));
+                  }}
+                >
+                  직접
+                </button>
+              </div>
+            </div>
+            {attemptsCustom && (
+              <div className="settings-row settings-attempts-custom">
+                <span className="settings-label">직접 입력</span>
+                <div className="settings-attempts-field">
+                  <input
+                    type="number"
+                    className="settings-attempts-input"
+                    min={1}
+                    max={99}
+                    inputMode="numeric"
+                    value={attemptsInput}
+                    aria-label="시도 횟수 직접 입력"
+                    onChange={(e) => onAttemptsInput(e.target.value)}
+                    onBlur={() => {
+                      if (!/^\d+$/.test(attemptsInput)) setAttemptsInput(String(maxAttempts));
+                    }}
+                  />
+                  <span className="settings-attempts-unit">회</span>
+                </div>
+              </div>
+            )}
 
             <div className="settings-row">
               <span className="settings-label">

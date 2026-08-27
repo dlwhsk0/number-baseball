@@ -364,6 +364,36 @@
   .scoreboard:not(.duel-board):not(.sp-race-board):not(.sp-scoreboard)::after {
   top: calc(50% + 14px);
 }
+/* 시도 횟수 '직접 입력' 필드 */
+.settings-attempts-custom {
+  margin-top: -6px;
+}
+.settings-attempts-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-attempts-input {
+  width: 84px;
+  padding: 8px 10px;
+  text-align: center;
+  font-family: var(--font-digit);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--cell);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.settings-attempts-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.settings-attempts-unit {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 .settings-title {
   margin: 0 0 2px;
   text-align: center;

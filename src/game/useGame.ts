@@ -41,6 +41,7 @@ export type GameAction =
   | { type: 'memo'; digit: string; mark: MemoMark }
   | { type: 'clearMemo' }
   | { type: 'setBeginner'; beginner: boolean }
+  | { type: 'setMaxAttempts'; maxAttempts: number }
   | { type: 'reset'; secret: string; maxAttempts: number; digits?: number; beginner?: boolean };
 
 function emptySlots(digits: number): string[] {
@@ -197,6 +198,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'setBeginner':
       // 힌트 토글(라이브). 이후 제출부터 적용.
       return { ...state, beginner: action.beginner };
+    case 'setMaxAttempts': {
+      // 시도 제한 라이브 변경. 이긴 판은 그대로, 그 외엔 추측 수로 진행/패배 재판정
+      // (제한을 늘리면 패배→진행 부활, 줄이면 진행→패배).
+      const max = action.maxAttempts;
+      const status =
+        state.status === 'won' ? 'won' : state.guesses.length >= max ? 'lost' : 'playing';
+      return { ...state, maxAttempts: max, status };
+    }
     case 'reset':
       return initGame(
         action.secret,
@@ -227,6 +236,8 @@ export function useGame(initialDigits = 3, initialHint = false, maxAttempts = 10
     clearMemo: () => dispatch({ type: 'clearMemo' }),
     /** 힌트(개인 기능) 라이브 토글. */
     setHint: (hint: boolean) => dispatch({ type: 'setBeginner', beginner: hint }),
+    /** 시도 제한 라이브 변경. */
+    setMaxAttempts: (n: number) => dispatch({ type: 'setMaxAttempts', maxAttempts: n }),
     /** 지정 자릿수·힌트로 새 게임. */
     reset: (digits: number, hint: boolean) => {
       dispatch({ type: 'reset', secret: generateSecret(digits), maxAttempts, digits, beginner: hint });
