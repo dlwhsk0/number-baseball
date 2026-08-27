@@ -18,6 +18,7 @@ import './App.css';
 
 type Section = 'solo' | 'multi';
 type GameType = 'speed' | 'duel';
+type Theme = 'dark' | 'light' | 'doosan' | 'lgtwins';
 
 // 앱 아이콘 버전. 올릴 때마다 설치된 사용자에게 '홈 화면 재설치' 안내를 한 번 띄운다.
 // (PWA 홈 화면 아이콘은 OS가 설치 시점에 캐시 → 매니페스트만 바꿔선 안 바뀜.)
@@ -286,10 +287,10 @@ export default function App() {
     setShowRules(true);
   }, [showIntro, seenRules]);
 
-  // 테마: 설정에서 다크/라이트 선택(저장). 두산 베어스는 숨은 이스터에그(설정 속 로고 탭).
-  const [theme, setTheme] = useState<'dark' | 'light' | 'doosan'>(() => {
+  // 테마: 설정에서 다크/라이트 선택(저장). 두산·LG는 숨은 이스터에그(설정 속 트리거 탭).
+  const [theme, setTheme] = useState<Theme>(() => {
     const s = typeof localStorage !== 'undefined' ? localStorage.getItem('nb_theme') : null;
-    return s === 'light' || s === 'doosan' ? s : 'dark';
+    return s === 'light' || s === 'doosan' || s === 'lgtwins' ? s : 'dark';
   });
   const [eggMsg, setEggMsg] = useState<string | null>(null);
   // 사용자가 실제로 테마를 바꿨을 때만 토스트(마운트·StrictMode 재실행 땐 안 뜨게).
@@ -305,21 +306,33 @@ export default function App() {
       /* 저장 불가 무시 */
     }
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta)
-      meta.setAttribute(
-        'content',
-        theme === 'light' ? '#eef1f5' : theme === 'doosan' ? '#0b0f2a' : '#000000',
-      );
+    if (meta) {
+      const color =
+        theme === 'light'
+          ? '#eef1f5'
+          : theme === 'doosan'
+            ? '#0b0f2a'
+            : theme === 'lgtwins'
+              ? '#120910'
+              : '#000000';
+      meta.setAttribute('content', color);
+    }
     if (!userToggledThemeRef.current) return;
     userToggledThemeRef.current = false;
-    setEggMsg(
-      theme === 'light' ? '☀️ 라이트 모드' : theme === 'doosan' ? '🐻 두산 베어스 테마!' : '🌙 다크 모드',
-    );
+    const msg =
+      theme === 'light'
+        ? '☀️ 라이트 모드'
+        : theme === 'doosan'
+          ? '🐻 두산 베어스 테마!'
+          : theme === 'lgtwins'
+            ? '👯 LG 트윈스 테마!'
+            : '🌙 다크 모드';
+    setEggMsg(msg);
     const t = window.setTimeout(() => setEggMsg(null), 1600);
     return () => window.clearTimeout(t);
   }, [theme]);
 
-  const changeTheme = (t: 'dark' | 'light' | 'doosan') => {
+  const changeTheme = (t: Theme) => {
     userToggledThemeRef.current = true;
     setTheme(t);
   };
@@ -945,14 +958,22 @@ export default function App() {
               닫기
             </button>
 
-            {/* 숨은 이스터에그: 조용히 두산 테마로. 로고 파일 받으면 아래 이모지를 <img src="/doosan-mark.png" .../>로 교체. */}
+            {/* 숨은 이스터에그: 조용히 구단 테마로(우하단 나란히). */}
             <button
               type="button"
-              className={`doosan-egg${theme === 'doosan' ? ' on' : ''}`}
-              aria-label="테마 이스터에그"
+              className={`team-egg team-egg-doosan${theme === 'doosan' ? ' on' : ''}`}
+              aria-label="테마 이스터에그(두산)"
               onClick={() => changeTheme(theme === 'doosan' ? 'dark' : 'doosan')}
             >
               🐻
+            </button>
+            <button
+              type="button"
+              className={`team-egg team-egg-lg${theme === 'lgtwins' ? ' on' : ''}`}
+              aria-label="테마 이스터에그(LG)"
+              onClick={() => changeTheme(theme === 'lgtwins' ? 'dark' : 'lgtwins')}
+            >
+              👯
             </button>
           </div>
         </div>

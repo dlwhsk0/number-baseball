@@ -101,6 +101,30 @@
   --bulb-off: #2b3358;
 }
 
+/* ===== LG 트윈스 테마 — 숨은 이스터에그(설정 속 👯 탭). =====
+   다크/글라스 유지 + 검정 바탕 + LG 레드/마젠타 액센트. */
+:root[data-theme='lgtwins'] {
+  color-scheme: dark;
+  --bg: #120910; /* 거의 검정 + 살짝 레드 틴트 */
+  --panel: rgba(46, 24, 34, 0.5);
+  --panel-2: rgba(62, 32, 44, 0.55);
+  --cell: rgba(20, 10, 16, 0.6);
+  --key: rgba(48, 26, 36, 0.52);
+  --text: #fdeef2;
+  --muted: #cf9aa9;
+  --border: rgba(220, 150, 170, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #ffeef3;
+  --glow: rgba(255, 210, 225, 0.42);
+  --accent: #e0114a; /* LG 레드/마젠타 — 확인·활성·입력 칸 */
+  --accent-glow: rgba(224, 17, 74, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #3a2530;
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
