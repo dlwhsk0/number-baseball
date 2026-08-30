@@ -152,14 +152,28 @@ Socket.IO는 폴링 폴백 + 관대한 ping(`pingInterval` 25s, `pingTimeout` 40
 
 ## 10. 배포 구성
 
-- **서버**: Oracle Cloud Always Free VM(Ubuntu). pm2로 상주(`nb-server`), 2GB 스왑.
-- **TLS**: 프론트가 HTTPS라 `wss://` 필수 → **Caddy**가 자동 Let's Encrypt 인증서 + 리버스 프록시
-  (`reverse_proxy localhost:3001`). 도메인이 없으면 `<공인IP>.sslip.io` 사용.
-- **CORS**: `CORS_ORIGIN=https://number-baseball-chi.vercel.app`(배포 프론트만 허용).
-- **프론트 연결**: Vercel env `VITE_SERVER_URL = wss://<HOST>` 설정 후 재배포.
-- **서버 코드 바꾸면 재배포 필요**: `git pull && pnpm -C server build && pm2 restart nb-server`.
+- **프론트**: Vercel. 도메인 `https://homerun-bb.vercel.app`(대표) · `https://number-baseball-chi.vercel.app`(구 주소).
+  구 주소는 **클라이언트 사이드로 이사 처리** — 브라우저면 `index.html` 인라인 스크립트가 페인트 전에 대표 주소로 넘기고,
+  설치된 PWA(standalone)는 넘기지 않고 "새 주소에서 재설치" 배너만 띄운다(크로스 오리진 이동 시 scope 이탈·`localStorage` 유실 때문).
+- **서버**: **Dokploy**(셀프호스팅 PaaS, Docker + Traefik). 루트 `Dockerfile`(루트 컨텍스트에서 `server/`만 빌드,
+  node22-alpine + pnpm, `/health` 헬스체크)로 이미지 빌드 → 컨테이너 실행.
+  GitHub(`dlwhsk0/number-baseball`, `main`) 연동이라 **`main`에 push하면 자동 재배포**(Webhook).
+- **⚠️ 반드시 단일 인스턴스(replicas=1)**: 방 상태가 프로세스 메모리에만 있어 인스턴스가 늘면 방을 못 찾는다.
+- **TLS/도메인**: 프론트가 HTTPS라 `wss://` 필수 → **Traefik**이 Let's Encrypt 인증서 자동 발급 +
+  컨테이너 포트 `3001`로 프록시. 도메인 `wss://homerun.techeer.cloud-yaho.cloud`
+  (Techeer 공유 Dokploy의 `*.techeer.cloud-yaho.cloud` 와일드카드 DNS). WebSocket 업그레이드는 Traefik이 자동 처리 — 별도 설정 불필요.
+- **CORS**: `CORS_ORIGIN=https://number-baseball-chi.vercel.app,https://homerun-bb.vercel.app`
+  (배포 프론트만 허용. 쉼표로 여러 개, **공백 없이** — `split(',')`만 하고 trim은 안 한다.)
+  **프론트 도메인을 추가하면 여기도 같이 넣어야** 온라인 대전이 된다.
+- **프론트 연결**: Vercel env `VITE_SERVER_URL = wss://homerun.techeer.cloud-yaho.cloud` 설정 후 재배포.
+- **관측**: 메트릭은 **게임 포트와 분리된 `METRICS_PORT`(기본 9091)** 의 `GET /metrics`(Prometheus).
+  Traefik이 `3001`만 라우팅하므로 `도메인/metrics`는 404 — 비공개로 유지된다. 로그는 pino → stdout → Dokploy 로그.
+- **라이브 스모크**: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/<name>.mjs`.
 
-절차 상세는 [`server/README.md`](../server/README.md).
+절차 상세·트러블슈팅은 [`dokploy-deploy.md`](dokploy-deploy.md), 서버 자체 문서는 [`server/README.md`](../server/README.md).
+
+> 옛 구성(Oracle Cloud Always Free VM + Caddy + pm2)은 **폐기·제거**됐다(관련 스크립트·설정 삭제,
+> 이력은 태그 `v1.0.0-pre-dokploy`). 롤백이 필요하면 Vercel `VITE_SERVER_URL`을 옛 주소 `wss://b-ball.duckdns.org`로 되돌린다.
 
 ## 11. 규칙 로직 이중화 주의
 

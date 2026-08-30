@@ -106,17 +106,28 @@ curl -sSL https://dokploy.com/install.sh | sh
 ---
 
 ## 5. 환경변수 (Environment 탭)
+**필수는 이 둘뿐**, 나머지는 전부 기본값이 있어 생략 가능하다.
 ```
-CORS_ORIGIN=https://number-baseball-chi.vercel.app
+# --- 필수 ---
+CORS_ORIGIN=https://number-baseball-chi.vercel.app,https://homerun-bb.vercel.app
 PORT=3001
-# 아래는 선택(기본값 있음)
-REVEAL_MS=1900
-GRACE_MS=90000
-SPEED_LIMIT_3_MS=300000
-SPEED_LIMIT_4_MS=420000
+
+# --- 선택: 게임 튜닝(기본값 있음) ---
+REVEAL_MS=1900           # 결과 발표 텀(ms)
+GRACE_MS=90000           # 끊김 유예(ms) — 모바일 백그라운드 대비
+SPEED_LIMIT_3_MS=300000  # 스피드 3자리 제한시간(5분)
+SPEED_LIMIT_4_MS=420000  # 스피드 4자리 제한시간(7분)
+SCORE_SEC_PER_POINT=20   # 스피드 점수: 몇 초를 1점으로 환산할지
+
+# --- 선택: 관측(기본값 있음) ---
+LOG_LEVEL=info           # pino 로그 레벨 (trace/debug/info/warn/error)
+METRICS_PORT=9091        # 메트릭 전용 포트(게임 포트와 분리 → 도메인에 노출 안 됨)
+METRICS_TOKEN=           # 설정 시 /metrics에 Bearer 또는 ?token= 요구
 ```
-- `CORS_ORIGIN`은 **프론트(브라우저) 오리진** — 서버 도메인이 아니라 **Vercel 주소** 그대로. (여러 개면 쉼표.)
+- `CORS_ORIGIN`은 **프론트(브라우저) 오리진** — 서버 도메인이 아니라 **Vercel 주소** 그대로. 여러 개면 **쉼표로, 공백 없이**.
+  비워두면 전체 허용(`*`)이라 개발용으로만.
 - `PORT=3001`은 컨테이너 내부 포트(도메인 매핑에서 이 포트를 가리킴).
+- `METRICS_PORT`(9091)는 **Domains에 매핑하지 말 것** — 매핑 안 해야 비공개로 남는다.
 
 ---
 

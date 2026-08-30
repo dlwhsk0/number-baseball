@@ -21,7 +21,7 @@ pnpm start        # node dist/index.js
 
 ## 환경 변수
 - `PORT` — 리슨 포트(기본 `3001`).
-- `CORS_ORIGIN` — 허용 오리진. 쉼표로 여러 개. 배포 시 프론트 도메인만 지정(예: `https://number-baseball-chi.vercel.app`). 미지정 시 전체 허용(개발용).
+- `CORS_ORIGIN` — 허용 오리진. 쉼표로 여러 개. 배포 시 프론트 도메인만 지정(현재: `https://homerun-bb.vercel.app,https://number-baseball-chi.vercel.app`). 미지정 시 전체 허용(개발용).
 - 그 외: `REVEAL_MS`, `GRACE_MS`, `SPEED_LIMIT_3_MS`, `SPEED_LIMIT_4_MS`.
 - 관측: `LOG_LEVEL`(pino, 기본 `info`), `METRICS_PORT`(메트릭 전용 포트, 기본 `9091`), `METRICS_TOKEN`(설정 시 `/metrics`에 Bearer/`?token=` 필요).
 
