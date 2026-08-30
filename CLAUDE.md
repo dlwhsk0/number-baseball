@@ -5,6 +5,13 @@
 ## 스택
 - Vite + React + TypeScript
 - 배포 대상: 모바일 웹(반응형) + PWA. Vercel 배포.
+- **프론트 도메인**: `https://homerun-bb.vercel.app`(대표) ← 구 주소 `https://number-baseball-chi.vercel.app`.
+  **도메인 이사 처리는 클라이언트 사이드**(`OLD_HOST`/`NEW_ORIGIN` in `src/App.tsx`):
+  - **브라우저**로 구 주소에 오면 `index.html` 인라인 스크립트가 **페인트 전에** 대표 주소로 `location.replace`(경로·쿼리·해시 유지).
+  - **설치된 PWA(standalone)는 리다이렉트하지 않는다** — 크로스 오리진으로 나가면 scope를 벗어나 앱이 브라우저로 튕기고
+    `localStorage`(설정·닉네임)도 오리진이 달라 사라진다. 대신 `.reinstall-banner`로 **"새 주소에서 다시 설치"** 안내(세션당 1회, `sessionStorage.nb_moved_seen`).
+  - 서버(edge) 리다이렉트를 안 쓰는 이유가 이것 — standalone 여부는 JS로만 알 수 있다.
+  새 도메인을 추가하면 서버 `CORS_ORIGIN`에도 반드시 함께 넣어야 온라인 대전이 된다.
 - **패키지 매니저는 pnpm.** Vite 8은 rolldown 네이티브 바이너리를 쓰는데, npm은
   optional-deps 버그(npm/cli#4828)로 이 환경에서 바이너리를 못 받는다. pnpm은 정상.
   darwin(로컬)/linux(Vercel) 바이너리를 devDependencies에 직접 명시해 둠.
@@ -70,7 +77,7 @@
     **방장 소유 방 수명**(턴제): 방은 방장(index 0) 소유. **방장이 나가면 방 종료**(후공은 결과 화면), **후공이 나가면 방장은 방을 유지한 채 다시 대기(lobby)**(`resetDuelToWaiting`, 새 상대 입장 가능). 끊김도 유예 후 같은 규칙. 클라의 `opponentLeft`는 내 index로 분기(방장=대기 복귀, 후공=종료). **승패(`over`) 나면 저장 세션 해제**(새로고침·실수 이탈해도 재접속 안 함), 재대결 시작(`phase`) 때 다시 저장.
     Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **배포는 Dokploy**(셀프호스팅, Docker+Traefik). 방 상태가 메모리에만 있어 **반드시 단일 인스턴스(replicas=1)**.
     (상세 절차·트러블슈팅: [`docs/dokploy-deploy.md`](docs/dokploy-deploy.md).)
-    루트 **`Dockerfile`**(루트 컨텍스트에서 `server/`만 빌드, Node22-alpine·pnpm·`/health`)로 빌드. Dokploy는 GitHub(`dlwhsk0/number-baseball`, `main`) 연동 → **`main`에 push하면 자동 재배포**(Webhook). 도메인 `wss://homerun.techeer.cloud-yaho.cloud`(Techeer 공유 Dokploy, `*.techeer.cloud-yaho.cloud` 와일드카드 DNS + Traefik Let's Encrypt), 컨테이너 포트 3001, env `CORS_ORIGIN`=프론트 Vercel 주소. 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/<name>.mjs`.
+    루트 **`Dockerfile`**(루트 컨텍스트에서 `server/`만 빌드, Node22-alpine·pnpm·`/health`)로 빌드. Dokploy는 GitHub(`dlwhsk0/number-baseball`, `main`) 연동 → **`main`에 push하면 자동 재배포**(Webhook). 도메인 `wss://homerun.techeer.cloud-yaho.cloud`(Techeer 공유 Dokploy, `*.techeer.cloud-yaho.cloud` 와일드카드 DNS + Traefik Let's Encrypt), 컨테이너 포트 3001, env `CORS_ORIGIN`=프론트 Vercel 주소(현재 `https://number-baseball-chi.vercel.app,https://homerun-bb.vercel.app` — 쉼표로 여러 개). 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/<name>.mjs`.
     **관측**: 메트릭은 **게임 포트와 분리된 별도 포트 `METRICS_PORT`(기본 9091)** 의 `GET /metrics`(Prometheus, `server/src/metrics.ts` — 방 생성/입장/시작/종료/추측 카운터·활성방/소켓 게이지·기본 지표). **도메인(3001)엔 노출 안 함**(`도메인/metrics`=404) → Traefik 라우팅 밖이라 비공개, Prometheus는 Docker 내부에서 `<서비스>:9091` 스크레이프. + pino 구조화 로그(`server/src/logger.ts`, stdout→Dokploy 로그). env `LOG_LEVEL`·`METRICS_PORT`·`METRICS_TOKEN`.
     (옛 오라클 VM + Caddy + pm2 방식은 **폐기·제거됨**(관련 스크립트/설정 삭제, 이력은 태그 `v1.0.0-pre-dokploy`) — 롤백 필요 시 Vercel `VITE_SERVER_URL`을 옛 주소 `wss://b-ball.duckdns.org`로.)
     연출: 추측 후 **결과 발표 텀**(서버 `reveal` → `REVEAL_MS` 뒤 turn/over, 그동안 `pending`으로 입력 차단), 특이 이벤트 리액션,

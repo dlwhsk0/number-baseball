@@ -23,6 +23,11 @@ type Theme = 'dark' | 'light' | 'doosan' | 'lgtwins';
 // 앱 아이콘 버전. 올릴 때마다 설치된 사용자에게 '홈 화면 재설치' 안내를 한 번 띄운다.
 // (PWA 홈 화면 아이콘은 OS가 설치 시점에 캐시 → 매니페스트만 바꿔선 안 바뀜.)
 const ICON_VERSION = '2';
+
+// 도메인 이사: 구 주소는 index.html의 인라인 스크립트가 페인트 전에 대표 주소로 넘긴다.
+// 단 설치된 PWA(standalone)는 넘기면 scope를 벗어나 앱이 깨지므로, 대신 재설치 안내 배너를 띄운다.
+const OLD_HOST = 'number-baseball-chi.vercel.app';
+const NEW_ORIGIN = 'https://homerun-bb.vercel.app';
 type Launch =
   | { conn: 'online'; gameType: GameType; action: 'create' | 'join'; code?: string }
   | { conn: 'local'; gameType: GameType };
@@ -188,6 +193,34 @@ export default function App() {
       return false;
     }
   });
+
+  // 구 주소에 설치된 PWA인 경우 → 새 주소로 재설치 안내(리다이렉트는 못 한다, 위 주석 참고).
+  // 세션당 한 번만 띄운다(닫아도 다음 실행 때 다시 안내 — 실제로 옮길 때까지).
+  const [movedPending, setMovedPending] = useState(false);
+  useEffect(() => {
+    if (window.location.hostname !== OLD_HOST) return;
+    try {
+      if (sessionStorage.getItem('nb_moved_seen')) return;
+    } catch {
+      /* 무시 */
+    }
+    setMovedPending(true);
+  }, []);
+  const dismissMovedNotice = () => {
+    setMovedPending(false);
+    try {
+      sessionStorage.setItem('nb_moved_seen', '1');
+    } catch {
+      /* 무시 */
+    }
+  };
+  const openNewOrigin = () => {
+    try {
+      window.open(NEW_ORIGIN, '_blank', 'noopener');
+    } catch {
+      /* 무시 */
+    }
+  };
 
   // 앱 아이콘이 바뀌면(ICON_VERSION↑) 기존 사용자에게 안내를 한 번 띄운다.
   //  - 설치 가능(브라우저·미설치)이면 [설치하기] 한 번에 네이티브 설치(새 아이콘).
@@ -726,7 +759,28 @@ export default function App() {
       {netMsg && <div className="egg-toast">{netMsg}</div>}
       {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
 
-      {iconPending && (
+      {movedPending && (
+        <div className="reinstall-banner" role="status">
+          <span className="reinstall-emoji" aria-hidden="true">📦</span>
+          <div className="reinstall-text">
+            <b>새 주소로 이사했어요!</b>
+            <span>homerun-bb.vercel.app 에서 다시 설치해 주세요. (이 아이콘은 삭제)</span>
+          </div>
+          <button type="button" className="reinstall-close" onClick={openNewOrigin}>
+            새 주소 열기
+          </button>
+          <button
+            type="button"
+            className="reinstall-x"
+            aria-label="닫기"
+            onClick={dismissMovedNotice}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {iconPending && !movedPending && (
         <div className="reinstall-banner" role="status">
           <span className="reinstall-emoji" aria-hidden="true">⚾</span>
           <div className="reinstall-text">

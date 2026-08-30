@@ -19,6 +19,21 @@
           document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
     </script>
+    <!-- 구 주소 → 대표 주소(homerun-bb) 이사. 브라우저에서 열었을 때만 페인트 전에 넘긴다.
+         설치된 PWA(standalone)는 넘기지 않는다 — 크로스 오리진으로 나가면 scope를 벗어나
+         앱이 브라우저로 튕기고 localStorage(설정·닉네임)도 오리진이 달라 사라진다.
+         그쪽은 App.tsx가 "새 주소에서 다시 설치" 배너로 안내한다. -->
+    <script>
+      try {
+        var standalone =
+          (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ||
+          navigator.standalone === true;
+        if (location.hostname === 'number-baseball-chi.vercel.app' && !standalone)
+          location.replace(
+            'https://homerun-bb.vercel.app' + location.pathname + location.search + location.hash,
+          );
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
