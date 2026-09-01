@@ -169,6 +169,104 @@ GitHub 연동 시 Dokploy가 webhook을 건다 → `main`에 push하면 **자동
 
 ---
 
+## 8-B. 무중단 배포 (Swarm `start-first`)
+
+Dokploy는 내부적으로 **Docker Swarm**을 쓴다. 기본 업데이트 순서는 `stop-first`(옛 컨테이너를 먼저
+내리고 새 컨테이너를 올림)라 **배포마다 수십 초 502**가 뜬다. 이를 `start-first`로 바꾸면
+**새 컨테이너가 health OK가 된 뒤에 옛 컨테이너를 내리므로 502 공백이 사라진다.**
+
+### ⚠️ 무중단의 범위 — 가용성만이다
+방 상태(`server/src/rooms.ts`)가 **프로세스 메모리에만** 있어서:
+- **얻는 것**: HTTP/WS 엔드포인트가 배포 중에도 계속 응답한다. 새로 들어오는 사람은 끊김을 못 느낀다.
+- **못 얻는 것**: **배포 순간 진행 중이던 대전은 어차피 끊긴다.** 새 컨테이너엔 그 방이 없다.
+  클라가 `rejoin`을 시도해도 서버에 방이 없으므로 복구되지 않는다.
+- **겹침 구간 주의**: `start-first`는 잠깐(수 초) 컨테이너가 **2개** 뜬다. 그동안 Traefik이 새 연결을
+  둘 중 아무 쪽에나 보내므로, **같은 방의 두 사람이 서로 다른 컨테이너에 붙을 수 있다**(방 못 찾음).
+  → **사람이 없을 때 배포**하는 게 여전히 안전하다. 진짜로 대전까지 보존하려면 아래 TODO 참고.
+
+### 설정 (Application → Advanced → Swarm Settings)
+JSON 필드에 넣는다. **Docker API라 시간 단위가 전부 나노초**다(5초 = `5000000000`).
+
+**Update Config**
+```json
+{
+  "parallelism": 1,
+  "order": "start-first",
+  "failureAction": "rollback",
+  "delay": 5000000000,
+  "monitor": 15000000000,
+  "maxFailureRatio": 0
+}
+```
+- `order: start-first` — 이게 핵심.
+- `failureAction: rollback` — 새 컨테이너가 health를 못 맞추면 **자동으로 이전 버전 복귀**.
+- `monitor: 15s` — 새 태스크를 이 시간 동안 지켜보고 실패 판정. Dockerfile `HEALTHCHECK`의
+  `--start-period=8s`보다 넉넉해야 한다.
+
+**Rollback Config**
+```json
+{
+  "parallelism": 1,
+  "order": "start-first",
+  "failureAction": "pause",
+  "delay": 5000000000
+}
+```
+
+**Restart Policy**
+```json
+{
+  "condition": "any",
+  "delay": 5000000000,
+  "maxAttempts": 5,
+  "window": 60000000000
+}
+```
+
+> Dokploy 버전에 따라 키 표기가 camelCase(`failureAction`)일 수도 PascalCase(`FailureAction`)일 수도 있다.
+> **입력칸의 placeholder에 보이는 표기를 따른다.**
+
+### 같이 확인할 것
+- **Replicas는 1 그대로.** `start-first`는 배포 중에만 잠깐 2개가 되는 것이고, 정상 상태는 1개여야 한다.
+  (상시 2개면 방이 갈려서 게임이 깨진다.)
+- **호스트 포트를 publish하지 말 것.** Traefik이 오버레이 네트워크에서 서비스명으로 라우팅하므로
+  `3001:3001` 같은 호스트 포트 매핑은 불필요하고, `mode: host`로 잡혀 있으면 겹침 구간에 포트 충돌로
+  새 태스크가 못 뜬다. Domains 탭의 **Container Port `3001`** 만 있으면 된다.
+- **헬스체크는 이미 이미지에 있다** — 루트 `Dockerfile`의 `HEALTHCHECK`가 `/health`를 찌른다.
+  Swarm이 이걸 그대로 쓰므로 Dokploy Health Check 칸은 비워도 된다.
+
+---
+
+## 8-C. TODO — 진행 중인 대전까지 보존하기
+
+위 `start-first`로는 **가용성만** 무중단이다. 배포·재시작 중에도 **진행 중인 방을 살리려면**
+방 상태를 프로세스 밖으로 빼야 한다. 우선순위 순으로 적어둔다.
+
+### 1순위 — 방 상태 외부화 (Redis)
+현재 `server/src/rooms.ts`의 방 맵이 프로세스 메모리다. 이걸 Redis로 옮긴다.
+- **범위**: 방(코드·모드·자릿수)·플레이어(닉·index·토큰·`gone`)·비밀 숫자·턴/히스토리·스피드 진행도.
+- **주의**: 정답(`secret`/`speedSecret`)이 Redis에 들어가므로 **서버만 접근 가능한 내부 네트워크**에 두고
+  절대 외부 노출하지 않는다(정답 유출 = 게임 붕괴).
+- **타이머**: `REVEAL_MS` 지연, `GRACE_MS` 유예, 스피드 제한시간은 현재 `setTimeout`이라 프로세스와 함께 죽는다.
+  **만료 시각(timestamp)을 상태에 저장**하고 복구 시 남은 시간으로 다시 걸어야 한다. (이게 실제로 제일 손이 많이 간다.)
+- Dokploy에 Redis 서비스 추가 + `REDIS_URL` env.
+
+### 2순위 — 다중 인스턴스 대응 (Socket.IO 어댑터)
+1순위가 끝나면 `replicas>1`이 가능해진다. 단 Socket.IO 브로드캐스트가 인스턴스 간에 퍼지려면
+**`@socket.io/redis-adapter`** 가 필요하다. 이게 있어야 `start-first` 겹침 구간에 방이 갈리는 문제도 사라진다.
+
+### 3순위 — 우아한 종료(graceful drain)
+`SIGTERM`을 받으면 (1) 새 연결 거부 (2) 접속자에게 "곧 재시작" 알림 (3) 상태 flush 후 종료.
+Swarm의 `stop-grace-period`를 늘려 그 시간을 확보한다.
+
+### 안 하기로 한 것
+- **스티키 세션(Traefik cookie)**: Socket.IO의 polling→WS 업그레이드에 부분적으로는 도움이 되지만,
+  방을 **같은 인스턴스로 묶어주지는 못한다**(두 플레이어는 서로 다른 세션이다). 근본 해결이 아니라 제외.
+
+> 이 작업 전까지는 **사람이 없을 때 배포**가 사실상의 운영 규칙이다.
+
+---
+
 ## 9. 프론트 전환 (Vercel)
 서버가 새 도메인으로 확정되면 프론트가 새 서버를 바라보게:
 1. Vercel 프로젝트 → **Settings → Environment Variables**:

@@ -75,7 +75,9 @@
     클라는 세션(코드·자리·토큰)을 **`sessionStorage`(`nb_online_session`)에 저장** → 탭이 리로드/백그라운드 복귀해도 마운트 시 복원해 자동 `rejoin`(그동안 "방에 다시 연결하는 중" 화면, 9s 타임아웃 폴백).
     소켓 재연결 시 `rejoin`으로 다시 합류하고 `resume`으로 상태 동기화. 나가기·방 만료·상대 이탈 시 세션 삭제. (`opponentDisconnected/Reconnected` 알림, `NetStatus` 배너.)
     **방장 소유 방 수명**(턴제): 방은 방장(index 0) 소유. **방장이 나가면 방 종료**(후공은 결과 화면), **후공이 나가면 방장은 방을 유지한 채 다시 대기(lobby)**(`resetDuelToWaiting`, 새 상대 입장 가능). 끊김도 유예 후 같은 규칙. 클라의 `opponentLeft`는 내 index로 분기(방장=대기 복귀, 후공=종료). **승패(`over`) 나면 저장 세션 해제**(새로고침·실수 이탈해도 재접속 안 함), 재대결 시작(`phase`) 때 다시 저장.
-    Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **배포는 Dokploy**(셀프호스팅, Docker+Traefik). 방 상태가 메모리에만 있어 **반드시 단일 인스턴스(replicas=1)**.
+    Socket.IO는 폴링 폴백 + 관대한 ping(`pingTimeout` 40s). **배포는 Dokploy**(셀프호스팅, Docker+Traefik/Swarm). 방 상태가 메모리에만 있어 **반드시 단일 인스턴스(replicas=1)**.
+    **무중단 배포는 Swarm `update_config.order=start-first`(가용성만)** — 502 공백은 없어지지만 **배포 순간 진행 중인 대전은 끊긴다**(새 컨테이너엔 방이 없음).
+    진행 중 대전까지 보존하려면 방 상태를 Redis로 외부화해야 함 → **TODO는 [`docs/dokploy-deploy.md`](docs/dokploy-deploy.md) §8-C**. 그 전까지 운영 규칙은 **사람 없을 때 배포**.
     (상세 절차·트러블슈팅: [`docs/dokploy-deploy.md`](docs/dokploy-deploy.md).)
     루트 **`Dockerfile`**(루트 컨텍스트에서 `server/`만 빌드, Node22-alpine·pnpm·`/health`)로 빌드. Dokploy는 GitHub(`dlwhsk0/number-baseball`, `main`) 연동 → **`main`에 push하면 자동 재배포**(Webhook). 도메인 `wss://homerun.techeer.cloud-yaho.cloud`(Techeer 공유 Dokploy, `*.techeer.cloud-yaho.cloud` 와일드카드 DNS + Traefik Let's Encrypt), 컨테이너 포트 3001, env `CORS_ORIGIN`=프론트 Vercel 주소(현재 `https://number-baseball-chi.vercel.app,https://homerun-bb.vercel.app` — 쉼표로 여러 개). 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/<name>.mjs`.
     **관측**: 메트릭은 **게임 포트와 분리된 별도 포트 `METRICS_PORT`(기본 9091)** 의 `GET /metrics`(Prometheus, `server/src/metrics.ts` — 방 생성/입장/시작/종료/추측 카운터·활성방/소켓 게이지·기본 지표). **도메인(3001)엔 노출 안 함**(`도메인/metrics`=404) → Traefik 라우팅 밖이라 비공개, Prometheus는 Docker 내부에서 `<서비스>:9091` 스크레이프. + pino 구조화 로그(`server/src/logger.ts`, stdout→Dokploy 로그). env `LOG_LEVEL`·`METRICS_PORT`·`METRICS_TOKEN`.
