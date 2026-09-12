@@ -105,10 +105,11 @@ homerun-bb.vercel.app
 | --- | --- |
 | `01-hero.png` | 타이틀 + 폰 3대(솔로·멀티 메뉴·온라인 스피드) |
 | `02-rule.png` | S·B·O 규칙 + 전광판 기록 클로즈업 |
-| `03-online.png` | 온라인 대결(방 코드 로비 + 스피드 레이스) |
+| `03-online.png` | 온라인 대결 3인(방 코드 로비 + LG 테마 완주 + 두산 테마 추격) |
 | `04-theme.png` | 두산 / LG 구단 테마 이스터에그 |
 | `05-detail.png` | 설정·튜토리얼(자릿수·시도·메모·힌트) |
 | `06-cta.png` | 설치 유도 + 주소 |
 
 원본 스크린샷(1206×2622)은 상위 `store-assets/` 에 —
-`06-theme-doosan.png`, `07-theme-lgtwins.png`, `08-online-speed.png`.
+`06-theme-doosan.png`, `07-theme-lgtwins.png`,
+`08-online-lobby.png`(3인 로비), `09-online-speed-lg.png`, `10-online-speed-doosan.png`.
