@@ -332,12 +332,33 @@ io.on('connection', (socket) => {
       ack({ ok: false, error: '방이 없어요.' });
       return;
     }
+    // 비밀 숫자는 '턴제 방의 secret 단계에서 한 번만'. 단계·모드를 안 막으면
+    // (1) 판 도중 자기 정답을 바꿔치기해 상대가 영원히 못 맞히게 하거나,
+    // (2) 아래 시작 블록(bothSecretsSet)이 다시 돌아 turn·pending이 리셋되면서
+    //     턴을 넘기지 않고 계속 던져 상대 숫자를 전부 캐낼 수 있다.
+    if (room.mode !== 'duel') {
+      ack({ ok: false, error: '턴제 방이 아니에요.' });
+      return;
+    }
+    if (room.phase !== 'secret') {
+      ack({ ok: false, error: '지금은 숫자를 정할 수 없어요.' });
+      return;
+    }
+    const me = room.players[data.index];
+    if (!me) {
+      ack({ ok: false, error: '방이 없어요.' });
+      return;
+    }
+    if (me.secret != null) {
+      ack({ ok: false, error: '이미 정했어요.' });
+      return;
+    }
     const s = String(secret ?? '');
     if (!isValidGuess(s, room.digits)) {
       ack({ ok: false, error: '유효하지 않은 숫자예요.' });
       return;
     }
-    room.players[data.index].secret = s;
+    me.secret = s;
     ack({ ok: true });
     io.to(room.code).emit('secretProgress', {
       ready: room.players.map((p) => p.secret != null),
