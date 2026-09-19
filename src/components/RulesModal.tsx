@@ -118,7 +118,7 @@ function Intro() {
         <div className="tut-rule">
           <span className="tut-rule-ico">🎯</span>
           <span>
-            <strong>10번</strong> 안에 모두 맞히면 승리!
+            <strong>15번</strong> 안에 모두 맞히면 승리!
           </span>
         </div>
       </div>
@@ -345,12 +345,26 @@ function SlotMemoDemo() {
   );
 }
 
-// ── 5. 마무리 (대결 · 설정) ─────────────────────────
+// ── 5. 마무리 (구단 대항전 · 대결 · 설정) ───────────────
 function Wrap() {
   return (
     <div className="tut-step">
       <h2 className="modal-title">준비 끝! 🎉</h2>
       <p className="tut-lead">이제 시작해볼까요? 이런 것도 있어요.</p>
+
+      <h3>⚾ KBO 구단 대항전</h3>
+      <ul className="tut-list">
+        <li>
+          <strong>응원 구단</strong>을 고르면 솔로가 <b>랭킹전</b>이 돼요 — 적게 시도할수록 점수가 높고, 그 점수가
+          우리 구단 점수로 쌓여요.
+        </li>
+        <li>
+          <strong>멀티</strong>에서 다른 구단 팬을 이기면 우리 구단이 <b>1승</b>!
+        </li>
+        <li>
+          상단 <strong>KBO</strong> 탭에서 구단 순위·내 순위를 보고 응원 구단을 바꿀 수 있어요.
+        </li>
+      </ul>
 
       <h3>⚙ 설정</h3>
       <ul className="tut-list">

@@ -4450,6 +4450,44 @@
   white-space: nowrap;
 }
 
+/* 첫 방문 온보딩 — 구단 대항전 소개(팬 등록 시트 위쪽) */
+.fan-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.fan-intro-kbo {
+  height: 30px;
+  width: auto;
+}
+.fan-intro .settings-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+.fan-intro-list {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fan-intro-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--cell);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.fan-intro-list b {
+  color: var(--accent);
+}
 /* 팬 등록 시트(닉네임 + 구단) */
 .fan-sheet {
   width: min(100%, 380px);
@@ -4526,48 +4564,6 @@
 .settings-fixed {
   font-size: 0.85rem;
   color: var(--muted);
-}
-
-/* 솔로 전광판 — 랭킹전 배지 */
-/* 전광판 헤더의 랭킹전 토글 — 꺼짐=흐린 테두리, 켜짐=그린 발광 + 응원 구단 로고 */
-.ranked-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 26px;
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-family: var(--font-digit);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
-}
-.ranked-badge:active {
-  transform: scale(0.95);
-}
-.ranked-badge.on {
-  border-color: var(--accent);
-  color: var(--accent);
-  text-shadow: var(--glow-text);
-}
-.ranked-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--bulb-off);
-}
-.ranked-badge.on .ranked-dot {
-  background: var(--accent);
-  box-shadow: var(--glow-accent);
-}
-.ranked-badge .team-chip {
-  text-shadow: none;
-  letter-spacing: 0;
 }
 
 /* 솔로 결과 — 랭킹전 점수 */
