@@ -228,3 +228,43 @@ describe('gameReducer — 난이도', () => {
     expect(s.memo).toEqual({});
   });
 });
+
+describe('gameReducer — 랭킹전(서버 판정)', () => {
+  const j = (strikes: number, balls: number) => ({ strikes, balls, isOut: strikes + balls === 0 });
+
+  it('restore: 정답 없이 기존 기록으로 판을 세팅', () => {
+    const s = gameReducer(start('123'), {
+      type: 'restore',
+      digits: 4,
+      maxAttempts: 10,
+      beginner: false,
+      guesses: [{ guess: '1234', judgement: j(1, 0) }],
+    });
+    expect(s.secret).toBe('');
+    expect(s.digits).toBe(4);
+    expect(s.guesses).toHaveLength(1);
+    expect(s.status).toBe('playing');
+  });
+
+  it('applyJudgement: 서버 판정·상태를 그대로 반영하고 힌트 메모도 적용', () => {
+    let s = gameReducer(start(''), {
+      type: 'restore',
+      digits: 3,
+      maxAttempts: 10,
+      beginner: true,
+      guesses: [],
+    });
+    s = gameReducer(s, { type: 'applyJudgement', guess: '456', judgement: j(0, 0), status: 'playing' });
+    expect(s.memo).toEqual({ '4': 'out', '5': 'out', '6': 'out' });
+    s = gameReducer(s, { type: 'applyJudgement', guess: '123', judgement: j(3, 0), status: 'won' });
+    expect(s.status).toBe('won');
+    // 끝난 판엔 더 반영 안 함
+    const after = gameReducer(s, { type: 'applyJudgement', guess: '789', judgement: j(0, 0), status: 'playing' });
+    expect(after).toBe(s);
+  });
+
+  it('revealSecret: 종료 시 서버가 준 정답 공개', () => {
+    const s = gameReducer(start(''), { type: 'revealSecret', secret: '582' });
+    expect(s.secret).toBe('582');
+  });
+});
