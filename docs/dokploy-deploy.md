@@ -122,6 +122,7 @@ SCORE_SEC_PER_POINT=20   # 스피드 점수: 몇 초를 1점으로 환산할지
 # --- 선택: 팬 랭킹(KBO 구단) — 없으면 랭킹만 꺼지고 대전은 정상 ---
 DATABASE_URL=postgresql://nb:<비번>@hana-pg-jrqxjl:5432/number_baseball
 RANKED_DAILY_LIMIT=30    # 솔로 랭킹전 1인 24시간 판 수 상한
+RANKED_IP_DAILY_LIMIT=200 # IP당 24시간 새 판 상한(0=끔). X-Forwarded-For 맨 오른쪽 값 기준
 
 # --- 선택: 관측(기본값 있음) ---
 LOG_LEVEL=info           # pino 로그 레벨 (trace/debug/info/warn/error)
@@ -143,7 +144,8 @@ METRICS_TOKEN=           # 설정 시 /metrics에 Bearer 또는 ?token= 요구
   DATABASE_URL=postgresql://nb:<비번>@hana-pg-jrqxjl:5432/number_baseball
   ```
   같은 Dokploy(`dokploy-network`)라 내부 호스트로 붙는다. 비번은 레포에 적지 않는다(Dokploy env에만).
-- 확인: 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`. 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
+- 확인: 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`. 랭킹전을 한 판 시작해 `ranked start` 로그의 `ipPublic`이 **true**인지도 본다
+  (false면 Traefik 뒤에서 실제 IP가 안 보이는 것 → IP 상한은 자동으로 미적용, 필요하면 Traefik 설정 확인). 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
 - 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/ranked-smoke.mjs`
   (실제 DB에 테스트 기록이 LG 구단으로 쌓인다 — 필요하면 `DELETE FROM solo_games WHERE player_id = ...`로 정리.)
 
@@ -319,6 +321,7 @@ Swarm의 `stop-grace-period`를 늘려 그 시간을 확보한다.
 | `SPEED_LIMIT_4_MS` | `420000` | 스피드 4자리 제한(7분) |
 | `DATABASE_URL` | (없음) | 팬 랭킹 Postgres. 없으면 랭킹만 비활성 |
 | `RANKED_DAILY_LIMIT` | `30` | 솔로 랭킹전 1인 24시간 판 수 상한 |
+| `RANKED_IP_DAILY_LIMIT` | `200` | IP당 24시간 새 판 상한(0=끔, 메모리라 재시작 시 초기화). 게임 포트가 Traefik 뒤에서만 열려 있어야 의미 있음 |
 
 ---
 
