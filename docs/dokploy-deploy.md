@@ -120,7 +120,7 @@ SPEED_LIMIT_4_MS=420000  # 스피드 4자리 제한시간(7분)
 SCORE_SEC_PER_POINT=20   # 스피드 점수: 몇 초를 1점으로 환산할지
 
 # --- 선택: 팬 랭킹(KBO 구단) — 없으면 랭킹만 꺼지고 대전은 정상 ---
-DATABASE_URL=postgres://nb:<비번>@<postgres-서비스-내부호스트>:5432/number_baseball
+DATABASE_URL=postgresql://nb:<비번>@hana-pg-jrqxjl:5432/number_baseball
 RANKED_DAILY_LIMIT=30    # 솔로 랭킹전 1인 24시간 판 수 상한
 
 # --- 선택: 관측(기본값 있음) ---
@@ -134,17 +134,18 @@ METRICS_TOKEN=           # 설정 시 /metrics에 Bearer 또는 ?token= 요구
 - `METRICS_PORT`(9091)는 **Domains에 매핑하지 말 것** — 매핑 안 해야 비공개로 남는다.
 
 ### 5-B. 팬 랭킹 DB (Dokploy Postgres)
-랭킹(솔로 랭킹전 점수·구단 대결 승패)은 Dokploy에 이미 있는 Postgres에 저장한다. 테이블은 서버가 시작할 때
-`CREATE TABLE IF NOT EXISTS`로 직접 만든다(`server/src/db.ts` — `players`/`solo_games`/`match_results`). 사람이 할 일은 DB·유저 만들기뿐:
-```sql
-CREATE USER nb WITH PASSWORD '<비번>';
-CREATE DATABASE number_baseball OWNER nb;
-```
-1. Postgres 서비스 화면의 **Internal Host**(같은 Docker 네트워크 안 호스트명)를 복사.
-2. 서버 앱 Environment에 `DATABASE_URL=postgres://nb:<비번>@<Internal Host>:5432/number_baseball` 추가 → 재배포.
-3. 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`이 찍히면 성공. 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
-4. 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/ranked-smoke.mjs`
-   (주의: 실제 DB에 테스트 기록이 LG 구단으로 쌓인다 — 필요하면 `DELETE FROM solo_games WHERE player_id = ...`로 정리.)
+랭킹(솔로 랭킹전 점수·구단 대결 승패)은 **ZoomAttandance와 같은 공유 Postgres 서비스(`hana-pg-jrqxjl`)** 에 **별도 DB**로 저장한다.
+- 구성: 역할 `nb`(일반 계정, 슈퍼유저 아님) + DB `number_baseball`(소유자 `nb`). ZoomAttandance DB(`hana-pg`)와 완전히 분리.
+  스키마 분리 대신 DB 분리를 택한 이유: ZoomAttandance가 슈퍼유저로 붙어 있어 같은 DB면 서로 다 보이고, DB 단위라 백업·삭제를 따로 할 수 있다.
+- 테이블은 서버가 시작할 때 `CREATE TABLE IF NOT EXISTS`로 직접 만든다(`server/src/db.ts` — `players`/`solo_games`/`match_results`).
+- 서버 앱 Environment:
+  ```
+  DATABASE_URL=postgresql://nb:<비번>@hana-pg-jrqxjl:5432/number_baseball
+  ```
+  같은 Dokploy(`dokploy-network`)라 내부 호스트로 붙는다. 비번은 레포에 적지 않는다(Dokploy env에만).
+- 확인: 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`. 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
+- 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/ranked-smoke.mjs`
+  (실제 DB에 테스트 기록이 LG 구단으로 쌓인다 — 필요하면 `DELETE FROM solo_games WHERE player_id = ...`로 정리.)
 
 ---
 
