@@ -119,6 +119,10 @@ SPEED_LIMIT_3_MS=300000  # 스피드 3자리 제한시간(5분)
 SPEED_LIMIT_4_MS=420000  # 스피드 4자리 제한시간(7분)
 SCORE_SEC_PER_POINT=20   # 스피드 점수: 몇 초를 1점으로 환산할지
 
+# --- 선택: 팬 랭킹(KBO 구단) — 없으면 랭킹만 꺼지고 대전은 정상 ---
+DATABASE_URL=postgres://nb:<비번>@<postgres-서비스-내부호스트>:5432/number_baseball
+RANKED_DAILY_LIMIT=30    # 솔로 랭킹전 1인 24시간 판 수 상한
+
 # --- 선택: 관측(기본값 있음) ---
 LOG_LEVEL=info           # pino 로그 레벨 (trace/debug/info/warn/error)
 METRICS_PORT=9091        # 메트릭 전용 포트(게임 포트와 분리 → 도메인에 노출 안 됨)
@@ -128,6 +132,19 @@ METRICS_TOKEN=           # 설정 시 /metrics에 Bearer 또는 ?token= 요구
   비워두면 전체 허용(`*`)이라 개발용으로만.
 - `PORT=3001`은 컨테이너 내부 포트(도메인 매핑에서 이 포트를 가리킴).
 - `METRICS_PORT`(9091)는 **Domains에 매핑하지 말 것** — 매핑 안 해야 비공개로 남는다.
+
+### 5-B. 팬 랭킹 DB (Dokploy Postgres)
+랭킹(솔로 랭킹전 점수·구단 대결 승패)은 Dokploy에 이미 있는 Postgres에 저장한다. 테이블은 서버가 시작할 때
+`CREATE TABLE IF NOT EXISTS`로 직접 만든다(`server/src/db.ts` — `players`/`solo_games`/`match_results`). 사람이 할 일은 DB·유저 만들기뿐:
+```sql
+CREATE USER nb WITH PASSWORD '<비번>';
+CREATE DATABASE number_baseball OWNER nb;
+```
+1. Postgres 서비스 화면의 **Internal Host**(같은 Docker 네트워크 안 호스트명)를 복사.
+2. 서버 앱 Environment에 `DATABASE_URL=postgres://nb:<비번>@<Internal Host>:5432/number_baseball` 추가 → 재배포.
+3. 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`이 찍히면 성공. 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
+4. 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/ranked-smoke.mjs`
+   (주의: 실제 DB에 테스트 기록이 LG 구단으로 쌓인다 — 필요하면 `DELETE FROM solo_games WHERE player_id = ...`로 정리.)
 
 ---
 
@@ -299,6 +316,8 @@ Swarm의 `stop-grace-period`를 늘려 그 시간을 확보한다.
 | `GRACE_MS` | `90000` | 끊김 유예(ms) — 재접속 복구 대기 |
 | `SPEED_LIMIT_3_MS` | `300000` | 스피드 3자리 제한(5분) |
 | `SPEED_LIMIT_4_MS` | `420000` | 스피드 4자리 제한(7분) |
+| `DATABASE_URL` | (없음) | 팬 랭킹 Postgres. 없으면 랭킹만 비활성 |
+| `RANKED_DAILY_LIMIT` | `30` | 솔로 랭킹전 1인 24시간 판 수 상한 |
 
 ---
 

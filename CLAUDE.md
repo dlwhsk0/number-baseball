@@ -41,10 +41,21 @@
 
 ## 기능
 - **컨트롤**(`.controls`): **타이틀·부제 없음**(인트로에서만). 밝기 토글 없음(단일 다크).
-  - 1행: `[?]`(좌, 첫 방문 시 `.help-callout` 말풍선) · `[ 솔로 | 멀티 ]` 세그먼트(`section`) · **`[⚙]`**(우, 솔로만 — 설정 시트).
-  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **테마 [다크|라이트]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임`. 우하단에 숨은 테마 이스터에그 트리거들(🐻 두산 / 👯 LG).
+  - 1행: `[?]`(좌, 첫 방문 시 `.help-callout` 말풍선) · `[ 솔로 | 멀티 ]` 세그먼트(`section`) · **`[🏆][⚙]`**(우 `.ctrl-side` — 🏆 팬 순위는 항상, ⚙은 솔로만).
+  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **모드 [연습|🏆 랭킹전]** · **응원 구단 [변경]** · **테마 [다크|라이트]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임`. 우하단에 숨은 테마 이스터에그 트리거들(🐻 두산 / 👯 LG).
   - 멀티는 헤더에 별도 세그먼트 없음(아래 **멀티 시작 메뉴** 카드가 전부 담당). `⚙` 자리는 `.gear-spacer`.
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
+- **KBO 팬 랭킹**(구단 대항전): 팬이 응원 구단(KBO 10개 구단, `src/game/teams.ts` ↔ `server/src/teams.ts` 복제)을 달고 경쟁.
+  신원은 로그인 없이 **익명 기기 id**(`localStorage.nb_player_id` uuid) + `nb_team` + 닉네임 `nb_nick`(`src/net/fan.ts`). 구단 선택은 `TeamPicker`(닉네임+10구단 시트), 칩은 `TeamChip`.
+  - **솔로 랭킹전**(설정 모드 `nb_ranked`): **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
+    시도 **10회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 11 − 시도(1회=10점…10회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
+    추측이 있는 판을 버리면(새 게임·자릿수 변경·30분 방치) **실패로 기록**(체리피킹 방지), 1인 **24시간 30판 상한**(`RANKED_DAILY_LIMIT`). 클라는 `useGame`의 `restore`/`applyJudgement`/`revealSecret`로 서버 결과 반영(secret='').
+    결과 카드(`ResultBanner` `ranked`)에 점수·구단 누적·순위. 연습 모드는 기존 그대로(오프라인 가능).
+  - **멀티 구단 대결**: 온라인 `create`/`join`에 `playerId`·`team` 동봉 → 판이 끝나면 **구단이 다른 참가자 쌍마다** 승/패/무 기록(`pairMatches`).
+    주고받기=승자 vs 패자, 스피드=최종 순위 상위가 승(둘 다 미해결=무). 같은 구단·구단 없음·같은 기기·추측 0회·중도 이탈은 제외. 로컬(패스앤플레이)은 기록 안 함. 로비·순위·VS 연출에 구단 칩.
+  - **순위표**(`src/components/Leaderboard.tsx`, 이벤트 `leaderboard`, 서버 30초 캐시·기록 시 무효화): [구단](솔로 누적 합계) · [개인](누적 TOP50 + 내 순위) · [구단 대결](KBO식 승·패·무·승률·게임차).
+  - **저장소 = Postgres**(`server/src/db.ts`, env `DATABASE_URL`, 시작 시 `CREATE TABLE IF NOT EXISTS` — `players`/`solo_games`/`match_results`). **없으면 랭킹만 비활성**(대전 정상). Dokploy 설정은 `docs/dokploy-deploy.md` §5-B.
+    스모크: `server/test/ranked-smoke.mjs`, `team-versus-smoke.mjs`(DB 붙은 서버 필요).
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
 - **대결 모드**(App `section='multi'`): **멀티 시작 메뉴** — 하나의 글라스 카드(`.online-menu-card`)에 위→아래로
