@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { GuessRecord } from '../game/useGame';
 import { Seg7 } from './Seg7';
 
@@ -5,6 +6,12 @@ interface Props {
   guesses: GuessRecord[];
   /** 좁은 칸(상대 기록)용 — S·B·O를 전구 대신 '1S 2B 0O' 텍스트로. */
   sboText?: boolean;
+  /** 다시보기 연출 — 행이 하나씩 차례로 등장. */
+  stagger?: boolean;
+  /** 마지막 행(정답 추측) 강조. */
+  highlightLast?: boolean;
+  /** 새 기록이 추가되면 최신 행이 보이게 안쪽 스크롤을 맨 아래로(좁은 전광판용). */
+  followLatest?: boolean;
 }
 
 /** S+B+O = 자릿수. O(아웃)은 정답에 없는 자리 수(자릿수 - S - B). */
@@ -18,15 +25,31 @@ function counts({ strikes, balls }: GuessRecord['judgement'], digits: number) {
   return { strike: strikes, ball: balls, out: digits - strikes - balls };
 }
 
-export function History({ guesses, sboText = false }: Props) {
+export function History({
+  guesses,
+  sboText = false,
+  stagger = false,
+  highlightLast = false,
+  followLatest = false,
+}: Props) {
+  const listRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const el = listRef.current;
+    if (followLatest && el) el.scrollTop = el.scrollHeight;
+  }, [followLatest, guesses.length]);
+
   if (guesses.length === 0) return null;
 
   return (
-    <ol className="history">
+    <ol className="history" ref={listRef}>
       {guesses.map((g, i) => {
         const c = counts(g.judgement, g.guess.length);
         return (
-          <li key={i} className="history-row">
+          <li
+            key={i}
+            className={`history-row${highlightLast && i === guesses.length - 1 ? ' win-row' : ''}`}
+            style={stagger ? { animationDelay: `${i * 90}ms`, animationFillMode: 'backwards' } : undefined}
+          >
             <span className="history-index">{i + 1}</span>
             <span className="history-guess">
               {g.guess.split('').map((ch, j) => (
