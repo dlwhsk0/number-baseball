@@ -6,10 +6,23 @@ const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => (p === undefined ? s.emit(ev, r) : s.emit(ev, p, r)));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const conn = () => {
-  const s = io(URL, { transports: ['websocket'] });
-  return once(s, 'connect').then(() => s);
-};
+// 서버가 없거나 URL이 틀리면 재연결로 영원히 매달리지 말고 바로 실패.
+const conn = () =>
+  new Promise((resolve, reject) => {
+    const s = io(URL, { transports: ['websocket'], reconnection: false, timeout: 5000 });
+    const fail = (err) => {
+      clearTimeout(timer);
+      s.close();
+      reject(new Error(`연결 실패(${URL}): ${err?.message ?? err}`));
+    };
+    const timer = setTimeout(() => fail('timeout'), 6000);
+    s.once('connect_error', fail);
+    s.once('connect', () => {
+      clearTimeout(timer);
+      s.off('connect_error', fail);
+      resolve(s);
+    });
+  });
 let fail = false;
 const assert = (c, m) => (c ? console.log('  ✓', m) : ((fail = true), console.error('  ✗ FAIL:', m)));
 
@@ -65,12 +78,15 @@ async function main() {
   C.emit('leave', () => {});
   const over = await overP;
   assert(over.standings.every((s) => 'team' in s), 'standings에 구단 포함');
-  await sleep(500);
-
-  const after = await emit(probe, 'leaderboard', {});
-  const top = over.standings[0];
-  const winTeam = top.team;
+  const winTeam = over.standings[0].team;
   const loseTeam = over.standings[1].team;
+
+  // 기록은 speedOver 뒤 비동기로 들어가므로, 고정 대기 대신 반영될 때까지 폴링(최대 5초).
+  let after;
+  for (const deadline = Date.now() + 5000; Date.now() < deadline; await sleep(150)) {
+    after = await emit(probe, 'leaderboard', {});
+    if (W(after, winTeam).w > W(before, winTeam).w) break;
+  }
   assert(W(after, winTeam).w === W(before, winTeam).w + 1, `${winTeam} +1승`);
   assert(W(after, loseTeam).l === W(before, loseTeam).l + 1, `${loseTeam} +1패`);
   const h0 = W(before, 'hanwha');

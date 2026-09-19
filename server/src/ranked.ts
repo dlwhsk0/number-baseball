@@ -6,10 +6,45 @@ import { RANKED_MAX_ATTEMPTS, soloPoints } from './ranking.js';
 import { isTeamId } from './teams.js';
 import { recordSolo, soloCountLastDay, teamSolo, myRank, dbEnabled } from './db.js';
 import { rankedGames } from './metrics.js';
+import { logger } from './logger.js';
 import type { GuessRecord, RankedStartAck, RankedGuessAck, RankedResult } from './types.js';
 
 /** 하루(24시간) 랭킹전 판 수 상한 — 판 수로 밀어붙이는 파밍 방지. */
 const DAILY_LIMIT = Number(process.env.RANKED_DAILY_LIMIT) || 30;
+/**
+ * IP당 24시간 새 판 상한(0이면 끔) — 계정이 없어 playerId(uuid)를 바꿔가며 자동으로 푸는 스크립트를 늦추는 보조 장치.
+ * 랭킹 무결성 보장이 아니다. 통신사 NAT로 여러 명이 한 IP를 쓰므로 넉넉히, 메모리라 재시작 시 초기화.
+ */
+const IP_DAILY_LIMIT = Number(process.env.RANKED_IP_DAILY_LIMIT ?? 200);
+const DAY_MS = 24 * 60 * 60 * 1000;
+const startsByIp = new Map<string, number[]>();
+
+/** 사설·루프백 주소면 실제 클라이언트 IP가 아니다(프록시 뒤 내부망) → 상한 적용 안 함. */
+function isPublicIp(ip: string): boolean {
+  const v = ip.replace(/^::ffff:/, '');
+  return !(
+    /^(10\.|127\.|192\.168\.|169\.254\.)/.test(v) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(v) ||
+    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(v) ||
+    v === '::1' ||
+    /^f[cd]/i.test(v)
+  );
+}
+
+/** 이 IP로 새 판을 열 수 있는지(열 수 있으면 기록까지). */
+function takeIpSlot(ip: string | null): boolean {
+  if (!IP_DAILY_LIMIT || !ip || !isPublicIp(ip)) return true;
+  const now = Date.now();
+  const recent = (startsByIp.get(ip) ?? []).filter((t) => now - t < DAY_MS);
+  if (recent.length >= IP_DAILY_LIMIT) {
+    startsByIp.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  startsByIp.set(ip, recent);
+  return true;
+}
+
 /** 방치된 판 만료(추측이 있었으면 실패로 기록). */
 const TTL_MS = 30 * 60 * 1000;
 /** 추측 최소 간격(스크립트 연타 방지). */
@@ -74,26 +109,63 @@ async function finish(g: RankedGame, won: boolean): Promise<RankedResult> {
 }
 
 /** 추측이 있었던 판을 포기/방치하면 실패로 기록(나쁜 판만 버리고 다시 하는 체리피킹 방지). */
-function forfeit(g: RankedGame): void {
+async function forfeit(g: RankedGame): Promise<void> {
   if (g.guesses.length === 0) {
     drop(g);
     return;
   }
-  void finish(g, false);
+  await finish(g, false);
 }
 
-// 방치된 판 정리.
+// 방치된 판 정리(기록 완료를 기다릴 필요 없음).
 setInterval(() => {
   const now = Date.now();
-  for (const g of byId.values()) if (now - g.lastAt > TTL_MS) forfeit(g);
+  for (const g of byId.values()) if (now - g.lastAt > TTL_MS) void forfeit(g);
+  for (const [ip, ts] of startsByIp) {
+    const recent = ts.filter((t) => now - t < DAY_MS);
+    if (recent.length) startsByIp.set(ip, recent);
+    else startsByIp.delete(ip);
+  }
 }, 60 * 1000).unref();
 
-export async function rankedStart(p: {
+/**
+ * 같은 플레이어의 시작 요청은 한 줄로 세운다 — 동시 요청이 한도 검사를 함께 통과하거나,
+ * 포기 기록이 DB에 들어가기 전에 다음 판 한도를 세는 일을 막는다.
+ */
+const startLocks = new Map<string, Promise<unknown>>();
+function serialize<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = startLocks.get(key) ?? Promise.resolve();
+  const run = prev.then(fn, fn);
+  const tail = run.catch(() => {});
+  startLocks.set(key, tail);
+  void tail.then(() => {
+    if (startLocks.get(key) === tail) startLocks.delete(key);
+  });
+  return run;
+}
+
+export function rankedStart(p: {
   playerId: unknown;
   nick: string;
   team: unknown;
   digits: unknown;
   forfeit?: unknown;
+  /** 접속 IP(Traefik이 붙인 X-Forwarded-For 맨 오른쪽). */
+  ip: string | null;
+}): Promise<RankedStartAck> {
+  if (!isPlayerId(p.playerId)) {
+    return Promise.resolve({ ok: false, error: '플레이어 정보가 올바르지 않아요.' });
+  }
+  return serialize(p.playerId, () => startLocked(p));
+}
+
+async function startLocked(p: {
+  playerId: unknown;
+  nick: string;
+  team: unknown;
+  digits: unknown;
+  forfeit?: unknown;
+  ip: string | null;
 }): Promise<RankedStartAck> {
   if (!dbEnabled()) return { ok: false, error: '지금은 랭킹전을 할 수 없어요.' };
   if (!isPlayerId(p.playerId)) return { ok: false, error: '플레이어 정보가 올바르지 않아요.' };
@@ -116,11 +188,14 @@ export async function rankedStart(p: {
         guesses: cur.guesses,
       };
     }
-    forfeit(cur);
+    await forfeit(cur);
   }
 
   if ((await soloCountLastDay(playerId)) >= DAILY_LIMIT) {
     return { ok: false, error: `랭킹전은 하루 ${DAILY_LIMIT}판까지예요. 내일 또 만나요!` };
+  }
+  if (!takeIpSlot(p.ip)) {
+    return { ok: false, error: '이 네트워크에서 오늘 랭킹전을 너무 많이 했어요. 내일 다시 도전해요!' };
   }
 
   const g: RankedGame = {
@@ -135,6 +210,8 @@ export async function rankedStart(p: {
   };
   byPlayer.set(playerId, g);
   byId.set(g.id, g);
+  // IP 자체는 안 남기고, 프록시 뒤에서 실제 공인 IP가 보이는지만(IP 상한이 동작하는지 확인용).
+  logger.info({ digits, ipPublic: !!p.ip && isPublicIp(p.ip) }, 'ranked start');
   return { ok: true, gameId: g.id, digits, maxAttempts: RANKED_MAX_ATTEMPTS, guesses: [] };
 }
 

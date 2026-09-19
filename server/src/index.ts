@@ -116,6 +116,19 @@ function sanitizeNick(nick: unknown): string {
   return n || '플레이어';
 }
 
+/**
+ * 접속 IP — Traefik이 붙인 X-Forwarded-For의 **맨 오른쪽** 값(왼쪽은 클라가 위조 가능).
+ * 게임 포트가 Traefik 뒤에서만 열려 있다는 전제. 헤더가 없으면(로컬 직접 접속) 소켓 주소.
+ */
+function clientIp(socket: { handshake: { headers: Record<string, unknown>; address: string } }): string | null {
+  const xff = socket.handshake.headers['x-forwarded-for'];
+  const parts = String(Array.isArray(xff) ? xff.join(',') : (xff ?? ''))
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  return parts.at(-1) ?? socket.handshake.address ?? null;
+}
+
 /** 클라가 보낸 팬 신원 검증(형식이 틀리면 버림 → 구단 대결 기록에서 빠짐). */
 function sanitizeFan(p: { playerId?: unknown; team?: unknown }): Fan {
   return {
@@ -376,7 +389,7 @@ io.on('connection', (socket) => {
   // ---------- 팬 랭킹 ----------
   socket.on('rankedStart', (p, ack) => {
     if (typeof ack !== 'function') return;
-    rankedStart({ ...p, nick: sanitizeNick(p?.nick) })
+    rankedStart({ ...p, nick: sanitizeNick(p?.nick), ip: clientIp(socket) })
       .then(ack)
       .catch((err) => {
         logger.error({ err }, 'rankedStart 실패');

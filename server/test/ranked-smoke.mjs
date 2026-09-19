@@ -6,10 +6,23 @@ const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => s.emit(ev, p, r));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const conn = () => {
-  const s = io(URL, { transports: ['websocket'] });
-  return once(s, 'connect').then(() => s);
-};
+// 서버가 없거나 URL이 틀리면 재연결로 영원히 매달리지 말고 바로 실패.
+const conn = () =>
+  new Promise((resolve, reject) => {
+    const s = io(URL, { transports: ['websocket'], reconnection: false, timeout: 5000 });
+    const fail = (err) => {
+      clearTimeout(timer);
+      s.close();
+      reject(new Error(`연결 실패(${URL}): ${err?.message ?? err}`));
+    };
+    const timer = setTimeout(() => fail('timeout'), 6000);
+    s.once('connect_error', fail);
+    s.once('connect', () => {
+      clearTimeout(timer);
+      s.off('connect_error', fail);
+      resolve(s);
+    });
+  });
 let fail = false;
 const assert = (c, m) => (c ? console.log('  ✓', m) : ((fail = true), console.error('  ✗ FAIL:', m)));
 

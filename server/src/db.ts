@@ -66,14 +66,18 @@ export async function initDb(): Promise<void> {
 // ---------- 캐시(순위표는 30초, 기록이 들어오면 즉시 무효화) ----------
 const CACHE_MS = 30_000;
 const cache = new Map<string, { at: number; value: unknown }>();
+/** 무효화 세대 — 조회 도중 기록이 들어오면 그 조회 결과(기록 전 값)는 캐시에 안 넣는다. */
+let generation = 0;
 async function cached<T>(key: string, load: () => Promise<T>): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.value as T;
+  const gen = generation;
   const value = await load();
-  cache.set(key, { at: Date.now(), value });
+  if (gen === generation) cache.set(key, { at: Date.now(), value });
   return value;
 }
 function invalidate(): void {
+  generation++;
   cache.clear();
 }
 
@@ -120,20 +124,32 @@ export async function recordMatches(
   players: { id: string; nick: string; team: string }[],
 ): Promise<void> {
   if (!pool || rows.length === 0) return;
+  // 한 판의 쌍들은 한 트랜잭션으로 — 중간 실패로 일부 쌍만 남아 승패가 비대칭으로 쌓이지 않게.
+  const client = await pool.connect().catch((err) => {
+    rankWriteErrors.inc({ kind: 'match' });
+    logger.error({ err }, 'match 기록 실패(연결)');
+    return null;
+  });
+  if (!client) return;
   try {
-    for (const p of players) await upsertPlayer(pool, p.id, p.nick, p.team);
+    await client.query('BEGIN');
+    for (const p of players) await upsertPlayer(client, p.id, p.nick, p.team);
     for (const r of rows) {
-      await pool.query(
+      await client.query(
         `INSERT INTO match_results (mode, team_w, team_l, draw, player_w, player_l)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [mode, r.teamW, r.teamL, r.draw, r.playerW, r.playerL],
       );
     }
+    await client.query('COMMIT');
     invalidate();
     logger.info({ mode, rows: rows.length }, 'team match 기록');
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     rankWriteErrors.inc({ kind: 'match' });
     logger.error({ err }, 'match 기록 실패');
+  } finally {
+    client.release();
   }
 }
 
