@@ -1,5 +1,5 @@
 // 솔로 랭킹전 — 정답을 서버만 쥐고 판정한다(클라 조작 방지). 진행 중인 판은 메모리(플레이어당 1판).
-// 끝나면(맞힘/20회 소진/포기) Postgres에 기록. 서버 재시작 시 진행 중인 판은 사라진다(방과 같은 한계).
+// 끝나면(맞힘/15회 소진/포기) Postgres에 기록. 서버 재시작 시 진행 중인 판은 사라진다(방과 같은 한계).
 import { randomBytes } from 'node:crypto';
 import { generateSecret, isValidGuess, judge, isWin } from './logic.js';
 import { RANKED_MAX_ATTEMPTS, soloPoints } from './ranking.js';

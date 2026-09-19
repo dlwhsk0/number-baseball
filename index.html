@@ -12,7 +12,7 @@
     <meta name="description" content="서로 다른 세 자리 숫자를 맞히는 숫자 야구 게임" />
     <title>숫자 야구</title>
     <!-- 다크가 기본. 저장된 테마(라이트/응원 구단)를 페인트 전에 복원해 깜빡임 방지.
-         응원 구단 테마이거나 솔로 랭킹전(앱은 솔로로 열림)이면 구단 테마를 먼저 입힌다(App의 effectiveTheme과 같은 규칙). -->
+         응원 구단이 있으면(앱은 솔로 랭킹전으로 열림) 구단 테마를 먼저 입힌다(App의 effectiveTheme과 같은 규칙). -->
     <script>
       try {
         var t = localStorage.getItem('nb_theme');
@@ -23,8 +23,8 @@
           if (teams.indexOf(team) < 0) team = t === 'doosan' ? 'doosan' : 'lg';
           t = 'team';
         }
-        // 응원 구단 테마를 골랐거나 솔로 랭킹전이 켜져 있으면 구단 테마.
-        if ((t === 'team' || localStorage.getItem('nb_ranked') === '1') && teams.indexOf(team) >= 0)
+        // 응원 구단이 있으면 앱은 솔로 랭킹전으로 열리므로 구단 테마(응원 구단 테마를 고른 경우도).
+        if (teams.indexOf(team) >= 0)
           t = team === 'lg' ? 'lgtwins' : team === 'doosan' ? 'doosan' : 'team-' + team;
         if (t === 'team') t = 'dark';
         if (t && t !== 'dark') document.documentElement.setAttribute('data-theme', t);

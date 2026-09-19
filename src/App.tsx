@@ -68,15 +68,7 @@ function getInitialAttempts(): number {
   } catch {
     /* 무시 */
   }
-  return 10;
-}
-function getInitialRanked(): boolean {
-  try {
-    // 랭킹전은 구단이 있어야 한다(구단 없이 켜진 값은 무시).
-    return localStorage.getItem('nb_ranked') === '1' && getTeam() !== null;
-  } catch {
-    return false;
-  }
+  return 15;
 }
 
 export default function App() {
@@ -398,11 +390,25 @@ export default function App() {
 
   // ---------- 팬 랭킹: 응원 구단 · 솔로 랭킹전(서버 판정) ----------
   const [team, setTeamState] = useState<string | null>(getTeam);
-  const [ranked, setRanked] = useState<boolean>(getInitialRanked);
+  // 응원 구단이 있으면 솔로는 기본이 랭킹전. 시작 실패(오프라인·하루 한도 등)면 이번 실행 동안만 연습으로.
+  const [rankedOff, setRankedOff] = useState(false);
+  const ranked = team !== null && !rankedOff;
   const [picker, setPicker] = useState<{ message?: string; after?: (t: string) => void } | null>(
     null,
   );
   const [rankResult, setRankResult] = useState<RankedResult | null>(null);
+  // 첫 방문 온보딩 — 구단 대항전 소개 + 응원 구단 고르기(구단이 없고 아직 안 본 사람에게 1회).
+  const [fanIntro, setFanIntro] = useState(() => {
+    try {
+      return !getTeam() && !localStorage.getItem('nb_fan_intro');
+    } catch {
+      return false;
+    }
+  });
+  const closeFanIntro = () => {
+    setFanIntro(false);
+    persist('nb_fan_intro', '1');
+  };
   const [pendingForfeit, setPendingForfeit] = useState(false);
   const rankedIdRef = useRef<string | null>(null);
   const rankBusyRef = useRef(false);
@@ -413,7 +419,9 @@ export default function App() {
     setMNick(nick);
     persist('nb_nick', nick);
     saveTeam(t);
+    if (!team) showNet(`⚾ ${teamById(t)?.short} 응원 시작! 랭킹전 ON`);
     setTeamState(t);
+    setRankedOff(false);
     const after = picker?.after;
     setPicker(null);
     after?.(t);
@@ -452,34 +460,13 @@ export default function App() {
     restore(r.digits ?? d, r.maxAttempts ?? RANKED_MAX_ATTEMPTS, hint, guesses);
   };
 
-  /** 연습 모드로(진행 중인 랭킹전은 서버에 남아 있어 돌아오면 이어하기). */
+  /** 랭킹전을 못 여는 상황(오프라인·하루 한도 등) → 이번 실행 동안 연습으로. 진행 중이던 판은 서버에 남아 다음에 이어하기. */
   const leaveRanked = () => {
     rankGenRef.current++;
     rankBusyRef.current = false;
-    setRanked(false);
-    persist('nb_ranked', '0');
     rankedIdRef.current = null;
     setRankResult(null);
-    clearReveal();
-    setPadReset((n) => n + 1);
-    reset(digits, hint);
-  };
-
-  const enterRanked = () => {
-    if (ranked) return;
-    if (!online) {
-      showNet('랭킹전은 네트워크 연결이 필요해요');
-      return;
-    }
-    const go = (t: string) => {
-      setRanked(true);
-      persist('nb_ranked', '1');
-      showNet(`🏆 랭킹전 ON · ${RANKED_MAX_ATTEMPTS}번 안에!`);
-      startRankedGame({ team: t });
-    };
-    if (team) go(team);
-    else
-      setPicker({ message: '랭킹전 점수는 응원 구단 점수로 쌓여요. 구단을 골라주세요!', after: go });
+    setRankedOff(true);
   };
 
   const submitRanked = async (guess: string) => {
@@ -524,15 +511,23 @@ export default function App() {
     if (meta && bg) meta.setAttribute('content', bg);
   }, [effectiveTheme, rankedTeam]);
 
-  // 앱을 열 때 랭킹전이 켜져 있으면 서버의 진행 중인 판을 이어받는다(없으면 새 판).
-  const rankedBootRef = useRef(false);
+  // 랭킹전 켜짐/꺼짐 전환 — 켜지면(앱 시작·구단 첫 선택) 서버의 진행 중인 판을 이어받거나 새 판,
+  // 꺼지면(시작 실패) 연습 판으로. 같은 값이면 아무것도 안 함(StrictMode 재실행에도 1회).
+  const prevRankedRef = useRef<boolean | null>(null);
   useEffect(() => {
-    if (rankedBootRef.current || !ranked) return;
-    rankedBootRef.current = true;
-    startRankedGame({});
-    // 마운트 1회만(이후 전환은 enterRanked/leaveRanked가 처리).
+    const prev = prevRankedRef.current;
+    prevRankedRef.current = ranked;
+    if (prev === ranked) return;
+    if (ranked) {
+      startRankedGame({});
+    } else if (prev) {
+      clearReveal();
+      setPadReset((n) => n + 1);
+      reset(digits, hint);
+    }
+    // 전환 시점에만 반응(나머지 값은 그 순간의 최신값을 쓰면 됨).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ranked]);
 
   const persist = (key: string, val: string) => {
     try {
@@ -669,16 +664,6 @@ export default function App() {
       <section className="history-section scoreboard">
         <div className="history-head">
           <span className="history-label">history</span>
-          <button
-            type="button"
-            className={`ranked-badge${ranked ? ' on' : ''}`}
-            aria-pressed={ranked}
-            onClick={() => (ranked ? leaveRanked() : enterRanked())}
-            title={ranked ? '랭킹전 끄기(연습으로)' : '랭킹전 켜기'}
-          >
-            <span className="ranked-dot" aria-hidden="true" />
-            RANKED {ranked && <TeamChip team={team} />}
-          </button>
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
@@ -1181,6 +1166,19 @@ export default function App() {
             startRankedGame({ forfeit: true });
           }}
           onCancel={() => setPendingForfeit(false)}
+        />
+      )}
+
+      {fanIntro && !showIntro && !showRules && !picker && (
+        <TeamPicker
+          intro
+          nick={mNick}
+          team={team}
+          onSave={(n, t) => {
+            closeFanIntro();
+            saveFan(n, t);
+          }}
+          onClose={closeFanIntro}
         />
       )}
 

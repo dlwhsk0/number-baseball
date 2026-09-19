@@ -28,7 +28,7 @@
   - **스트라이크(S)**: 숫자와 위치가 모두 맞음
   - **볼(B)**: 숫자는 있으나 위치가 틀림
   - **아웃(O)**: 하나도 없음
-- 모든 자리가 스트라이크면 승리. **시도 횟수는 설정에서 [5·10·15·직접] 선택**(기본 10, `localStorage.nb_max_attempts`, `GameState.maxAttempts`). 라이브 변경(`setMaxAttempts` 액션 — 늘리면 패배→진행 부활, 줄이면 진행→패배, 이긴 판은 유지).
+- 모든 자리가 스트라이크면 승리. **시도 횟수는 설정에서 [5·10·15·직접] 선택**(기본 15, `localStorage.nb_max_attempts`, `GameState.maxAttempts`). 라이브 변경(`setMaxAttempts` 액션 — 늘리면 패배→진행 부활, 줄이면 진행→패배, 이긴 판은 유지).
 - **자릿수·힌트**(독립, `src/game/useGame.ts`): **자릿수**(3/4)와 **힌트**(개인 기능)는 별개.
   자릿수는 `localStorage.nb_digits`, 힌트는 `nb_hint`에 저장(옛 `level` 값 자동 이관). `GameState.digits`·`GameState.beginner`(=힌트).
   **힌트**(자릿수 무관, reducer submit): 제출이 전부 아웃이면 그 숫자들 자동 ✕(아웃) 메모, **0아웃(S+B=자릿수, 전부 있음)이면 △(볼=있음) 메모**(이미 스트라이크 확정한 건 유지). `setHint`로 라이브 토글, 자릿수 변경만 새 판.
@@ -49,9 +49,10 @@
   신원은 로그인 없이 **익명 기기 id**(`localStorage.nb_player_id` uuid, 형식 깨지면 재발급) + `nb_team` + 닉네임 `nb_nick`(`src/net/fan.ts`). 구단 선택은 `TeamPicker`(닉네임+10구단 시트).
   **구단 표시는 이름이 아니라 공식 엠블럼**(`TeamChip` — 투명 배경 로고 그대로, `withName`이면 옆에 구단명). 로고는 `public/teams/<id>.png`(각 구단 공식 홈페이지 CI/BI 자료, 최대 256px — 다크 배경에서 묻히는 KIA는 흰 외곽선 SVG판, 롯데는 원 안을 채운 판).
   헤더 KBO 탭 라벨은 **KBO 공식 로고**(`public/kbo-logo.png`, koreabaseball.com 로고 페이지의 AI 자료 가로조합을 흰 단색으로) — CSS `mask`로 써서 세그먼트 글자색을 따른다.
-  - **솔로 랭킹전**(전광판 헤더 `history` 옆 **`RANKED` 토글 버튼**으로 켜고 끔 — 설정 시트엔 없음, `nb_ranked`):
+  - **솔로 랭킹전**: **응원 구단이 있으면 솔로는 기본이 랭킹전**(토글 없음 — `ranked = team !== null && !rankedOff`). 시작 실패(오프라인·하루 한도)면 그 실행 동안만 연습(`rankedOff`). 켜짐 전환(앱 시작·구단 첫 선택)은 `prevRankedRef` 효과가 처리.
+    **첫 방문 온보딩**: 인트로·튜토리얼 뒤 구단이 없으면 1회 `TeamPicker intro`(KBO 로고 + 구단 대항전 소개 3줄 + 구단 선택, '나중에 할게요', `localStorage.nb_fan_intro`). 튜토리얼 마지막 단계에도 대항전 안내.
     **랭킹전 중엔 응원 구단 테마가 자동 적용**(App `effectiveTheme` — 솔로+랭킹전+구단이면 `Team.theme`, 저장된 `nb_theme`는 안 바꿈. 두산·LG는 기존 `doosan`/`lgtwins`, 나머지는 `index.css`의 `team-<id>` 토큰 + 전광판에 구단 로고 워터마크 `:root[data-team]`/`--team-logo`). `index.html` 인라인 스크립트도 같은 규칙으로 페인트 전 적용. **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
-    시도 **20회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 21 − 시도(1회=20점…20회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
+    시도 **15회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 16 − 시도(1회=15점…15회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
     추측이 있는 판을 버리면(새 게임·자릿수 변경·30분 방치) **실패로 기록**(체리피킹 방지), 1인 **24시간 30판 상한**(`RANKED_DAILY_LIMIT`), 같은 플레이어의 시작 요청은 직렬화.
     보조로 **IP당 24시간 200판**(`RANKED_IP_DAILY_LIMIT`, 0=끔, 메모리) — X-Forwarded-For **맨 오른쪽**(Traefik이 붙인 값)만 신뢰, 사설 IP면 미적용. 계정이 없어 봇 완전 차단은 아님(uuid 교체 자동화 억제용).
     클라는 요청 세대(`rankGenRef`)로 새 판·연습 전환 뒤 도착한 늦은 응답을 버리고, 타임아웃된 요청은 늦게 연결돼도 보내지 않는다. 클라는 `useGame`의 `restore`/`applyJudgement`/`revealSecret`로 서버 결과 반영(secret='').

@@ -6,12 +6,14 @@ interface Props {
   team: string | null;
   /** 시트 상단 설명(상황별 — 랭킹전 시작/멀티 등). */
   message?: string;
+  /** 첫 방문 온보딩 — 구단 대항전 소개를 위에 붙이고 닫기 대신 '나중에 할게요'. */
+  intro?: boolean;
   onSave: (nick: string, team: string) => void;
   onClose: () => void;
 }
 
 /** 팬 등록 시트 — 닉네임 + 응원 구단(KBO 10개 구단). 랭킹·구단 대결 기록에 쓰인다. */
-export function TeamPicker({ nick, team, message, onSave, onClose }: Props) {
+export function TeamPicker({ nick, team, message, intro = false, onSave, onClose }: Props) {
   const [name, setName] = useState(nick);
   const [pick, setPick] = useState<string | null>(team);
 
@@ -24,10 +26,40 @@ export function TeamPicker({ nick, team, message, onSave, onClose }: Props) {
         aria-label="응원 구단 선택"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="settings-title">⚾ 응원 구단</h3>
-        <p className="settings-desc fan-desc">
-          {message ?? '고른 구단으로 점수가 쌓여요. 우리 팀을 1위로!'}
-        </p>
+        {intro ? (
+          <div className="fan-intro">
+            <img className="fan-intro-kbo" src="/kbo-logo.png" alt="KBO" />
+            <h3 className="settings-title">구단 대항전</h3>
+            <p className="settings-desc fan-desc">응원 구단을 고르고, 우리 팀을 1위로 만들어요!</p>
+            <ul className="fan-intro-list">
+              <li>
+                <span aria-hidden="true">🎯</span>
+                <span>
+                  <b>솔로 랭킹전</b> — 적게 시도할수록 높은 점수, 우리 구단 점수로 누적
+                </span>
+              </li>
+              <li>
+                <span aria-hidden="true">⚔️</span>
+                <span>
+                  <b>멀티</b> — 다른 구단 팬을 이기면 우리 구단 1승
+                </span>
+              </li>
+              <li>
+                <span aria-hidden="true">📊</span>
+                <span>
+                  <b>KBO 탭</b> — 구단 순위 · 내 순위 한눈에
+                </span>
+              </li>
+            </ul>
+          </div>
+        ) : (
+          <>
+            <h3 className="settings-title">⚾ 응원 구단</h3>
+            <p className="settings-desc fan-desc">
+              {message ?? '고른 구단으로 점수가 쌓여요. 우리 팀을 1위로!'}
+            </p>
+          </>
+        )}
 
         <label className="versus-field">
           <span className="versus-label">닉네임</span>
@@ -71,7 +103,7 @@ export function TeamPicker({ nick, team, message, onSave, onClose }: Props) {
           이 구단 응원하기
         </button>
         <button type="button" className="settings-close" onClick={onClose}>
-          닫기
+          {intro ? '나중에 할게요' : '닫기'}
         </button>
       </div>
     </div>
