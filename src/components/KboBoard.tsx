@@ -41,6 +41,12 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
   }, []);
 
   const maxTeamPts = Math.max(1, ...(data?.team.map((t) => t.points) ?? [1]));
+  // 내 구단의 현재 순위(솔로 누적·구단 대결) — 맨 위 카드에 요약.
+  const soloIdx = data?.team.findIndex((t) => t.team === myTeam) ?? -1;
+  // 아직 판이 없는 구단은 순위를 매기지 않는다(0점 동점 정렬 순서일 뿐).
+  const mySolo = soloIdx >= 0 && data && data.team[soloIdx].games > 0 ? data.team[soloIdx] : undefined;
+  const vsIdx = data?.versus.findIndex((v) => v.team === myTeam) ?? -1;
+  const myVs = vsIdx >= 0 ? data?.versus[vsIdx] : undefined;
 
   return (
     <section className="kbo-view">
@@ -48,8 +54,29 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
         <button type="button" className="kbo-me" onClick={onPickTeam}>
           {myTeam ? (
             <>
-              <TeamChip team={myTeam} withName />
-              <span className="kbo-me-sub">응원 중 · 변경</span>
+              <span className="kbo-me-main">
+                <TeamChip team={myTeam} withName />
+                <span className="kbo-me-edit">변경</span>
+              </span>
+              <span className="kbo-me-ranks">
+                <span className="kbo-me-rank">
+                  <span className="kbo-me-label">구단 순위</span>
+                  <b>{mySolo ? `${soloIdx + 1}위` : '-'}</b>
+                  <span className="kbo-me-detail">{mySolo ? `${fmt(mySolo.points)}점` : '기록 없음'}</span>
+                </span>
+                <span className="kbo-me-rank">
+                  <span className="kbo-me-label">구단 대결</span>
+                  <b>{myVs && myVs.w + myVs.l + myVs.d > 0 ? `${vsIdx + 1}위` : '-'}</b>
+                  <span className="kbo-me-detail">
+                    {myVs && myVs.w + myVs.l + myVs.d > 0 ? `${myVs.w}승 ${myVs.l}패 ${myVs.d}무` : '기록 없음'}
+                  </span>
+                </span>
+                <span className="kbo-me-rank">
+                  <span className="kbo-me-label">내 순위</span>
+                  <b>{data?.me ? `${data.me.rank}위` : '-'}</b>
+                  <span className="kbo-me-detail">{data?.me ? `${fmt(data.me.points)}점` : '기록 없음'}</span>
+                </span>
+              </span>
             </>
           ) : (
             <span className="fan-team-none">⚾ 응원 구단 고르기</span>

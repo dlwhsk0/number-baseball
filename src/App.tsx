@@ -947,13 +947,6 @@ export default function App() {
                 10번 안에 맞히면 점수! 1번=10점 … 10번=1점, 4자리는 2배. 응원 구단 점수로 쌓여요.
               </p>
             )}
-            <div className="settings-row">
-              <span className="settings-label">응원 구단</span>
-              <button type="button" className="fan-team-btn" onClick={() => setPicker({})}>
-                {team ? <TeamChip team={team} withName /> : <span className="fan-team-none">고르기</span>}
-                <span className="fan-team-edit">변경</span>
-              </button>
-            </div>
 
             <div className="settings-row">
               <span className="settings-label">테마</span>

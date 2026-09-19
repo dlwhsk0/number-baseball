@@ -4494,8 +4494,8 @@
 }
 .kbo-me {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   padding: 10px 12px;
   border-radius: var(--r-md);
@@ -4506,9 +4506,44 @@
   font-size: 0.95rem;
   cursor: pointer;
 }
-.kbo-me-sub {
+.kbo-me-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.kbo-me-edit {
   font-size: 0.74rem;
   color: var(--muted);
+}
+.kbo-me-ranks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.kbo-me-rank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 4px;
+  border-radius: var(--r-sm);
+  background: var(--panel-2);
+}
+.kbo-me-label {
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+.kbo-me-rank b {
+  font-family: var(--font-digit);
+  font-size: 1.1rem;
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+.kbo-me-detail {
+  font-size: 0.66rem;
+  color: var(--muted);
+  white-space: nowrap;
 }
 .board-tabs {
   align-self: center;
