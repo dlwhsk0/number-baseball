@@ -35,7 +35,14 @@ export function History({
   const listRef = useRef<HTMLOListElement>(null);
   useEffect(() => {
     const el = listRef.current;
-    if (followLatest && el) el.scrollTop = el.scrollHeight;
+    if (!followLatest || !el) return;
+    el.scrollTop = el.scrollHeight;
+    // 전광판 높이가 바뀌어도(당겨서 펼치기·접기) 최신 행이 보이게 다시 맞춘다.
+    const ro = new ResizeObserver(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [followLatest, guesses.length]);
 
   if (guesses.length === 0) return null;

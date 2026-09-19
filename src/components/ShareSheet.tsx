@@ -2,44 +2,89 @@ import { useEffect, useRef, useState } from 'react';
 import {
   buildShareText,
   canvasToBlob,
+  CARD_FORMATS,
   drawRecordCard,
+  SHARE_URL,
+  type CardFormat,
   type RecordSummary,
 } from '../share/recordCard';
+import type { Team } from '../game/teams';
 
 interface Props {
   record: RecordSummary;
+  /** 응원 구단 테마가 적용 중이면 그 구단 — 이미지에 엠블럼을 넣는다(끌 수 있음). */
+  team?: Team;
   onClose: () => void;
 }
 
-const FILE_NAME = 'homerun-record.png';
+function initialWithLogo(): boolean {
+  try {
+    return localStorage.getItem('nb_share_logo') !== '0';
+  } catch {
+    return true;
+  }
+}
 
-/** 솔로 기록 공유 시트 — 이미지 미리보기 + 공유(네이티브 시트)·저장·복사. */
-export function ShareSheet({ record, onClose }: Props) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+type Files = Record<CardFormat, { file: File; url: string }>;
+
+/**
+ * 솔로 기록 공유 시트 — 아이폰 공유 시트처럼 아이콘 4개:
+ *  인스타(스토리 9:16 이미지 + 링크 복사) · X(문구 채운 트윗 작성창) · 이미지(게시물 4:5 저장) · 문구(복사).
+ */
+export function ShareSheet({ record, team, onClose }: Props) {
+  const [files, setFiles] = useState<Files | null>(null);
+  const [withLogo, setWithLogo] = useState(initialWithLogo);
+  const useLogo = !!team && withLogo;
   const [msg, setMsg] = useState<string | null>(null);
   const msgTimerRef = useRef<number | undefined>(undefined);
   const text = buildShareText(record);
 
-  // 열릴 때 한 번 그려 둔다(공유 버튼은 사용자 제스처 안에서 바로 share를 호출해야 해서 미리 준비).
+  // 두 형식을 미리 그려 둔다(공유는 탭 제스처 안에서 바로 호출해야 해서 비동기 준비를 끝내 둠).
+  //  색은 현재 테마(응원 구단 테마 포함) 토큰을 그대로 쓰고, 로고는 스위치로 넣고 뺀다.
   useEffect(() => {
     let alive = true;
-    let objUrl: string | null = null;
-    canvasToBlob(drawRecordCard(record))
-      .then((blob) => {
-        if (!alive) return;
-        objUrl = URL.createObjectURL(blob);
-        setUrl(objUrl);
-        setFile(new File([blob], FILE_NAME, { type: 'image/png' }));
-      })
+    const urls: string[] = [];
+    const logoP = useLogo && team ? loadImage(team.logo) : Promise.resolve(null);
+    logoP
+      .then((logo) =>
+        Promise.all(
+          (Object.keys(CARD_FORMATS) as CardFormat[]).map(async (f) => {
+            const blob = await canvasToBlob(drawRecordCard(record, f, { logo }));
+            const url = URL.createObjectURL(blob);
+            urls.push(url);
+            return [f, { file: new File([blob], CARD_FORMATS[f].file, { type: 'image/png' }), url }] as const;
+          }),
+        ),
+      )
+      .then((entries) => alive && setFiles(Object.fromEntries(entries) as Files))
       .catch(() => alive && setMsg('이미지를 만들지 못했어요'));
     return () => {
       alive = false;
-      if (objUrl) URL.revokeObjectURL(objUrl);
+      urls.forEach((u) => URL.revokeObjectURL(u));
     };
     // 시트가 열려 있는 동안 기록은 바뀌지 않는다(게임 종료 후에만 열림).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [useLogo]);
+
+  const toggleLogo = () => {
+    const next = !withLogo;
+    setFiles(null);
+    setWithLogo(next);
+    try {
+      localStorage.setItem('nb_share_logo', next ? '1' : '0');
+    } catch {
+      /* 무시 */
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -55,43 +100,60 @@ export function ShareSheet({ record, onClose }: Props) {
   const flash = (m: string) => {
     setMsg(m);
     window.clearTimeout(msgTimerRef.current);
-    msgTimerRef.current = window.setTimeout(() => setMsg(null), 2200);
+    msgTimerRef.current = window.setTimeout(() => setMsg(null), 2600);
   };
 
-  const canNativeShare =
-    !!file && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
+  const canShareFile = (f: File) =>
+    typeof navigator.canShare === 'function' && navigator.canShare({ files: [f] });
 
-  const share = async () => {
-    if (!file) return;
+  const download = (f: CardFormat) => {
+    if (!files) return;
+    const a = document.createElement('a');
+    a.href = files[f].url;
+    a.download = CARD_FORMATS[f].file;
+    a.click();
+  };
+
+  /** 파일 공유 시트(모바일) — 안 되면 다운로드로. 사용자가 취소하면 false. */
+  const shareFile = async (f: CardFormat): Promise<boolean> => {
+    if (!files) return false;
+    const file = files[f].file;
+    if (!canShareFile(file)) {
+      download(f);
+      return true;
+    }
     try {
-      await navigator.share({ files: [file], text, title: '숫자 야구 기록' });
+      await navigator.share({ files: [file] });
+      return true;
     } catch (e) {
-      if ((e as Error)?.name !== 'AbortError') flash('공유하지 못했어요 — 저장·복사로 올려 주세요');
+      if ((e as Error)?.name === 'AbortError') return false;
+      download(f);
+      return true;
     }
   };
 
-  const copyImageAndText = async () => {
-    if (!file) return;
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'image/png': file,
-          'text/plain': new Blob([text], { type: 'text/plain' }),
-        }),
-      ]);
-      flash('이미지와 문구를 복사했어요!');
-    } catch {
-      // 이미지 클립보드를 못 쓰는 브라우저 → 문구만이라도.
-      try {
-        await navigator.clipboard.writeText(text);
-        flash('이미지 복사는 안 돼서 문구만 복사했어요');
-      } catch {
-        flash('복사하지 못했어요');
-      }
-    }
+  // 인스타: 스토리용 이미지. 링크 스티커는 웹에서 자동으로 못 붙이므로 링크를 같은 탭 안에서 먼저 복사.
+  const onInsta = async () => {
+    navigator.clipboard?.writeText(SHARE_URL).catch(() => {});
+    const done = await shareFile('story');
+    if (done) flash('링크 복사됨 — 스토리 🔗 스티커에 붙여넣기');
   };
 
-  const copyText = async () => {
+  // X: 꼬들처럼 문구가 채워진 작성 창을 연다.
+  const onX = () => {
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+      '_blank',
+      'noopener,noreferrer',
+    );
+  };
+
+  // 이미지: 게시물(4:5) 이미지 저장 — 모바일은 공유 시트의 "이미지 저장".
+  const onImage = async () => {
+    await shareFile('post');
+  };
+
+  const onText = async () => {
     try {
       await navigator.clipboard.writeText(text);
       flash('문구를 복사했어요!');
@@ -100,10 +162,15 @@ export function ShareSheet({ record, onClose }: Props) {
     }
   };
 
-  const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  const targets = [
+    { key: 'insta', label: '인스타', icon: <InstaIcon />, onClick: onInsta, needsFile: true },
+    { key: 'x', label: 'X', icon: <XIcon />, onClick: onX, needsFile: false },
+    { key: 'image', label: '이미지', icon: <ImageIcon />, onClick: onImage, needsFile: true },
+    { key: 'text', label: '문구', icon: <TextIcon />, onClick: onText, needsFile: false },
+  ];
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop share-backdrop" onClick={onClose}>
       <div
         className="share-sheet"
         role="dialog"
@@ -111,57 +178,45 @@ export function ShareSheet({ record, onClose }: Props) {
         aria-label="기록 공유"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="settings-title">기록 공유</h3>
-
+        <span className="share-grabber" aria-hidden="true" />
         <div className="share-preview">
-          {url ? (
-            <img src={url} alt="이번 판 기록 이미지" />
+          {files ? (
+            <img src={files.post.url} alt="이번 판 기록 이미지" />
           ) : (
             <span className="share-loading">이미지 만드는 중…</span>
           )}
         </div>
-        <p className="share-hint">이미지를 길게 눌러도 저장할 수 있어요</p>
 
-        <div className="share-actions">
-          {canNativeShare && (
-            <button type="button" className="versus-primary share-main" onClick={share}>
-              📤 공유하기
-            </button>
-          )}
-          <a
-            className={`versus-secondary share-btn${url ? '' : ' disabled'}`}
-            href={url ?? undefined}
-            download={FILE_NAME}
-            aria-disabled={!url}
-          >
-            🖼 이미지 저장
-          </a>
-          <button type="button" className="versus-secondary share-btn" onClick={copyImageAndText}>
-            📋 이미지+문구 복사
-          </button>
-          <button
-            type="button"
-            className={`versus-secondary share-btn${canNativeShare ? ' share-wide' : ''}`}
-            onClick={copyText}
-          >
-            📝 문구만 복사
-          </button>
-          {!canNativeShare && (
-            <a
-              className="versus-secondary share-btn"
-              href={tweetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              𝕏 에 올리기
-            </a>
-          )}
-        </div>
-        {!canNativeShare && (
-          <p className="share-hint">이미지는 복사한 뒤 글쓰기 창에 붙여넣으면 돼요</p>
+        {team && (
+          <label className="share-logo-row">
+            <img src={team.logo} alt="" className="share-logo-thumb" />
+            <span className="share-logo-text">{team.short} 로고 넣기</span>
+            <input
+              type="checkbox"
+              role="switch"
+              className="ios-switch"
+              checked={withLogo}
+              onChange={toggleLogo}
+            />
+          </label>
         )}
 
-        <button type="button" className="settings-close" onClick={onClose}>
+        <div className="share-targets">
+          {targets.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              className="share-target"
+              disabled={t.needsFile && !files}
+              onClick={t.onClick}
+            >
+              <span className={`share-icon share-icon-${t.key}`}>{t.icon}</span>
+              <span className="share-label">{t.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <button type="button" className="share-cancel" onClick={onClose}>
           닫기
         </button>
 
@@ -172,5 +227,42 @@ export function ShareSheet({ record, onClose }: Props) {
         )}
       </div>
     </div>
+  );
+}
+
+function InstaIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" strokeWidth="2" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5.5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="#fff" aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+      <circle cx="8.5" cy="9.5" r="1.8" fill="currentColor" stroke="none" />
+      <path d="M21 16l-5.2-5.2L7 19.6" />
+    </svg>
+  );
+}
+
+function TextIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="8" y="8" width="12" height="13" rx="2.5" />
+      <path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-7A2.5 2.5 0 0 0 4 5.5v9A2.5 2.5 0 0 0 6.5 17H8" />
+    </svg>
   );
 }
