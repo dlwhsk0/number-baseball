@@ -4976,3 +4976,6 @@
 .share-actions .share-wide {
   grid-column: 1 / -1;
 }
+.share-format {
+  align-self: center;
+}

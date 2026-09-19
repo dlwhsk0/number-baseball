@@ -204,20 +204,49 @@ function today(): string {
   return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())}`;
 }
 
-/** 기록 카드를 그린 캔버스. 기록 수에 맞춰 세로 길이가 늘어난다(최소 4:5). */
-export function drawRecordCard(r: RecordSummary): HTMLCanvasElement {
+/** 공유 이미지 형식. 스토리=9:16(위·아래 UI에 가리는 곳은 비움), 게시물=4:5(피드·카톡·X). */
+export type CardFormat = 'story' | 'post';
+export const CARD_FORMATS: Record<
+  CardFormat,
+  { h: number; safeTop: number; safeBottom: number; label: string; file: string }
+> = {
+  story: { h: 1920, safeTop: 200, safeBottom: 250, label: '스토리 9:16', file: 'homerun-story.png' },
+  post: { h: 1350, safeTop: 0, safeBottom: 0, label: '게시물 4:5', file: 'homerun-post.png' },
+};
+
+const HEADER_H = 560; // 마퀴 + 타이틀 + 헤드라인 + 정답
+const FOOTER_H = 150;
+const BOARD_PAD = 34;
+const BOARD_HEAD = 56;
+
+/** 기록 카드를 그린 캔버스. 형식의 비율(1080×h)에 맞춰 행 높이를 조절하고, 가운데 정렬.
+ *  기록이 아주 많아 최소 행 높이로도 안 들어가면 그때만 세로로 늘어난다. */
+export function drawRecordCard(r: RecordSummary, format: CardFormat = 'post'): HTMLCanvasElement {
   const pal = readPalette();
   const n = r.guesses.length;
   const won = r.status === 'won';
+  const fmt = CARD_FORMATS[format];
+  const usable = fmt.h - fmt.safeTop - fmt.safeBottom;
 
-  // 행 높이: 기록이 많으면 조금 촘촘하게.
-  const rowH = n > 12 ? 74 : 92;
-  const rowGap = n > 12 ? 10 : 14;
-  const HEADER = 560; // 타이틀 + 정답
-  const FOOTER = 150;
-  const boardPad = 34;
-  const boardH = boardPad * 2 + 56 + n * rowH + Math.max(0, n - 1) * rowGap;
-  const H = Math.max(1350, HEADER + boardH + FOOTER);
+  // 행 높이 = 남는 공간 / 행 수. 너무 작아지면 헤더를 줄여(hs) 기록에 자리를 더 준다.
+  //  반대로 공간이 넉넉하면(세로로 긴 스토리·기록 적음) 헤더와 행을 키워 여백을 채운다.
+  const maxRow = format === 'story' ? 124 : 104;
+  const fitRow = (hs: number) => {
+    const avail = usable - HEADER_H * hs - FOOTER_H - BOARD_PAD * 2 - BOARD_HEAD;
+    return Math.min(maxRow, avail / Math.max(n, 1) / 1.15);
+  };
+  let hs = 1;
+  if (format === 'story' && fitRow(1.25) >= 96) hs = 1.25;
+  else if (fitRow(1) < 72) hs = 0.72;
+  const rowH = Math.max(40, fitRow(hs));
+  const rowGap = Math.round(rowH * 0.15);
+  const HEADER = HEADER_H * hs;
+  const FOOTER = FOOTER_H;
+  const boardPad = BOARD_PAD;
+  const boardH = boardPad * 2 + BOARD_HEAD + n * rowH + Math.max(0, n - 1) * rowGap;
+  const contentH = HEADER + boardH + FOOTER;
+  const H = Math.max(fmt.h, contentH + fmt.safeTop + fmt.safeBottom);
+  const oy = fmt.safeTop + (H - fmt.safeTop - fmt.safeBottom - contentH) / 2;
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -238,12 +267,21 @@ export function drawRecordCard(r: RecordSummary): HTMLCanvasElement {
     /* 무시 */
   }
 
+  // 이하 콘텐츠는 세로 가운데(oy) 기준.
+  ctx.save();
+  ctx.translate(0, oy);
+
   // 상단 전구 마퀴
   ctx.save();
   ctx.globalAlpha = 0.65;
-  for (let x = 70; x <= W - 70; x += 26) bulb(ctx, x, 54, 5, pal.accent, true, pal);
+  for (let x = 70; x <= W - 70; x += 26) bulb(ctx, x, 54 * hs, 5, pal.accent, true, pal);
   ctx.restore();
 
+  // 헤더(타이틀·헤드라인·정답)는 hs 배율로 가운데 기준 축소.
+  ctx.save();
+  ctx.translate(W / 2, 0);
+  ctx.scale(hs, hs);
+  ctx.translate(-W / 2, 0);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
 
@@ -278,6 +316,7 @@ export function drawRecordCard(r: RecordSummary): HTMLCanvasElement {
   const agap = 16;
   const aTotal = r.digits * aw + (r.digits - 1) * agap;
   drawCells(ctx, r.secret, (W - aTotal) / 2, 382, aw, ah, agap, won ? pal.accent : pal.led, pal);
+  ctx.restore();
 
   // 기록 보드
   const bx = 56;
@@ -304,7 +343,7 @@ export function drawRecordCard(r: RecordSummary): HTMLCanvasElement {
   const chh = rowH * 0.8;
   const cgap = 8;
   const r0 = by + boardPad + 56;
-  const bulbR = rowH > 80 ? 10 : 8;
+  const bulbR = Math.max(6, Math.min(11, rowH * 0.105));
   const bulbStep = bulbR * 2 + 8;
   const groupW = r.digits * bulbStep - 8;
   const groupGap = 26;
@@ -361,10 +400,11 @@ export function drawRecordCard(r: RecordSummary): HTMLCanvasElement {
   ctx.textAlign = 'center';
   ctx.fillStyle = pal.text;
   ctx.font = `800 34px ${FONT}`;
-  ctx.fillText(`⚾ ${SHARE_URL.replace('https://', '')}`, W / 2, H - 78);
+  ctx.fillText(`⚾ ${SHARE_URL.replace('https://', '')}`, W / 2, contentH - 78);
   ctx.fillStyle = pal.muted;
   ctx.font = `600 24px ${FONT}`;
-  ctx.fillText(today(), W / 2, H - 38);
+  ctx.fillText(today(), W / 2, contentH - 38);
+  ctx.restore();
 
   return canvas;
 }

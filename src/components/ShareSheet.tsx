@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import {
   buildShareText,
   canvasToBlob,
+  CARD_FORMATS,
   drawRecordCard,
+  SHARE_URL,
+  type CardFormat,
   type RecordSummary,
 } from '../share/recordCard';
 
@@ -11,26 +14,35 @@ interface Props {
   onClose: () => void;
 }
 
-const FILE_NAME = 'homerun-record.png';
+function initialFormat(): CardFormat {
+  try {
+    return localStorage.getItem('nb_share_fmt') === 'story' ? 'story' : 'post';
+  } catch {
+    return 'post';
+  }
+}
 
 /** 솔로 기록 공유 시트 — 이미지 미리보기 + 공유(네이티브 시트)·저장·복사. */
 export function ShareSheet({ record, onClose }: Props) {
+  const [format, setFormat] = useState<CardFormat>(initialFormat);
   const [url, setUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const msgTimerRef = useRef<number | undefined>(undefined);
   const text = buildShareText(record);
 
-  // 열릴 때 한 번 그려 둔다(공유 버튼은 사용자 제스처 안에서 바로 share를 호출해야 해서 미리 준비).
+  const fileName = CARD_FORMATS[format].file;
+
+  // 형식이 정해질 때마다 미리 그려 둔다(공유 버튼은 사용자 제스처 안에서 바로 share를 호출해야 해서 미리 준비).
   useEffect(() => {
     let alive = true;
     let objUrl: string | null = null;
-    canvasToBlob(drawRecordCard(record))
+    canvasToBlob(drawRecordCard(record, format))
       .then((blob) => {
         if (!alive) return;
         objUrl = URL.createObjectURL(blob);
         setUrl(objUrl);
-        setFile(new File([blob], FILE_NAME, { type: 'image/png' }));
+        setFile(new File([blob], CARD_FORMATS[format].file, { type: 'image/png' }));
       })
       .catch(() => alive && setMsg('이미지를 만들지 못했어요'));
     return () => {
@@ -39,7 +51,19 @@ export function ShareSheet({ record, onClose }: Props) {
     };
     // 시트가 열려 있는 동안 기록은 바뀌지 않는다(게임 종료 후에만 열림).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [format]);
+
+  const pickFormat = (f: CardFormat) => {
+    if (f === format) return;
+    setUrl(null);
+    setFile(null);
+    setFormat(f);
+    try {
+      localStorage.setItem('nb_share_fmt', f);
+    } catch {
+      /* 무시 */
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -61,8 +85,11 @@ export function ShareSheet({ record, onClose }: Props) {
   const canNativeShare =
     !!file && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
 
+  // 인스타는 공유 시 문구를 버리므로, 공유와 동시에(같은 탭 제스처 안에서) 클립보드에 넣어 둔다.
+  //  스토리 → 링크(🔗 링크 스티커에 붙여넣기), 게시물 → 문구 전체(캡션에 붙여넣기).
   const share = async () => {
     if (!file) return;
+    navigator.clipboard?.writeText(format === 'story' ? SHARE_URL : text).catch(() => {});
     try {
       await navigator.share({ files: [file], text, title: '숫자 야구 기록' });
     } catch (e) {
@@ -100,6 +127,15 @@ export function ShareSheet({ record, onClose }: Props) {
     }
   };
 
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(SHARE_URL);
+      flash('링크를 복사했어요!');
+    } catch {
+      flash('복사하지 못했어요');
+    }
+  };
+
   const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
 
   return (
@@ -113,14 +149,32 @@ export function ShareSheet({ record, onClose }: Props) {
       >
         <h3 className="settings-title">기록 공유</h3>
 
-        <div className="share-preview">
+        <div className="seg share-format" role="group" aria-label="이미지 형식">
+          {(Object.keys(CARD_FORMATS) as CardFormat[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={`seg-btn${format === f ? ' active' : ''}`}
+              aria-pressed={format === f}
+              onClick={() => pickFormat(f)}
+            >
+              {CARD_FORMATS[f].label}
+            </button>
+          ))}
+        </div>
+
+        <div className={`share-preview share-preview-${format}`}>
           {url ? (
             <img src={url} alt="이번 판 기록 이미지" />
           ) : (
             <span className="share-loading">이미지 만드는 중…</span>
           )}
         </div>
-        <p className="share-hint">이미지를 길게 눌러도 저장할 수 있어요</p>
+        <p className="share-hint">
+          {format === 'story'
+            ? '공유하면 링크가 복사돼요 → 스토리 🔗스티커에 붙여넣기'
+            : '공유하면 문구가 복사돼요 → 캡션에 붙여넣기'}
+        </p>
 
         <div className="share-actions">
           {canNativeShare && (
@@ -131,7 +185,7 @@ export function ShareSheet({ record, onClose }: Props) {
           <a
             className={`versus-secondary share-btn${url ? '' : ' disabled'}`}
             href={url ?? undefined}
-            download={FILE_NAME}
+            download={fileName}
             aria-disabled={!url}
           >
             🖼 이미지 저장
@@ -139,16 +193,15 @@ export function ShareSheet({ record, onClose }: Props) {
           <button type="button" className="versus-secondary share-btn" onClick={copyImageAndText}>
             📋 이미지+문구 복사
           </button>
-          <button
-            type="button"
-            className={`versus-secondary share-btn${canNativeShare ? ' share-wide' : ''}`}
-            onClick={copyText}
-          >
-            📝 문구만 복사
+          <button type="button" className="versus-secondary share-btn" onClick={copyText}>
+            📝 문구 복사
+          </button>
+          <button type="button" className="versus-secondary share-btn" onClick={copyLink}>
+            🔗 링크 복사
           </button>
           {!canNativeShare && (
             <a
-              className="versus-secondary share-btn"
+              className="versus-secondary share-btn share-wide"
               href={tweetUrl}
               target="_blank"
               rel="noopener noreferrer"
