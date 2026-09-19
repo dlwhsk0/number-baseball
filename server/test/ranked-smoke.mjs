@@ -56,7 +56,7 @@ async function main() {
 
   // 한 판 풀기
   r = await emit(S, 'rankedStart', { playerId: me, nick: '엘지팬', team: 'lg', digits: 3 });
-  assert(r.ok && r.gameId && r.maxAttempts === 20 && r.guesses.length === 0, '랭킹전 시작');
+  assert(r.ok && r.gameId && r.maxAttempts === 15 && r.guesses.length === 0, '랭킹전 시작');
   const gameId = r.gameId;
   const bad = await emit(S, 'rankedGuess', { gameId, guess: '112' });
   assert(!bad.ok, '중복 숫자 추측 거부');
@@ -85,7 +85,7 @@ async function main() {
   }
   assert(final && final.secret && final.secret.length === 3, `종료·정답 공개 ${final?.secret}`);
   if (final.status === 'won') {
-    assert(final.result.points >= 1 && final.result.points <= 20, `점수 ${final.result.points}`);
+    assert(final.result.points >= 1 && final.result.points <= 15, `점수 ${final.result.points}`);
   } else {
     assert(final.result.points === 0, '실패 0점');
   }

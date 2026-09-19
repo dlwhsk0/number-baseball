@@ -2,18 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { soloPoints, pairMatches, winPct, gamesBehind } from './ranking';
 
 describe('soloPoints — 적게 시도할수록 높은 점수', () => {
-  it('1회=20점 … 20회=1점', () => {
-    expect(soloPoints(1, true, 3)).toBe(20);
-    expect(soloPoints(20, true, 3)).toBe(1);
-    expect(soloPoints(6, true, 3)).toBe(15);
+  it('1회=15점 … 15회=1점', () => {
+    expect(soloPoints(1, true, 3)).toBe(15);
+    expect(soloPoints(15, true, 3)).toBe(1);
+    expect(soloPoints(6, true, 3)).toBe(10);
   });
   it('4자리는 2배', () => {
-    expect(soloPoints(6, true, 4)).toBe(30);
+    expect(soloPoints(6, true, 4)).toBe(20);
   });
   it('실패·범위 밖은 0점', () => {
-    expect(soloPoints(20, false, 3)).toBe(0);
+    expect(soloPoints(15, false, 3)).toBe(0);
     expect(soloPoints(0, true, 3)).toBe(0);
-    expect(soloPoints(21, true, 3)).toBe(0);
+    expect(soloPoints(16, true, 3)).toBe(0);
   });
 });
 
