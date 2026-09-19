@@ -47,7 +47,8 @@
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
 - **KBO 팬 랭킹**(구단 대항전): 팬이 응원 구단(KBO 10개 구단, `src/game/teams.ts` ↔ `server/src/teams.ts` 복제)을 달고 경쟁.
   신원은 로그인 없이 **익명 기기 id**(`localStorage.nb_player_id` uuid, 형식 깨지면 재발급) + `nb_team` + 닉네임 `nb_nick`(`src/net/fan.ts`). 구단 선택은 `TeamPicker`(닉네임+10구단 시트).
-  **구단 표시는 이름이 아니라 공식 엠블럼**(`TeamChip` — 흰 타일 위 로고, `withName`이면 옆에 구단명). 로고는 `public/teams/<id>.png`(각 구단 공식 홈페이지 CI/BI 페이지에서 받은 이미지, 최대 256px로 축소).
+  **구단 표시는 이름이 아니라 공식 엠블럼**(`TeamChip` — 투명 배경 로고 그대로, `withName`이면 옆에 구단명). 로고는 `public/teams/<id>.png`(각 구단 공식 홈페이지 CI/BI 자료, 최대 256px — 다크 배경에서 묻히는 KIA는 흰 외곽선 SVG판, 롯데는 원 안을 채운 판).
+  헤더 KBO 탭 라벨은 **KBO 공식 로고**(`public/kbo-logo.png`, koreabaseball.com 로고 페이지의 AI 자료 가로조합을 흰 단색으로) — CSS `mask`로 써서 세그먼트 글자색을 따른다.
   - **솔로 랭킹전**(설정 모드 `nb_ranked`): **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
     시도 **10회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 11 − 시도(1회=10점…10회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
     추측이 있는 판을 버리면(새 게임·자릿수 변경·30분 방치) **실패로 기록**(체리피킹 방지), 1인 **24시간 30판 상한**(`RANKED_DAILY_LIMIT`), 같은 플레이어의 시작 요청은 직렬화.

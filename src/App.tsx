@@ -606,8 +606,9 @@ export default function App() {
               className={`seg-btn${section === 'kbo' ? ' active' : ''}`}
               aria-pressed={section === 'kbo'}
               onClick={() => guardedSwitch(() => setSection('kbo'))}
+              aria-label="KBO"
             >
-              KBO
+              <span className="kbo-mark" aria-hidden="true" />
             </button>
           </div>
           <div className="ctrl-side ctrl-right">
