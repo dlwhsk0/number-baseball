@@ -4,7 +4,6 @@ import { io } from 'socket.io-client';
 import { randomUUID } from 'node:crypto';
 const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => s.emit(ev, p, r));
-const once = (s, ev) => new Promise((r) => s.once(ev, r));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 서버가 없거나 URL이 틀리면 재연결로 영원히 매달리지 말고 바로 실패.
 const conn = () =>
