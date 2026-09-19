@@ -4300,31 +4300,33 @@
 .ctrl-side {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex: 0 0 76px;
+  flex: 0 0 34px;
 }
 .ctrl-right {
   justify-content: flex-end;
 }
-.board-btn {
-  font-size: 0.95rem;
-}
 
-/* 구단 칩 — 구단색 배경 + 짧은 이름 */
+/* 구단 엠블럼 — 공식 로고를 밝은 타일 위에(어두운 로고도 다크 배경에서 보이게). */
 .team-chip {
   display: inline-flex;
   align-items: center;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--team, #555);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 800;
-  line-height: 1.35;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
+  gap: 7px;
   vertical-align: middle;
+  line-height: 1;
+}
+.team-logo {
+  flex: 0 0 auto;
+  width: 1.9em;
+  height: 1.9em;
+  padding: 2px;
+  object-fit: contain;
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+.team-chip-name {
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 /* 팬 등록 시트(닉네임 + 구단) */
@@ -4361,12 +4363,18 @@
 .team-pick:active {
   transform: scale(0.97);
 }
-.team-pick-dot {
-  flex: 0 0 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--team);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+.team-pick-logo {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 3px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+}
+.team-pick-name {
+  min-width: 0;
+  line-height: 1.25;
 }
 .team-pick.on {
   border-color: var(--accent);
@@ -4385,7 +4393,7 @@
   cursor: pointer;
 }
 .fan-team-btn .team-chip {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
 }
 .fan-team-none {
   font-size: 0.85rem;
@@ -4455,20 +4463,57 @@
   font-size: 0.82rem;
 }
 
-/* 순위표 모달 */
-.board-sheet {
-  width: min(100%, 420px);
-  max-height: 88dvh;
+/* KBO 탭 — 팬 순위(인라인 화면, 안쪽만 스크롤) */
+.kbo-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.kbo-card {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 10px;
+  border-radius: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 var(--glass-edge), 0 8px 26px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+}
+.kbo-card .seg {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.kbo-me {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--cell);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.kbo-me-sub {
+  font-size: 0.74rem;
+  color: var(--muted);
 }
 .board-tabs {
   align-self: center;
 }
 .board-body {
   flex: 1 1 auto;
-  min-height: 160px;
+  min-height: 0;
   overflow-y: auto;
   margin: 0 -6px;
-  padding: 0 6px;
+  padding: 0 6px 4px;
 }
 .board-caption {
   margin: 0 0 8px;

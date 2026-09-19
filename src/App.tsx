@@ -20,10 +20,10 @@ import type { RankedResult } from './net/protocol';
 import { RANKED_MAX_ATTEMPTS } from './game/ranking';
 import { TeamChip } from './components/TeamChip';
 import { TeamPicker } from './components/TeamPicker';
-import { Leaderboard } from './components/Leaderboard';
+import { KboBoard } from './components/KboBoard';
 import './App.css';
 
-type Section = 'solo' | 'multi';
+type Section = 'solo' | 'multi' | 'kbo';
 type GameType = 'speed' | 'duel';
 type Theme = 'dark' | 'light' | 'doosan' | 'lgtwins';
 
@@ -388,11 +388,12 @@ export default function App() {
   const [picker, setPicker] = useState<{ message?: string; after?: (t: string) => void } | null>(
     null,
   );
-  const [showBoard, setShowBoard] = useState(false);
   const [rankResult, setRankResult] = useState<RankedResult | null>(null);
   const [pendingForfeit, setPendingForfeit] = useState(false);
   const rankedIdRef = useRef<string | null>(null);
   const rankBusyRef = useRef(false);
+  /** 랭킹 요청 세대 — 새 판 시작·연습 전환 때 올려서, 그 전에 보낸 요청의 늦은 응답은 버린다. */
+  const rankGenRef = useRef(0);
 
   const saveFan = (nick: string, t: string) => {
     setMNick(nick);
@@ -409,6 +410,7 @@ export default function App() {
     const t = opts.team ?? team;
     if (!t) return;
     const d = opts.digits ?? digits;
+    const gen = ++rankGenRef.current;
     rankedIdRef.current = null;
     rankBusyRef.current = true;
     setRankResult(null);
@@ -423,6 +425,7 @@ export default function App() {
       digits: d,
       forfeit: opts.forfeit,
     });
+    if (gen !== rankGenRef.current) return; // 그 사이 새 판·연습 전환 → 이 응답은 무효
     rankBusyRef.current = false;
     if (!r.ok || !r.gameId) {
       showNet(r.error ?? '랭킹전을 시작하지 못했어요');
@@ -437,6 +440,8 @@ export default function App() {
 
   /** 연습 모드로(진행 중인 랭킹전은 서버에 남아 있어 돌아오면 이어하기). */
   const leaveRanked = () => {
+    rankGenRef.current++;
+    rankBusyRef.current = false;
     setRanked(false);
     persist('nb_ranked', '0');
     rankedIdRef.current = null;
@@ -466,7 +471,10 @@ export default function App() {
     const id = rankedIdRef.current;
     if (!id || rankBusyRef.current) return;
     rankBusyRef.current = true;
+    const gen = rankGenRef.current;
     const r = await guessRanked(id, guess);
+    // 기다리는 사이 새 판·연습 전환이 있었으면 이 판정은 지금 화면과 무관 → 버림.
+    if (gen !== rankGenRef.current || rankedIdRef.current !== id) return;
     rankBusyRef.current = false;
     if (!r.ok || !r.judgement || !r.status) {
       showNet(r.error ?? '판정에 실패했어요');
@@ -593,17 +601,16 @@ export default function App() {
             >
               멀티
             </button>
-          </div>
-          <div className="ctrl-side ctrl-right">
             <button
               type="button"
-              className="gear-btn board-btn"
-              onClick={() => setShowBoard(true)}
-              aria-label="팬 순위"
-              title="팬 순위"
+              className={`seg-btn${section === 'kbo' ? ' active' : ''}`}
+              aria-pressed={section === 'kbo'}
+              onClick={() => guardedSwitch(() => setSection('kbo'))}
             >
-              🏆
+              KBO
             </button>
+          </div>
+          <div className="ctrl-side ctrl-right">
             {section === 'solo' ? (
               <button
                 type="button"
@@ -650,7 +657,7 @@ export default function App() {
               attempts={state.guesses.length}
               onRestart={newGame}
               ranked={ranked ? rankResult : null}
-              onShowBoard={() => setShowBoard(true)}
+              onShowBoard={() => setSection('kbo')}
             />
           </div>
         ) : (
@@ -683,6 +690,8 @@ export default function App() {
         />
       )}
         </>
+      ) : section === 'kbo' ? (
+        <KboBoard myTeam={team} onPickTeam={() => setPicker({})} />
       ) : launch === null ? (
         <div className="versus versus-center">
           <div className="online-menu-card">
@@ -705,7 +714,7 @@ export default function App() {
                   setPicker({ message: '온라인 대전에서 다른 구단 팬을 이기면 우리 구단이 1승!' })
                 }
               >
-                {team ? <TeamChip team={team} full /> : <span className="fan-team-none">구단 고르기</span>}
+                {team ? <TeamChip team={team} withName /> : <span className="fan-team-none">구단 고르기</span>}
                 <span className="fan-team-edit">변경</span>
               </button>
             </div>
@@ -940,7 +949,7 @@ export default function App() {
             <div className="settings-row">
               <span className="settings-label">응원 구단</span>
               <button type="button" className="fan-team-btn" onClick={() => setPicker({})}>
-                {team ? <TeamChip team={team} full /> : <span className="fan-team-none">고르기</span>}
+                {team ? <TeamChip team={team} withName /> : <span className="fan-team-none">고르기</span>}
                 <span className="fan-team-edit">변경</span>
               </button>
             </div>
@@ -1158,7 +1167,6 @@ export default function App() {
         />
       )}
 
-      {showBoard && <Leaderboard onClose={() => setShowBoard(false)} myTeam={team} />}
 
       {pendingLeave && (
         <ConfirmDialog

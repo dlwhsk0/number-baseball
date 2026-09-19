@@ -16,15 +16,15 @@ const fmt = (n: number) => n.toLocaleString('ko-KR');
 const pct = (p: number) => p.toFixed(3).replace(/^0/, '');
 
 interface Props {
-  onClose: () => void;
   /** 내 응원 구단(강조 표시). */
   myTeam: string | null;
-  initialTab?: Tab;
+  /** 응원 구단 고르기/바꾸기 시트 열기. */
+  onPickTeam: () => void;
 }
 
-/** 팬 순위표 — 구단 솔로 누적 · 개인 누적 · 구단 대결(멀티) 승률. */
-export function Leaderboard({ onClose, myTeam, initialTab = 'team' }: Props) {
-  const [tab, setTab] = useState<Tab>(initialTab);
+/** KBO 탭 — 팬 순위(구단 솔로 누적 · 개인 누적 · 구단 대결). 탭에 들어올 때마다 새로 불러온다. */
+export function KboBoard({ myTeam, onPickTeam }: Props) {
+  const [tab, setTab] = useState<Tab>('team');
   const [data, setData] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,24 +40,22 @@ export function Leaderboard({ onClose, myTeam, initialTab = 'team' }: Props) {
     };
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   const maxTeamPts = Math.max(1, ...(data?.team.map((t) => t.points) ?? [1]));
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="settings-sheet board-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="팬 순위"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="settings-title">🏆 팬 순위</h3>
+    <section className="kbo-view">
+      <div className="kbo-card">
+        <button type="button" className="kbo-me" onClick={onPickTeam}>
+          {myTeam ? (
+            <>
+              <TeamChip team={myTeam} withName />
+              <span className="kbo-me-sub">응원 중 · 변경</span>
+            </>
+          ) : (
+            <span className="fan-team-none">⚾ 응원 구단 고르기</span>
+          )}
+        </button>
+
         <div className="seg board-tabs" role="tablist">
           {TABS.map((t) => (
             <button
@@ -170,10 +168,7 @@ export function Leaderboard({ onClose, myTeam, initialTab = 'team' }: Props) {
           )}
         </div>
 
-        <button type="button" className="settings-close" onClick={onClose}>
-          닫기
-        </button>
       </div>
-    </div>
+    </section>
   );
 }

@@ -51,8 +51,8 @@ export function TeamPicker({ nick, team, message, onSave, onClose }: Props) {
               style={{ '--team': t.color } as CSSProperties}
               onClick={() => setPick(t.id)}
             >
-              <span className="team-pick-dot" aria-hidden="true" />
-              {t.name}
+              <img className="team-pick-logo" src={t.logo} alt="" draggable={false} />
+              <span className="team-pick-name">{t.name}</span>
             </button>
           ))}
         </div>
