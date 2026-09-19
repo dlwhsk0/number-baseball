@@ -125,6 +125,178 @@
   --bulb-off: #3a2530;
 }
 
+/* ===== 응원 구단 테마 — 솔로 랭킹전 중 자동 적용(App의 effectiveTheme). =====
+   두산·LG는 위 이스터에그 테마(doosan/lgtwins)를 그대로 쓰고, 나머지 8개 구단은 여기서.
+   다크/글라스 유지 + 구단 바탕색 틴트 + 구단 액센트. scripts 없이 손으로 고쳐도 됨. */
+:root[data-theme='team-kia'] {
+  color-scheme: dark;
+  --bg: #12080b;
+  --panel: rgba(61, 30, 36, 0.5);
+  --panel-2: rgba(77, 42, 49, 0.55);
+  --cell: rgba(14, 6, 9, 0.6);
+  --key: rgba(61, 35, 40, 0.52);
+  --text: #fef2f4;
+  --muted: #b08399;
+  --border: rgba(249, 178, 191, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #fef5f6;
+  --glow: rgba(250, 191, 202, 0.42);
+  --accent: #EA0029;
+  --accent-glow: rgba(234, 0, 41, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #332b2d;
+}
+:root[data-theme='team-samsung'] {
+  color-scheme: dark;
+  --bg: #06122b;
+  --panel: rgba(31, 50, 80, 0.5);
+  --panel-2: rgba(44, 64, 95, 0.55);
+  --cell: rgba(5, 14, 34, 0.6);
+  --key: rgba(36, 52, 80, 0.52);
+  --text: #f4f8fd;
+  --muted: #849ec1;
+  --border: rgba(188, 215, 246, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #f6fafe;
+  --glow: rgba(199, 222, 247, 0.42);
+  --accent: #1F7AE0;
+  --accent-glow: rgba(31, 122, 224, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #293349;
+}
+:root[data-theme='team-kt'] {
+  color-scheme: dark;
+  --bg: #0c0c0e;
+  --panel: rgba(57, 37, 40, 0.5);
+  --panel-2: rgba(74, 51, 54, 0.55);
+  --cell: rgba(10, 10, 11, 0.6);
+  --key: rgba(57, 42, 44, 0.52);
+  --text: #fef5f5;
+  --muted: #b28e9c;
+  --border: rgba(251, 193, 196, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #fef7f7;
+  --glow: rgba(252, 203, 206, 0.42);
+  --accent: #F2303A;
+  --accent-glow: rgba(242, 48, 58, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #2e2e30;
+}
+:root[data-theme='team-ssg'] {
+  color-scheme: dark;
+  --bg: #170709;
+  --panel: rgba(67, 34, 38, 0.5);
+  --panel-2: rgba(83, 47, 51, 0.55);
+  --cell: rgba(18, 6, 7, 0.6);
+  --key: rgba(67, 38, 42, 0.52);
+  --text: #fff5f6;
+  --muted: #b58e9f;
+  --border: rgba(255, 194, 200, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #fff7f8;
+  --glow: rgba(255, 204, 209, 0.42);
+  --accent: #FF3348;
+  --accent-glow: rgba(255, 51, 72, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #372a2b;
+}
+:root[data-theme='team-lotte'] {
+  color-scheme: dark;
+  --bg: #051127;
+  --panel: rgba(50, 41, 61, 0.5);
+  --panel-2: rgba(67, 53, 72, 0.55);
+  --cell: rgba(4, 14, 31, 0.6);
+  --key: rgba(50, 45, 64, 0.52);
+  --text: #fef4f5;
+  --muted: #ae8b9c;
+  --border: rgba(246, 190, 196, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #fef6f7;
+  --glow: rgba(248, 201, 206, 0.42);
+  --accent: #E1263A;
+  --accent-glow: rgba(225, 38, 58, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #283245;
+}
+:root[data-theme='team-hanwha'] {
+  color-scheme: dark;
+  --bg: #140a04;
+  --panel: rgba(65, 41, 28, 0.5);
+  --panel-2: rgba(82, 56, 41, 0.55);
+  --cell: rgba(16, 8, 3, 0.6);
+  --key: rgba(65, 44, 33, 0.52);
+  --text: #fff8f3;
+  --muted: #b59a94;
+  --border: rgba(255, 210, 184, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #fff9f6;
+  --glow: rgba(255, 218, 196, 0.42);
+  --accent: #FF6A13;
+  --accent-glow: rgba(255, 106, 19, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #352c27;
+}
+:root[data-theme='team-nc'] {
+  color-scheme: dark;
+  --bg: #08111f;
+  --panel: rgba(51, 54, 59, 0.5);
+  --panel-2: rgba(67, 69, 72, 0.55);
+  --cell: rgba(6, 14, 25, 0.6);
+  --key: rgba(52, 56, 62, 0.52);
+  --text: #fdfbf8;
+  --muted: #aba9a8;
+  --border: rgba(241, 231, 212, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #fdfcf9;
+  --glow: rgba(244, 235, 219, 0.42);
+  --accent: #D1AE6E;
+  --accent-glow: rgba(209, 174, 110, 0.72);
+  --on-accent: #10131c;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #2b323e;
+}
+:root[data-theme='team-kiwoom'] {
+  color-scheme: dark;
+  --bg: #16060c;
+  --panel: rgba(63, 33, 43, 0.5);
+  --panel-2: rgba(79, 47, 58, 0.55);
+  --cell: rgba(18, 5, 10, 0.6);
+  --key: rgba(64, 37, 47, 0.52);
+  --text: #fdf5f8;
+  --muted: #ae8ea8;
+  --border: rgba(246, 194, 212, 0.24);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --led: #fef7f9;
+  --glow: rgba(247, 204, 219, 0.42);
+  --accent: #E0336E;
+  --accent-glow: rgba(224, 51, 110, 0.72);
+  --on-accent: #ffffff;
+  --strike: #ff9e3d;
+  --ball: #35d07f;
+  --out: #ff5a52;
+  --bulb-off: #37292e;
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

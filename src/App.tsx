@@ -18,6 +18,7 @@ import { startRanked, guessRanked } from './net/ranked';
 import { getPlayerId, getTeam, saveTeam } from './net/fan';
 import type { RankedResult } from './net/protocol';
 import { RANKED_MAX_ATTEMPTS } from './game/ranking';
+import { teamById } from './game/teams';
 import { TeamChip } from './components/TeamChip';
 import { TeamPicker } from './components/TeamPicker';
 import { KboBoard } from './components/KboBoard';
@@ -265,26 +266,12 @@ export default function App() {
   // 사용자가 실제로 테마를 바꿨을 때만 토스트(마운트·StrictMode 재실행 땐 안 뜨게).
   const userToggledThemeRef = useRef(false);
 
+  // 사용자가 고른 테마 저장(+토스트). 실제 적용은 아래 effectiveTheme 효과가 한다(랭킹전 구단 테마가 덮을 수 있어서).
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', theme);
     try {
       localStorage.setItem('nb_theme', theme);
     } catch {
       /* 저장 불가 무시 */
-    }
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-      const color =
-        theme === 'light'
-          ? '#eef1f5'
-          : theme === 'doosan'
-            ? '#0b0f2a'
-            : theme === 'lgtwins'
-              ? '#120910'
-              : '#000000';
-      meta.setAttribute('content', color);
     }
     if (!userToggledThemeRef.current) return;
     userToggledThemeRef.current = false;
@@ -488,6 +475,26 @@ export default function App() {
     if (r.status !== 'playing') rankedIdRef.current = null;
   };
 
+  // 화면에 적용할 테마 — 솔로 랭킹전 중엔 응원 구단 테마가 사용자 테마를 잠시 덮는다(저장값은 안 바꿈).
+  const rankedTeam = section === 'solo' && ranked ? teamById(team) : undefined;
+  const effectiveTheme: string = rankedTeam ? rankedTeam.theme : theme;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (effectiveTheme === 'dark') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', effectiveTheme);
+    // 전광판 워터마크용 구단 로고(랭킹전 중에만).
+    if (rankedTeam) {
+      root.setAttribute('data-team', rankedTeam.id);
+      root.style.setProperty('--team-logo', `url('${rankedTeam.logo}')`);
+    } else {
+      root.removeAttribute('data-team');
+      root.style.removeProperty('--team-logo');
+    }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
+    if (meta && bg) meta.setAttribute('content', bg);
+  }, [effectiveTheme, rankedTeam]);
+
   // 앱을 열 때 랭킹전이 켜져 있으면 서버의 진행 중인 판을 이어받는다(없으면 새 판).
   const rankedBootRef = useRef(false);
   useEffect(() => {
@@ -613,19 +620,15 @@ export default function App() {
             </button>
           </div>
           <div className="ctrl-side ctrl-right">
-            {section === 'solo' ? (
-              <button
-                type="button"
-                className="gear-btn"
-                onClick={() => setShowSettings(true)}
-                aria-label="설정"
-                title="설정"
-              >
-                ⚙
-              </button>
-            ) : (
-              <span className="gear-spacer" aria-hidden="true" />
-            )}
+            <button
+              type="button"
+              className="gear-btn"
+              onClick={() => setShowSettings(true)}
+              aria-label="설정"
+              title="설정"
+            >
+              ⚙
+            </button>
           </div>
         </div>
 
@@ -943,7 +946,15 @@ export default function App() {
                 </button>
               </div>
             </div>
+            {rankedTeam && (
+              <p className="settings-desc">
+                랭킹전 중엔 {rankedTeam.name} 테마가 적용돼요. 랭킹전을 끄면 고른 테마로 돌아가요.
+              </p>
+            )}
 
+            {/* 아래는 솔로 게임 설정 — 멀티·KBO 탭에선 테마만 보인다. */}
+            {section === 'solo' && (
+              <>
             <div className="settings-row">
               <span className="settings-label">자릿수</span>
               <div className="seg" role="group" aria-label="자릿수">
@@ -1065,6 +1076,8 @@ export default function App() {
             >
               ↻ 새 게임
             </button>
+              </>
+            )}
             <button
               type="button"
               className="settings-close"

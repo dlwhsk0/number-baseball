@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { getSocket } from '../net/socket';
 import { fanIdentity, getTeam } from '../net/fan';
 import { TeamChip } from '../components/TeamChip';
+import { teamById } from '../game/teams';
 import { toggleMemoMark, type GuessRecord, type MemoMark } from '../game/useGame';
 import type { Judgement } from '../game/logic';
 import { GuessPad } from '../components/GuessPad';
@@ -131,6 +132,32 @@ function saveSession(s: Session | null) {
 }
 
 /** 온라인 턴제 대결(방 코드). 서버가 정답을 쥐고 판정한다. */
+/** VS 매치업 한쪽 — 응원 구단이 있으면 큰 엠블럼 + 구단색 테두리·발광. */
+function VsSide({
+  side,
+  tag,
+  nick,
+  team,
+}: {
+  side: 'top' | 'bottom';
+  tag: string;
+  nick: string;
+  team: string | null;
+}) {
+  const t = teamById(team);
+  return (
+    <div
+      className={`vs-name ${side}${t ? ' has-team' : ''}`}
+      style={t ? ({ '--team-c': t.accent } as CSSProperties) : undefined}
+    >
+      {t && <img className="vs-logo" src={t.logo} alt={t.name} draggable={false} />}
+      <span className="vs-name-tag">{tag}</span>
+      <span className="vs-name-text">{nick}</span>
+      {t && <span className="vs-team-name">{t.name}</span>}
+    </div>
+  );
+}
+
 export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const socketRef = useRef(getSocket());
   const entryRef = useRef(entry);
@@ -608,22 +635,12 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
         <NetStatus connected={connected} oppDisconnected={oppDisconnected} />
         <p className="vs-ready">대결 상대를 만났어요!</p>
         <div className="vs-stage">
-          <div className="vs-name top">
-            <span className="vs-name-tag">나</span>
-            <span className="vs-name-text">
-              <TeamChip team={getTeam()} /> {myNick}
-            </span>
-          </div>
+          <VsSide side="top" tag="나" nick={myNick} team={getTeam()} />
           <div className="vs-core" aria-label="VS">
             <span>V</span>
             <span>S</span>
           </div>
-          <div className="vs-name bottom">
-            <span className="vs-name-tag">상대</span>
-            <span className="vs-name-text">
-              <TeamChip team={opponentTeam} /> {opponentNick}
-            </span>
-          </div>
+          <VsSide side="bottom" tag="상대" nick={opponentNick} team={opponentTeam} />
         </div>
         <p className="vs-sub">{digits}자리 · 서로의 숫자를 맞혀라</p>
         <button type="button" className="versus-primary vs-go" onClick={dismissVs}>
