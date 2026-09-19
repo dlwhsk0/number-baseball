@@ -4,6 +4,12 @@ import { io } from 'socket.io-client';
 const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => (p === undefined ? s.emit(ev, r) : s.emit(ev, p, r)));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
+// 스피드 시작 연출(introMs) 동안은 서버가 추측을 거부하므로, 연출이 끝날 때까지 기다린 뒤 진행.
+const startGate = (s) =>
+  once(s, 'speedStart').then(async (p) => {
+    await new Promise((r) => setTimeout(r, (p?.introMs ?? 0) + 50));
+    return p;
+  });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const conn = () => {
   const s = io(URL, { transports: ['websocket'] });
@@ -56,7 +62,7 @@ async function speedGuard() {
   assert(r.ok === false, `스피드 방에서 setSecret 거부: ${r.error ?? ''}`);
 
   // 방이 오염되지 않았으면 정상적으로 시작된다.
-  const started = once(A, 'speedStart');
+  const started = startGate(A);
   const st = await emit(A, 'startSpeed');
   assert(st.ok === true, `startSpeed 정상 동작: ${st.error ?? ''}`);
   await started;

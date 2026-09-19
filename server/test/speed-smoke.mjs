@@ -6,6 +6,12 @@ let failed = false;
 const assert = (c, m) => (c ? log('  ✓', m) : ((failed = true), console.error('  ✗ FAIL:', m)));
 const emit = (s, ev, p) => new Promise((r) => (p === undefined ? s.emit(ev, r) : s.emit(ev, p, r)));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
+// 스피드 시작 연출(introMs) 동안은 서버가 추측을 거부하므로, 연출이 끝날 때까지 기다린 뒤 진행.
+const startGate = (s) =>
+  once(s, 'speedStart').then(async (p) => {
+    await new Promise((r) => setTimeout(r, (p?.introMs ?? 0) + 50));
+    return p;
+  });
 
 async function main() {
   const A = io(URL, { transports: ['websocket'] });
@@ -23,7 +29,7 @@ async function main() {
   assert(jC.ok && jC.index === 2, '캐럴 입장(index 2)');
 
   // 방장 시작 → 모두 speedStart 수신
-  const startAll = Promise.all([once(A, 'speedStart'), once(B, 'speedStart'), once(C, 'speedStart')]);
+  const startAll = Promise.all([startGate(A), startGate(B), startGate(C)]);
   const sr = await emit(A, 'startSpeed');
   assert(sr.ok, '방장 시작 ack');
   const [sa] = await startAll;

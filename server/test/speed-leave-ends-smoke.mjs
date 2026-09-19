@@ -3,6 +3,12 @@ import { io } from 'socket.io-client';
 const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => (p === undefined ? s.emit(ev, r) : s.emit(ev, p, r)));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
+// 스피드 시작 연출(introMs) 동안은 서버가 추측을 거부하므로, 연출이 끝날 때까지 기다린 뒤 진행.
+const startGate = (s) =>
+  once(s, 'speedStart').then(async (p) => {
+    await new Promise((r) => setTimeout(r, (p?.introMs ?? 0) + 50));
+    return p;
+  });
 const conn = () => {
   const s = io(URL, { transports: ['websocket'] });
   return once(s, 'connect').then(() => s);
@@ -16,7 +22,7 @@ async function main() {
   const B = await conn();
   const cr = await emit(A, 'create', { nick: 'A', digits: 3, mode: 'speed' });
   await emit(B, 'join', { nick: 'B', code: cr.code });
-  const startB = once(B, 'speedStart');
+  const startB = startGate(B);
   await emit(A, 'startSpeed');
   await startB;
   assert(true, '레이스 시작(2명)');

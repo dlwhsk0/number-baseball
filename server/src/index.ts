@@ -50,6 +50,8 @@ const SPEED_LIMIT_4_MS = Number(process.env.SPEED_LIMIT_4_MS) || 420000;
 const speedLimitMs = (digits: number): number =>
   digits >= 4 ? SPEED_LIMIT_4_MS : SPEED_LIMIT_3_MS;
 const GRACE_MS = Number(process.env.GRACE_MS) || 90000;
+// 스피드 시작 매치업 연출 길이 — 레이스 시각(startedAt)을 이만큼 미뤄 연출이 시간을 잡아먹지 않게.
+const SPEED_INTRO_MS = Number(process.env.SPEED_INTRO_MS ?? 3000);
 
 // 게임용 공개 서버(PORT). Traefik이 도메인을 이 포트로만 라우팅 → /health만 공개.
 const httpServer = createServer((req, res) => {
@@ -348,18 +350,20 @@ io.on('connection', (socket) => {
       return;
     }
     room.speedSecret = generateSecret(room.digits);
-    room.startedAt = Date.now();
+    // 매치업 연출(SPEED_INTRO_MS) 뒤에 레이스 시작 — 그 전 추측은 거부, 시간·제한도 여기부터.
+    room.startedAt = Date.now() + SPEED_INTRO_MS;
     room.phase = 'playing';
     const limit = speedLimitMs(room.digits);
     // 제한시간(자릿수별) 만료 → 그 시점 순위로 강제 종료.
     room.speedTimer = setTimeout(() => {
       if (getRoom(room.code) === room) endSpeed(room);
-    }, limit);
+    }, SPEED_INTRO_MS + limit);
     ack({ ok: true });
     io.to(room.code).emit('speedStart', {
       startAt: room.startedAt,
       digits: room.digits,
       limitMs: limit,
+      introMs: SPEED_INTRO_MS,
     });
     broadcastSpeedProgress(room);
     gamesStarted.inc({ mode: 'speed' });
@@ -487,6 +491,10 @@ io.on('connection', (socket) => {
       }
       if (me.solved) {
         ack({ ok: false, error: '이미 맞혔어요.' });
+        return;
+      }
+      if (Date.now() < room.startedAt) {
+        ack({ ok: false, error: '아직 시작 전이에요.' });
         return;
       }
       const g = String(guess ?? '');

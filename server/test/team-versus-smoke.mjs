@@ -5,6 +5,12 @@ import { randomUUID } from 'node:crypto';
 const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => (p === undefined ? s.emit(ev, r) : s.emit(ev, p, r)));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
+// 스피드 시작 연출(introMs) 동안은 서버가 추측을 거부하므로, 연출이 끝날 때까지 기다린 뒤 진행.
+const startGate = (s) =>
+  once(s, 'speedStart').then(async (p) => {
+    await new Promise((r) => setTimeout(r, (p?.introMs ?? 0) + 50));
+    return p;
+  });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 서버가 없거나 URL이 틀리면 재연결로 영원히 매달리지 말고 바로 실패.
 const conn = () =>
@@ -69,7 +75,16 @@ async function main() {
   await emit(C, 'join', { nick: '한화팬', code: cr.code, playerId: randomUUID(), team: 'hanwha' });
 
   const overP = once(A, 'speedOver');
+  const startedP = once(A, 'speedStart');
+  const gateP = startGate(B);
   await emit(A, 'startSpeed');
+  const st = await startedP;
+  assert(st.introMs >= 0 && st.startAt >= Date.now() - 50, `시작 연출 ${st.introMs}ms 뒤 레이스`);
+  if (st.introMs > 0) {
+    const early = await emit(A, 'guess', { guess: '123' });
+    assert(!early.ok, '연출 중 추측은 거부');
+  }
+  await gateP;
   // A 먼저 완주 → B 완주 → C는 한 번만 던지고 나감(기록 제외)
   await solve(A);
   await solve(B);

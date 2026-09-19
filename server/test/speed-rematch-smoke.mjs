@@ -3,6 +3,12 @@ import { io } from 'socket.io-client';
 const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => (p === undefined ? s.emit(ev, r) : s.emit(ev, p, r)));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
+// 스피드 시작 연출(introMs) 동안은 서버가 추측을 거부하므로, 연출이 끝날 때까지 기다린 뒤 진행.
+const startGate = (s) =>
+  once(s, 'speedStart').then(async (p) => {
+    await new Promise((r) => setTimeout(r, (p?.introMs ?? 0) + 50));
+    return p;
+  });
 const conn = () => {
   const s = io(URL, { transports: ['websocket'] });
   return once(s, 'connect').then(() => s);
@@ -39,7 +45,7 @@ async function main() {
   const B = await conn();
   const cr = await emit(A, 'create', { nick: 'A', digits: 3, mode: 'speed' });
   await emit(B, 'join', { nick: 'B', code: cr.code });
-  const startedA = once(A, 'speedStart');
+  const startedA = startGate(A);
   await emit(A, 'startSpeed');
   await startedA;
   const over1 = once(A, 'speedOver');
@@ -57,7 +63,7 @@ async function main() {
   assert(rA.players.length === 2, 'speedReset → 로비(2명 유지)');
 
   // 다시 시작 가능
-  const start2 = once(B, 'speedStart');
+  const start2 = startGate(B);
   const sr = await emit(A, 'startSpeed');
   assert(sr.ok, '재시작 ack');
   const st2 = await start2;

@@ -3,6 +3,12 @@ import { io } from 'socket.io-client';
 const URL = process.env.URL || 'http://localhost:3001';
 const emit = (s, ev, p) => new Promise((r) => (p === undefined ? s.emit(ev, r) : s.emit(ev, p, r)));
 const once = (s, ev) => new Promise((r) => s.once(ev, r));
+// 스피드 시작 연출(introMs) 동안은 서버가 추측을 거부하므로, 연출이 끝날 때까지 기다린 뒤 진행.
+const startGate = (s) =>
+  once(s, 'speedStart').then(async (p) => {
+    await new Promise((r) => setTimeout(r, (p?.introMs ?? 0) + 50));
+    return p;
+  });
 const conn = () => {
   const s = io(URL, { transports: ['websocket'] });
   return once(s, 'connect').then(() => s);
@@ -15,7 +21,7 @@ async function limitFor(digits) {
   const B = await conn();
   const cr = await emit(A, 'create', { nick: 'A', digits, mode: 'speed' });
   await emit(B, 'join', { nick: 'B', code: cr.code });
-  const start = once(A, 'speedStart');
+  const start = startGate(A);
   await emit(A, 'startSpeed');
   const st = await start;
   A.close();
