@@ -157,8 +157,7 @@
 - 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. **야구 베이스 한 구석**(흰 정사각형을 45°
   다이아몬드로 크게 그려 위쪽 꼭짓점만 확대, 베벨 테두리 + 네온 그린 발광)을 검정 타일에. 재생성: `pnpm add -D sharp` 후 `node scripts/gen-icons.mjs`
   (sharp는 애드혹 — 생성 후 `git checkout package.json pnpm-lock.yaml`로 의존성 되돌림).
-- **아이콘 변경 안내**(`App.tsx` `ICON_VERSION`): 아이콘 바꾸면 `ICON_VERSION`을 올린다. 기존 사용자(써 본 흔적 있음)에게 하단 배너 1회 —
-  **설치 가능(브라우저·미설치)이면 `beforeinstallprompt`로 [설치하기] 한 번에 네이티브 설치**(새 아이콘), 이미 설치(standalone)면 아이콘이 OS 캐시라 **삭제 후 재추가 수동 안내**(iOS는 공유→홈 화면 추가). `localStorage.nb_icon_seen`로 1회 제어.
+- **아이콘 변경 안내 배너는 제거됨**(옛 `ICON_VERSION`/`nb_icon_seen`/`beforeinstallprompt` 안내). PWA 설치 유도는 더 이상 하지 않는다 — 아이콘을 바꿔도 안내를 띄우지 않고, 기존 설치 사용자는 OS 캐시라 그대로 둔다.
 
 ## 컨벤션
 - 커밋 메시지: 한국어, 의미 단위. 배포는 `ship` 스킬 사용.

@@ -20,10 +20,6 @@ type Section = 'solo' | 'multi';
 type GameType = 'speed' | 'duel';
 type Theme = 'dark' | 'light' | 'doosan' | 'lgtwins';
 
-// 앱 아이콘 버전. 올릴 때마다 설치된 사용자에게 '홈 화면 재설치' 안내를 한 번 띄운다.
-// (PWA 홈 화면 아이콘은 OS가 설치 시점에 캐시 → 매니페스트만 바꿔선 안 바뀜.)
-const ICON_VERSION = '2';
-
 // 도메인 이사: 구 주소는 index.html의 인라인 스크립트가 페인트 전에 대표 주소로 넘긴다.
 // 단 설치된 PWA(standalone)는 넘기면 scope를 벗어나 앱이 깨지므로, 대신 재설치 안내 배너를 띄운다.
 const OLD_HOST = 'number-baseball-chi.vercel.app';
@@ -222,88 +218,6 @@ export default function App() {
     }
   };
 
-  // 앱 아이콘이 바뀌면(ICON_VERSION↑) 기존 사용자에게 안내를 한 번 띄운다.
-  //  - 설치 가능(브라우저·미설치)이면 [설치하기] 한 번에 네이티브 설치(새 아이콘).
-  //  - 이미 설치(standalone)했으면 아이콘이 OS 캐시라 재설치를 강제할 API가 없어 수동 안내.
-  const [iconPending, setIconPending] = useState(false);
-  const [standalone, setStandalone] = useState(false);
-  const [canInstall, setCanInstall] = useState(false);
-  type InstallPrompt = Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> };
-  const deferredPromptRef = useRef<InstallPrompt | null>(null);
-  const markIconSeen = () => {
-    try {
-      localStorage.setItem('nb_icon_seen', ICON_VERSION);
-    } catch {
-      /* 무시 */
-    }
-  };
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('nb_icon_seen') === ICON_VERSION) return;
-      setStandalone(
-        window.matchMedia?.('(display-mode: standalone)').matches ||
-          (navigator as unknown as { standalone?: boolean }).standalone === true,
-      );
-      // 이전에 써 본 흔적(=예전 버전으로 설치/이용)이 있어야 안내(완전 새 사용자는 이미 새 아이콘).
-      const usedBefore = !!(
-        localStorage.getItem('nb_seen_rules') ||
-        localStorage.getItem('nb_digits') ||
-        localStorage.getItem('nb_nick')
-      );
-      if (usedBefore) setIconPending(true);
-      else markIconSeen();
-    } catch {
-      /* 무시 */
-    }
-  }, []);
-  // 설치 가능 이벤트 캡처(크롬/안드로이드/데스크톱). iOS·이미 설치 상태에선 안 뜸.
-  useEffect(() => {
-    const onBIP = (e: Event) => {
-      e.preventDefault();
-      deferredPromptRef.current = e as InstallPrompt;
-      setCanInstall(true);
-    };
-    const onInstalled = () => {
-      deferredPromptRef.current = null;
-      setCanInstall(false);
-      setIconPending(false);
-      markIconSeen();
-    };
-    window.addEventListener('beforeinstallprompt', onBIP);
-    window.addEventListener('appinstalled', onInstalled);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBIP);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
-  const dismissIconNotice = () => {
-    setIconPending(false);
-    markIconSeen();
-  };
-  const doInstall = async () => {
-    const p = deferredPromptRef.current;
-    if (!p) {
-      dismissIconNotice();
-      return;
-    }
-    p.prompt();
-    try {
-      await p.userChoice;
-    } catch {
-      /* 무시 */
-    }
-    deferredPromptRef.current = null;
-    setCanInstall(false);
-    dismissIconNotice();
-  };
-  // 설치된 PWA 안에선 설치 다이얼로그를 못 띄우므로, 외부 브라우저로 열어 거기서 설치하게 한다.
-  const openInBrowser = () => {
-    try {
-      window.open(window.location.origin, '_blank', 'noopener');
-    } catch {
-      /* 무시 */
-    }
-  };
   const dismissIntro = () => {
     try {
       sessionStorage.setItem('nb_intro', '1');
@@ -777,55 +691,6 @@ export default function App() {
           >
             ✕
           </button>
-        </div>
-      )}
-
-      {iconPending && !movedPending && (
-        <div className="reinstall-banner" role="status">
-          <span className="reinstall-emoji" aria-hidden="true">⚾</span>
-          <div className="reinstall-text">
-            <b>{canInstall ? '새 아이콘으로 앱 설치하기!' : '앱 아이콘이 새로 바뀌었어요!'}</b>
-            <span>
-              {canInstall
-                ? '한 번에 설치돼요.'
-                : standalone
-                ? '홈 화면 아이콘을 삭제한 뒤, 브라우저에서 다시 설치하면 적용돼요.'
-                : '공유 메뉴 → “홈 화면에 추가”로 설치해요.'}
-            </span>
-          </div>
-          {canInstall ? (
-            <>
-              <button type="button" className="reinstall-close" onClick={doInstall}>
-                설치하기
-              </button>
-              <button
-                type="button"
-                className="reinstall-x"
-                aria-label="닫기"
-                onClick={dismissIconNotice}
-              >
-                ✕
-              </button>
-            </>
-          ) : standalone ? (
-            <>
-              <button type="button" className="reinstall-close" onClick={openInBrowser}>
-                브라우저에서 열기
-              </button>
-              <button
-                type="button"
-                className="reinstall-x"
-                aria-label="닫기"
-                onClick={dismissIconNotice}
-              >
-                ✕
-              </button>
-            </>
-          ) : (
-            <button type="button" className="reinstall-close ghost" onClick={dismissIconNotice}>
-              확인
-            </button>
-          )}
         </div>
       )}
 
