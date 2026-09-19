@@ -6,6 +6,10 @@ interface Props {
   secret: string;
   attempts: number;
   onRestart: () => void;
+  /** 이번 판 기록 다시보기. */
+  onReview?: () => void;
+  /** 기록 이미지 저장·공유 시트 열기. */
+  onShare?: () => void;
 }
 
 /** 숫자 문자열을 세그먼트 셀로(멀티 결과 카드와 동일한 표현). */
@@ -22,7 +26,7 @@ function NumCells({ value }: { value: string }) {
 }
 
 /** 혼자 모드 결과 — 멀티(온라인) 결과 카드와 같은 스타일로. */
-export function ResultBanner({ status, secret, attempts, onRestart }: Props) {
+export function ResultBanner({ status, secret, attempts, onRestart, onReview, onShare }: Props) {
   if (status === 'playing') return null;
 
   const won = status === 'won';
@@ -46,6 +50,20 @@ export function ResultBanner({ status, secret, attempts, onRestart }: Props) {
       <button type="button" className="versus-primary result-restart" onClick={onRestart}>
         ↻ 다시하기
       </button>
+      {(onReview || onShare) && (
+        <div className="result-subactions">
+          {onReview && (
+            <button type="button" className="versus-secondary" onClick={onReview}>
+              📜 기록 다시보기
+            </button>
+          )}
+          {onShare && (
+            <button type="button" className="versus-secondary" onClick={onShare}>
+              📤 기록 공유
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
