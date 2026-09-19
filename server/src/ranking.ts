@@ -1,10 +1,10 @@
 // 팬 랭킹 점수 규칙(순수 함수). 프론트 src/game/ranking.ts와 동일하게 유지(함께 수정).
 
 /** 솔로 랭킹전 시도 상한(고정 — 설정의 시도 횟수와 무관). */
-export const RANKED_MAX_ATTEMPTS = 10;
+export const RANKED_MAX_ATTEMPTS = 20;
 
 /**
- * 솔로 랭킹전 점수: 적게 시도할수록 높다. 1회=10점 … 10회=1점, 실패 0점. 4자리는 2배.
+ * 솔로 랭킹전 점수: 적게 시도할수록 높다. 1회=20점 … 20회=1점, 실패 0점. 4자리는 2배.
  */
 export function soloPoints(attempts: number, won: boolean, digits: number): number {
   if (!won || attempts < 1 || attempts > RANKED_MAX_ATTEMPTS) return 0;

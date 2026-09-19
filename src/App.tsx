@@ -460,6 +460,7 @@ export default function App() {
     const go = (t: string) => {
       setRanked(true);
       persist('nb_ranked', '1');
+      showNet(`🏆 랭킹전 ON · ${RANKED_MAX_ATTEMPTS}번 안에!`);
       startRankedGame({ team: t });
     };
     if (team) go(team);
@@ -636,16 +637,16 @@ export default function App() {
       <section className="history-section scoreboard">
         <div className="history-head">
           <span className="history-label">history</span>
-          {ranked && (
-            <button
-              type="button"
-              className="ranked-badge"
-              onClick={() => setShowSettings(true)}
-              title="랭킹전 — 설정에서 끌 수 있어요"
-            >
-              RANKED <TeamChip team={team} />
-            </button>
-          )}
+          <button
+            type="button"
+            className={`ranked-badge${ranked ? ' on' : ''}`}
+            aria-pressed={ranked}
+            onClick={() => (ranked ? leaveRanked() : enterRanked())}
+            title={ranked ? '랭킹전 끄기(연습으로)' : '랭킹전 켜기'}
+          >
+            <span className="ranked-dot" aria-hidden="true" />
+            RANKED {ranked && <TeamChip team={team} />}
+          </button>
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
@@ -920,33 +921,6 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="settings-title">설정</h3>
-
-            <div className="settings-row">
-              <span className="settings-label">모드</span>
-              <div className="seg" role="group" aria-label="솔로 모드">
-                <button
-                  type="button"
-                  className={`seg-btn${!ranked ? ' active' : ''}`}
-                  aria-pressed={!ranked}
-                  onClick={() => ranked && leaveRanked()}
-                >
-                  연습
-                </button>
-                <button
-                  type="button"
-                  className={`seg-btn${ranked ? ' active' : ''}`}
-                  aria-pressed={ranked}
-                  onClick={enterRanked}
-                >
-                  🏆 랭킹전
-                </button>
-              </div>
-            </div>
-            {ranked && (
-              <p className="settings-desc">
-                10번 안에 맞히면 점수! 1번=10점 … 10번=1점, 4자리는 2배. 응원 구단 점수로 쌓여요.
-              </p>
-            )}
 
             <div className="settings-row">
               <span className="settings-label">테마</span>

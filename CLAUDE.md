@@ -42,15 +42,15 @@
 ## 기능
 - **컨트롤**(`.controls`): **타이틀·부제 없음**(인트로에서만). 밝기 토글 없음(단일 다크).
   - 1행: `[?]`(좌, 첫 방문 시 `.help-callout` 말풍선) · `[ 솔로 | 멀티 | KBO ]` 세그먼트(`section`) · **`[⚙]`**(우, 솔로만 — 설정 시트).
-  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **모드 [연습|🏆 랭킹전]** · **테마 [다크|라이트]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임`. 우하단에 숨은 테마 이스터에그 트리거들(🐻 두산 / 👯 LG).
+  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **테마 [다크|라이트]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임`. 우하단에 숨은 테마 이스터에그 트리거들(🐻 두산 / 👯 LG).
   - 멀티는 헤더에 별도 세그먼트 없음(아래 **멀티 시작 메뉴** 카드가 전부 담당). `⚙` 자리는 `.gear-spacer`.
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
 - **KBO 팬 랭킹**(구단 대항전): 팬이 응원 구단(KBO 10개 구단, `src/game/teams.ts` ↔ `server/src/teams.ts` 복제)을 달고 경쟁.
   신원은 로그인 없이 **익명 기기 id**(`localStorage.nb_player_id` uuid, 형식 깨지면 재발급) + `nb_team` + 닉네임 `nb_nick`(`src/net/fan.ts`). 구단 선택은 `TeamPicker`(닉네임+10구단 시트).
   **구단 표시는 이름이 아니라 공식 엠블럼**(`TeamChip` — 투명 배경 로고 그대로, `withName`이면 옆에 구단명). 로고는 `public/teams/<id>.png`(각 구단 공식 홈페이지 CI/BI 자료, 최대 256px — 다크 배경에서 묻히는 KIA는 흰 외곽선 SVG판, 롯데는 원 안을 채운 판).
   헤더 KBO 탭 라벨은 **KBO 공식 로고**(`public/kbo-logo.png`, koreabaseball.com 로고 페이지의 AI 자료 가로조합을 흰 단색으로) — CSS `mask`로 써서 세그먼트 글자색을 따른다.
-  - **솔로 랭킹전**(설정 모드 `nb_ranked`): **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
-    시도 **10회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 11 − 시도(1회=10점…10회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
+  - **솔로 랭킹전**(전광판 헤더 `history` 옆 **`RANKED` 토글 버튼**으로 켜고 끔 — 설정 시트엔 없음, `nb_ranked`): **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
+    시도 **20회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 21 − 시도(1회=20점…20회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
     추측이 있는 판을 버리면(새 게임·자릿수 변경·30분 방치) **실패로 기록**(체리피킹 방지), 1인 **24시간 30판 상한**(`RANKED_DAILY_LIMIT`), 같은 플레이어의 시작 요청은 직렬화.
     보조로 **IP당 24시간 200판**(`RANKED_IP_DAILY_LIMIT`, 0=끔, 메모리) — X-Forwarded-For **맨 오른쪽**(Traefik이 붙인 값)만 신뢰, 사설 IP면 미적용. 계정이 없어 봇 완전 차단은 아님(uuid 교체 자동화 억제용).
     클라는 요청 세대(`rankGenRef`)로 새 판·연습 전환 뒤 도착한 늦은 응답을 버리고, 타임아웃된 요청은 늦게 연결돼도 보내지 않는다. 클라는 `useGame`의 `restore`/`applyJudgement`/`revealSecret`로 서버 결과 반영(secret='').
