@@ -25,6 +25,11 @@ import type {
   GuessRecord,
 } from './types.js';
 import { logger } from './logger.js';
+import { initDb, recordMatches, leaderboard, dbEnabled } from './db.js';
+import { rankedStart, rankedGuess, isPlayerId } from './ranked.js';
+import { pairMatches } from './ranking.js';
+import { isTeamId } from './teams.js';
+import type { Fan } from './rooms.js';
 import {
   register,
   registerRuntimeGauges,
@@ -111,6 +116,32 @@ function sanitizeNick(nick: unknown): string {
   return n || '플레이어';
 }
 
+/** 클라가 보낸 팬 신원 검증(형식이 틀리면 버림 → 구단 대결 기록에서 빠짐). */
+function sanitizeFan(p: { playerId?: unknown; team?: unknown }): Fan {
+  return {
+    playerId: isPlayerId(p.playerId) ? p.playerId : null,
+    team: isTeamId(p.team) ? p.team : null,
+  };
+}
+
+/** 구단 대결 기록 — 순위순(상위→하위) 참가자로 쌍을 만들어 저장. 추측 0회(잠수)는 제외. */
+function recordTeamMatches(
+  room: Room,
+  ordered: { index: number; solved: boolean; attempts: number }[],
+): void {
+  if (!dbEnabled()) return;
+  const entrants = ordered
+    .filter((e) => e.attempts > 0)
+    .map((e) => ({ p: room.players[e.index], solved: e.solved }))
+    .filter(({ p }) => p && p.team && p.playerId);
+  const rows = pairMatches(
+    entrants.map(({ p, solved }) => ({ playerId: p.playerId, team: p.team, solved })),
+  );
+  if (rows.length === 0) return;
+  const players = entrants.map(({ p }) => ({ id: p.playerId!, nick: p.nick, team: p.team! }));
+  void recordMatches(room.mode, rows, players);
+}
+
 // ---------- 턴제(duel) ----------
 function endGame(room: Room, outcome: Outcome): void {
   room.phase = 'over';
@@ -122,6 +153,16 @@ function endGame(room: Room, outcome: Outcome): void {
   room.lastOver = payload;
   io.to(room.code).emit('over', payload);
   gamesOver.inc({ mode: 'duel' });
+  // 구단 대결: 승자를 앞에(무승부면 둘 다 solved=false로 넘겨 무 처리).
+  const order: (0 | 1)[] = outcome === 1 ? [1, 0] : [0, 1];
+  recordTeamMatches(
+    room,
+    order.map((i) => ({
+      index: i,
+      solved: outcome !== 'draw' && i === order[0],
+      attempts: room.histories[i].length,
+    })),
+  );
   logger.info({ code: room.code, outcome }, 'duel over');
 }
 
@@ -145,11 +186,13 @@ function advanceAfterReveal(room: Room, guesser: 0 | 1): void {
 }
 
 // ---------- 스피드(speed) ----------
-function speedRoster(room: Room): { index: number; nick: string; connected: boolean }[] {
+function speedRoster(
+  room: Room,
+): { index: number; nick: string; connected: boolean; team: string | null }[] {
   return room.players
-    .map((p, i) => ({ index: i, nick: p.nick, connected: p.connected, gone: p.gone }))
+    .map((p, i) => ({ index: i, nick: p.nick, connected: p.connected, team: p.team, gone: p.gone }))
     .filter((p) => !p.gone)
-    .map(({ index, nick, connected }) => ({ index, nick, connected }));
+    .map(({ index, nick, connected, team }) => ({ index, nick, connected, team }));
 }
 function speedHistories(room: Room): { index: number; nick: string; history: GuessRecord[] }[] {
   return room.players
@@ -170,12 +213,15 @@ function endSpeed(room: Room): void {
     clearTimeout(room.speedTimer);
     room.speedTimer = undefined;
   }
+  const standings = speedStandings(room);
   io.to(room.code).emit('speedOver', {
-    standings: speedStandings(room),
+    standings,
     secret: room.speedSecret ?? '',
     histories: speedHistories(room),
   });
   gamesOver.inc({ mode: 'speed' });
+  // 구단 대결: 끝까지 남은 사람만(나간 사람은 standings에서 이미 빠짐). 혼자 남은 기권승은 쌍이 없어 기록 안 됨.
+  recordTeamMatches(room, standings);
   logger.info({ code: room.code, players: activeCount(room) }, 'speed over');
 }
 // 전원 맞히면 종료(정상), 5분 초과 시 강제 종료는 startSpeed의 타이머가 endSpeed 호출.
@@ -190,10 +236,10 @@ io.on('connection', (socket) => {
   connectionsTotal.inc();
   logger.info({ sid: socket.id }, 'socket connected');
 
-  socket.on('create', ({ nick, digits, mode }, ack) => {
+  socket.on('create', ({ nick, digits, mode, playerId, team }, ack) => {
     const d = digits === 4 ? 4 : 3;
     const m = mode === 'speed' ? 'speed' : 'duel';
-    const room = createRoom(socket.id, sanitizeNick(nick), d, m);
+    const room = createRoom(socket.id, sanitizeNick(nick), d, m, sanitizeFan({ playerId, team }));
     data.code = room.code;
     data.index = 0;
     socket.join(room.code);
@@ -202,9 +248,9 @@ io.on('connection', (socket) => {
     ack({ ok: true, code: room.code, index: 0, digits: d, mode: m, token: room.players[0].token });
   });
 
-  socket.on('join', ({ nick, code }, ack) => {
+  socket.on('join', ({ nick, code, playerId, team }, ack) => {
     const c = String(code ?? '').toUpperCase().trim();
-    const res = joinRoom(c, socket.id, sanitizeNick(nick));
+    const res = joinRoom(c, socket.id, sanitizeNick(nick), sanitizeFan({ playerId, team }));
     if (res.error || !res.room || res.index == null) {
       ack({ ok: false, error: res.error });
       return;
@@ -223,7 +269,7 @@ io.on('connection', (socket) => {
         index: res.index,
         digits: room.digits,
         mode: 'speed',
-        players: speedRoster(room).map(({ index, nick: n }) => ({ index, nick: n })),
+        players: speedRoster(room).map(({ index, nick: n, team: t }) => ({ index, nick: n, team: t })),
         token: room.players[res.index].token,
       });
       broadcastSpeedRoster(room);
@@ -238,9 +284,10 @@ io.on('connection', (socket) => {
       digits: room.digits,
       mode: 'duel',
       opponentNick: room.players[0].nick,
+      opponentTeam: room.players[0].team,
       token: room.players[1].token,
     });
-    socket.to(c).emit('opponentJoined', { nick: room.players[1].nick });
+    socket.to(c).emit('opponentJoined', { nick: room.players[1].nick, team: room.players[1].team });
     room.phase = 'secret';
     io.to(c).emit('phase', { phase: 'secret', digits: room.digits });
   });
@@ -324,6 +371,40 @@ io.on('connection', (socket) => {
       p.history = [];
     });
     io.to(room.code).emit('speedReset', { players: speedRoster(room) });
+  });
+
+  // ---------- 팬 랭킹 ----------
+  socket.on('rankedStart', (p, ack) => {
+    if (typeof ack !== 'function') return;
+    rankedStart({ ...p, nick: sanitizeNick(p?.nick) })
+      .then(ack)
+      .catch((err) => {
+        logger.error({ err }, 'rankedStart 실패');
+        ack({ ok: false, error: '랭킹전을 시작하지 못했어요.' });
+      });
+  });
+
+  socket.on('rankedGuess', (p, ack) => {
+    if (typeof ack !== 'function') return;
+    rankedGuess(p ?? {})
+      .then(ack)
+      .catch((err) => {
+        logger.error({ err }, 'rankedGuess 실패');
+        ack({ ok: false, error: '판정에 실패했어요. 다시 던져주세요.' });
+      });
+  });
+
+  socket.on('leaderboard', (p, ack) => {
+    if (typeof ack !== 'function') return;
+    const id = isPlayerId(p?.playerId) ? p.playerId : null;
+    leaderboard(id)
+      .then((data) =>
+        ack(data ? { ok: true, data } : { ok: false, error: '지금은 순위를 볼 수 없어요.' }),
+      )
+      .catch((err) => {
+        logger.error({ err }, 'leaderboard 실패');
+        ack({ ok: false, error: '순위를 불러오지 못했어요.' });
+      });
   });
 
   socket.on('setSecret', ({ secret }, ack) => {
@@ -538,6 +619,7 @@ io.on('connection', (socket) => {
       oppSolved: room.solved[1 - dIdx],
       oppHistory: room.histories[1 - dIdx],
       opponentNick: opp?.nick ?? '상대',
+      opponentTeam: opp?.team ?? null,
       opponentConnected: opp?.connected ?? false,
       over: room.phase === 'over' ? room.lastOver : undefined,
     };
@@ -631,6 +713,9 @@ io.on('connection', (socket) => {
     }, GRACE_MS);
   });
 });
+
+// DB는 붙든 못 붙든(랭킹만 꺼짐) 서버는 뜬다.
+await initDb();
 
 httpServer.listen(PORT, () => {
   logger.info({ port: PORT }, '[number-baseball] online server listening');
