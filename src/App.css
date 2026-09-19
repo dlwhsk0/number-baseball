@@ -977,11 +977,14 @@
   min-height: 0;
   overflow-y: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
+/* 내용이 짧으면 세로 가운데, 길면(기록) 위에서부터 스크롤 — justify-content:center는 넘칠 때 위가 잘려서 auto 마진으로 */
 .score-result .solo-result {
-  margin: 0;
+  margin: auto 0;
   width: 100%;
 }
 
@@ -4293,4 +4296,173 @@
   50% {
     opacity: 1;
   }
+}
+
+/* ===== 전광판 펼치기 · 기록 다시보기 · 공유 ===== */
+/* 펼친 동안 타자석은 숨김(언마운트 X — 입력·후보 메모 유지). 전광판이 flex:1이라 자동으로 전체 높이. */
+.board.batter-box.is-collapsed {
+  display: none;
+}
+.hist-expand-btn {
+  margin-left: 8px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.hist-expand-btn.on {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.hist-expand-btn:active {
+  transform: scale(0.95);
+}
+/* 헤드: history 라벨이 왼쪽, 카운트·버튼은 오른쪽으로 모이게 */
+.scoreboard .history-head .attempts {
+  margin-left: auto;
+}
+
+.history-row.win-row {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* 결과 카드 아래 이번 판 기록 */
+.result-history {
+  width: 100%;
+  max-width: 340px;
+}
+.result-history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 2px 2px 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.result-history-more {
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 700;
+  opacity: 0.8;
+}
+.result-history .history {
+  overflow: visible;
+}
+/* 다시하기·공유 — 스크롤 영역 하단에 고정 */
+.result-actions {
+  position: sticky;
+  bottom: -18px; /* .online-result 아래 패딩만큼 내려 바닥에 붙임 */
+  z-index: 2;
+  width: calc(100% + 32px);
+  margin: 0 -16px -18px;
+  padding: 10px 16px 18px;
+  display: flex;
+  justify-content: center;
+  background: linear-gradient(180deg, transparent 0, var(--bg) 16px);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
+.result-subactions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  max-width: 340px;
+}
+.result-subactions > button {
+  margin-top: 0;
+  padding: 14px 0;
+  font-size: 0.95rem;
+}
+
+.share-sheet {
+  position: relative;
+  width: min(100%, 380px);
+  max-height: 92dvh;
+  overflow-y: auto;
+  background: var(--panel);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 12px 40px var(--shadow);
+  padding: 18px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.share-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  max-height: 44dvh;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.share-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 44dvh;
+  object-fit: contain;
+}
+.share-loading,
+.share-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+  margin: 0;
+}
+.share-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.share-actions .share-main {
+  grid-column: 1 / -1;
+}
+.share-actions .versus-secondary,
+.share-actions .versus-primary {
+  padding: 12px 0;
+  font-size: 0.9rem;
+}
+.share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+.share-btn.disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.share-toast {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  animation: egg-pop 0.2s ease-out;
+}
+.share-actions .share-wide {
+  grid-column: 1 / -1;
 }

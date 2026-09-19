@@ -14,6 +14,7 @@ import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
 import { OnlineSpeed } from './versus/OnlineSpeed';
 import { peekRoom } from './net/peek';
+import { ShareSheet } from './components/ShareSheet';
 import './App.css';
 
 type Section = 'solo' | 'multi';
@@ -316,8 +317,23 @@ export default function App() {
   };
   const [pendingDigits, setPendingDigits] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  // 전광판 펼치기: 기록을 길게 보려고 타자석(입력)을 잠시 접는다. 입력 상태는 GuessPad가 그대로 유지.
+  const [histExpandedRaw, setHistExpanded] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [hintInfo, setHintInfo] = useState(false);
   const finished = state.status !== 'playing';
+  const histExpanded = histExpandedRaw && !finished && state.guesses.length > 0;
+  // 펼친 상태에서 키보드로 입력하면(숫자·지우기·제출·Esc) 타자석을 다시 연다.
+  useEffect(() => {
+    if (!histExpanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (/^[0-9]$/.test(e.key) || ['Backspace', 'Enter', 'Escape'].includes(e.key)) {
+        setHistExpanded(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [histExpanded]);
 
   // PWA: 새 버전은 autoUpdate로 백그라운드 설치 → 다음 실행 때 자동 적용(팝업 없음).
   // 진행 중 강제 리로드를 막기 위해 여기서 즉시 리로드는 하지 않는다.
@@ -478,6 +494,16 @@ export default function App() {
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
+          {!finished && state.guesses.length > 0 && (
+            <button
+              type="button"
+              className={`hist-expand-btn${histExpanded ? ' on' : ''}`}
+              aria-pressed={histExpanded}
+              onClick={() => setHistExpanded((v) => !v)}
+            >
+              {histExpanded ? '▾ 접기' : '▴ 펼치기'}
+            </button>
+          )}
         </div>
         {finished ? (
           <div className="score-result">
@@ -486,10 +512,12 @@ export default function App() {
               secret={state.secret}
               attempts={state.guesses.length}
               onRestart={newGame}
+              guesses={state.guesses}
+              onShare={() => setSharing(true)}
             />
           </div>
         ) : (
-          <History guesses={state.guesses} />
+          <History guesses={state.guesses} followLatest />
         )}
       </section>
 
@@ -503,7 +531,7 @@ export default function App() {
           memo={state.memo}
           onMemoToggle={toggleMemo}
           onMemoClear={clearMemo}
-          boardClass="batter-box"
+          boardClass={`batter-box${histExpanded ? ' is-collapsed' : ''}`}
           overlay={
             soloReveal ? (
               <div className="solo-reveal" aria-live="polite">
@@ -721,6 +749,19 @@ export default function App() {
       )}
 
       {showRules && <RulesModal onClose={closeRules} />}
+
+      {sharing && finished && (
+        <ShareSheet
+          record={{
+            status: state.status,
+            secret: state.secret,
+            digits: state.digits,
+            maxAttempts: state.maxAttempts,
+            guesses: state.guesses,
+          }}
+          onClose={() => setSharing(false)}
+        />
+      )}
 
       {showSettings && (
         <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
