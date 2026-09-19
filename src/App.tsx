@@ -14,12 +14,21 @@ import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
 import { OnlineSpeed } from './versus/OnlineSpeed';
 import { peekRoom } from './net/peek';
+import { startRanked, guessRanked } from './net/ranked';
+import { getPlayerId, getTeam, saveTeam } from './net/fan';
+import type { RankedResult } from './net/protocol';
+import { RANKED_MAX_ATTEMPTS } from './game/ranking';
+import { teamById } from './game/teams';
+import { TeamChip } from './components/TeamChip';
+import { TeamPicker } from './components/TeamPicker';
+import { KboBoard } from './components/KboBoard';
 import { ShareSheet } from './components/ShareSheet';
 import './App.css';
 
-type Section = 'solo' | 'multi';
+type Section = 'solo' | 'multi' | 'kbo';
 type GameType = 'speed' | 'duel';
-type Theme = 'dark' | 'light' | 'doosan' | 'lgtwins';
+/** 사용자가 고르는 테마. 'team' = 응원 구단 테마(구단은 KBO 탭에서 고른 nb_team). */
+type Theme = 'dark' | 'light' | 'team';
 
 // 도메인 이사: 구 주소는 index.html의 인라인 스크립트가 페인트 전에 대표 주소로 넘긴다.
 // 단 설치된 PWA(standalone)는 넘기면 scope를 벗어나 앱이 깨지므로, 대신 재설치 안내 배너를 띄운다.
@@ -61,6 +70,14 @@ function getInitialAttempts(): number {
   }
   return 10;
 }
+function getInitialRanked(): boolean {
+  try {
+    // 랭킹전은 구단이 있어야 한다(구단 없이 켜진 값은 무시).
+    return localStorage.getItem('nb_ranked') === '1' && getTeam() !== null;
+  } catch {
+    return false;
+  }
+}
 
 export default function App() {
   const [digits, setDigitsPref] = useState<number>(getInitialDigits);
@@ -71,11 +88,18 @@ export default function App() {
     () => !ATTEMPT_PRESETS.includes(getInitialAttempts()),
   );
   const [attemptsInput, setAttemptsInput] = useState(() => String(getInitialAttempts()));
-  const { state, judgeGuess, toggleMemo, clearMemo, setHint, setMaxAttempts, reset } = useGame(
-    digits,
-    hint,
-    maxAttempts,
-  );
+  const {
+    state,
+    judgeGuess,
+    toggleMemo,
+    clearMemo,
+    setHint,
+    setMaxAttempts,
+    reset,
+    applyJudgement,
+    revealSecret,
+    restore,
+  } = useGame(digits, hint, maxAttempts);
   // GuessPad 입력칸·후보 메모를 새 판/자릿수 변경 시 비우는 신호(값이 바뀌면 리셋).
   const [padReset, setPadReset] = useState(0);
   const [section, setSection] = useState<Section>('solo');
@@ -235,54 +259,50 @@ export default function App() {
     setShowRules(true);
   }, [showIntro, seenRules]);
 
-  // 테마: 설정에서 다크/라이트 선택(저장). 두산·LG는 숨은 이스터에그(설정 속 트리거 탭).
+  // 테마: 설정에서 [다크|라이트|응원 구단] 선택(저장). 옛 이스터에그 값(doosan/lgtwins)은 '응원 구단'으로 이관.
   const [theme, setTheme] = useState<Theme>(() => {
-    const s = typeof localStorage !== 'undefined' ? localStorage.getItem('nb_theme') : null;
-    return s === 'light' || s === 'doosan' || s === 'lgtwins' ? s : 'dark';
+    try {
+      const s = localStorage.getItem('nb_theme');
+      if (s === 'light' || s === 'team') return s;
+      if (s === 'doosan' || s === 'lgtwins') {
+        if (!getTeam()) saveTeam(s === 'doosan' ? 'doosan' : 'lg');
+        return 'team';
+      }
+    } catch {
+      /* 무시 */
+    }
+    return 'dark';
   });
   const [eggMsg, setEggMsg] = useState<string | null>(null);
-  // 사용자가 실제로 테마를 바꿨을 때만 토스트(마운트·StrictMode 재실행 땐 안 뜨게).
-  const userToggledThemeRef = useRef(false);
+  const eggTimerRef = useRef<number | undefined>(undefined);
 
+  // 사용자가 고른 테마 저장. 실제 적용은 아래 effectiveTheme 효과(랭킹전·응원 구단 반영).
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') root.removeAttribute('data-theme');
-    else root.setAttribute('data-theme', theme);
     try {
       localStorage.setItem('nb_theme', theme);
     } catch {
       /* 저장 불가 무시 */
     }
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-      const color =
-        theme === 'light'
-          ? '#eef1f5'
-          : theme === 'doosan'
-            ? '#0b0f2a'
-            : theme === 'lgtwins'
-              ? '#120910'
-              : '#000000';
-      meta.setAttribute('content', color);
-    }
-    if (!userToggledThemeRef.current) return;
-    userToggledThemeRef.current = false;
-    const msg =
-      theme === 'light'
-        ? '☀️ 라이트 모드'
-        : theme === 'doosan'
-          ? '🐻 두산 베어스 테마!'
-          : theme === 'lgtwins'
-            ? '👯 LG 트윈스 테마!'
-            : '🌙 다크 모드';
-    setEggMsg(msg);
-    const t = window.setTimeout(() => setEggMsg(null), 1600);
-    return () => window.clearTimeout(t);
   }, [theme]);
 
-  const changeTheme = (t: Theme) => {
-    userToggledThemeRef.current = true;
+  const themeToast = (msg: string) => {
+    setEggMsg(msg);
+    if (eggTimerRef.current) window.clearTimeout(eggTimerRef.current);
+    eggTimerRef.current = window.setTimeout(() => setEggMsg(null), 1600);
+  };
+  const changeTheme = (t: Theme, teamId: string | null = team) => {
+    if (t === 'team' && !teamById(teamId)) {
+      // 응원 구단이 없으면 먼저 고르게 하고, 고르면 바로 그 테마로.
+      setPicker({
+        message: '응원 구단 테마로 바꿀게요. 구단을 골라주세요!',
+        after: (picked) => changeTheme('team', picked),
+      });
+      return;
+    }
     setTheme(t);
+    themeToast(
+      t === 'light' ? '☀️ 라이트 모드' : t === 'team' ? `⚾ ${teamById(teamId)?.name} 테마` : '🌙 다크 모드',
+    );
   };
 
   // 이스터에그 2: 하단 깃허브 로고를 여러 번 누르면 '개발자 모드' 해금(삼성 개발자모드 오마주).
@@ -362,10 +382,157 @@ export default function App() {
   };
 
   const newGame = () => {
+    if (ranked) {
+      // 랭킹전: 추측이 있는 판을 버리면 실패(0점)로 기록 → 확인. 끝난 판·빈 판은 바로.
+      if (state.status === 'playing' && state.guesses.length > 0) {
+        setPendingForfeit(true);
+        return;
+      }
+      startRankedGame({ forfeit: true });
+      return;
+    }
     clearReveal();
     setPadReset((n) => n + 1);
     reset(digits, hint);
   };
+
+  // ---------- 팬 랭킹: 응원 구단 · 솔로 랭킹전(서버 판정) ----------
+  const [team, setTeamState] = useState<string | null>(getTeam);
+  const [ranked, setRanked] = useState<boolean>(getInitialRanked);
+  const [picker, setPicker] = useState<{ message?: string; after?: (t: string) => void } | null>(
+    null,
+  );
+  const [rankResult, setRankResult] = useState<RankedResult | null>(null);
+  const [pendingForfeit, setPendingForfeit] = useState(false);
+  const rankedIdRef = useRef<string | null>(null);
+  const rankBusyRef = useRef(false);
+  /** 랭킹 요청 세대 — 새 판 시작·연습 전환 때 올려서, 그 전에 보낸 요청의 늦은 응답은 버린다. */
+  const rankGenRef = useRef(0);
+
+  const saveFan = (nick: string, t: string) => {
+    setMNick(nick);
+    persist('nb_nick', nick);
+    saveTeam(t);
+    setTeamState(t);
+    const after = picker?.after;
+    setPicker(null);
+    after?.(t);
+  };
+
+  /** 랭킹전 판 시작(같은 자릿수로 진행 중인 판이 서버에 있으면 이어하기, forfeit면 버리고 새 판). */
+  const startRankedGame = async (opts: { forfeit?: boolean; digits?: number; team?: string }) => {
+    const t = opts.team ?? team;
+    if (!t) return;
+    const d = opts.digits ?? digits;
+    const gen = ++rankGenRef.current;
+    rankedIdRef.current = null;
+    rankBusyRef.current = true;
+    setRankResult(null);
+    clearReveal();
+    setPadReset((n) => n + 1);
+    prevGuessCountRef.current = 0;
+    restore(d, RANKED_MAX_ATTEMPTS, hint, []);
+    const r = await startRanked({
+      playerId: getPlayerId(),
+      nick: mNick.trim(),
+      team: t,
+      digits: d,
+      forfeit: opts.forfeit,
+    });
+    if (gen !== rankGenRef.current) return; // 그 사이 새 판·연습 전환 → 이 응답은 무효
+    rankBusyRef.current = false;
+    if (!r.ok || !r.gameId) {
+      showNet(r.error ?? '랭킹전을 시작하지 못했어요');
+      leaveRanked();
+      return;
+    }
+    rankedIdRef.current = r.gameId;
+    const guesses = r.guesses ?? [];
+    prevGuessCountRef.current = guesses.length; // 이어하기 기록엔 발표 카드 안 띄움
+    restore(r.digits ?? d, r.maxAttempts ?? RANKED_MAX_ATTEMPTS, hint, guesses);
+  };
+
+  /** 연습 모드로(진행 중인 랭킹전은 서버에 남아 있어 돌아오면 이어하기). */
+  const leaveRanked = () => {
+    rankGenRef.current++;
+    rankBusyRef.current = false;
+    setRanked(false);
+    persist('nb_ranked', '0');
+    rankedIdRef.current = null;
+    setRankResult(null);
+    clearReveal();
+    setPadReset((n) => n + 1);
+    reset(digits, hint);
+  };
+
+  const enterRanked = () => {
+    if (ranked) return;
+    if (!online) {
+      showNet('랭킹전은 네트워크 연결이 필요해요');
+      return;
+    }
+    const go = (t: string) => {
+      setRanked(true);
+      persist('nb_ranked', '1');
+      showNet(`🏆 랭킹전 ON · ${RANKED_MAX_ATTEMPTS}번 안에!`);
+      startRankedGame({ team: t });
+    };
+    if (team) go(team);
+    else
+      setPicker({ message: '랭킹전 점수는 응원 구단 점수로 쌓여요. 구단을 골라주세요!', after: go });
+  };
+
+  const submitRanked = async (guess: string) => {
+    const id = rankedIdRef.current;
+    if (!id || rankBusyRef.current) return;
+    rankBusyRef.current = true;
+    const gen = rankGenRef.current;
+    const r = await guessRanked(id, guess);
+    // 기다리는 사이 새 판·연습 전환이 있었으면 이 판정은 지금 화면과 무관 → 버림.
+    if (gen !== rankGenRef.current || rankedIdRef.current !== id) return;
+    rankBusyRef.current = false;
+    if (!r.ok || !r.judgement || !r.status) {
+      showNet(r.error ?? '판정에 실패했어요');
+      if (r.expired) startRankedGame({});
+      return;
+    }
+    applyJudgement(guess, r.judgement, r.status);
+    if (r.secret) revealSecret(r.secret);
+    if (r.result) setRankResult(r.result);
+    if (r.status !== 'playing') rankedIdRef.current = null;
+  };
+
+  // 화면에 적용할 테마 — 솔로 랭킹전 중엔 응원 구단 테마가 사용자 테마를 잠시 덮는다(저장값은 안 바꿈).
+  // 사용자가 '응원 구단' 테마를 골랐으면 어느 탭이든 그 구단 테마.
+  const rankedTeam =
+    (section === 'solo' && ranked) || theme === 'team' ? teamById(team) : undefined;
+  const effectiveTheme: string = rankedTeam ? rankedTeam.theme : theme === 'team' ? 'dark' : theme;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (effectiveTheme === 'dark') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', effectiveTheme);
+    // 전광판 워터마크용 구단 로고(랭킹전 중에만).
+    if (rankedTeam) {
+      root.setAttribute('data-team', rankedTeam.id);
+      root.style.setProperty('--team-logo', `url('${rankedTeam.logo}')`);
+    } else {
+      root.removeAttribute('data-team');
+      root.style.removeProperty('--team-logo');
+    }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
+    if (meta && bg) meta.setAttribute('content', bg);
+  }, [effectiveTheme, rankedTeam]);
+
+  // 앱을 열 때 랭킹전이 켜져 있으면 서버의 진행 중인 판을 이어받는다(없으면 새 판).
+  const rankedBootRef = useRef(false);
+  useEffect(() => {
+    if (rankedBootRef.current || !ranked) return;
+    rankedBootRef.current = true;
+    startRankedGame({});
+    // 마운트 1회만(이후 전환은 enterRanked/leaveRanked가 처리).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const persist = (key: string, val: string) => {
     try {
@@ -378,6 +545,10 @@ export default function App() {
   const doChangeDigits = (d: number) => {
     setDigitsPref(d);
     persist('nb_digits', String(d));
+    if (ranked) {
+      startRankedGame({ forfeit: true, digits: d });
+      return;
+    }
     clearReveal();
     setPadReset((n) => n + 1);
     reset(d, hint);
@@ -434,7 +605,7 @@ export default function App() {
       {showIntro && <Intro onDone={dismissIntro} />}
       <header className="controls">
         <div className="controls-row">
-          <div className="help-wrap">
+          <div className="help-wrap ctrl-side">
             <button
               type="button"
               className={`help-btn${seenRules ? '' : ' pulse-hint'}`}
@@ -467,8 +638,17 @@ export default function App() {
             >
               멀티
             </button>
+            <button
+              type="button"
+              className={`seg-btn${section === 'kbo' ? ' active' : ''}`}
+              aria-pressed={section === 'kbo'}
+              onClick={() => guardedSwitch(() => setSection('kbo'))}
+              aria-label="KBO"
+            >
+              <span className="kbo-mark" aria-hidden="true" />
+            </button>
           </div>
-          {section === 'solo' ? (
+          <div className="ctrl-side ctrl-right">
             <button
               type="button"
               className="gear-btn"
@@ -478,9 +658,7 @@ export default function App() {
             >
               ⚙
             </button>
-          ) : (
-            <span className="gear-spacer" aria-hidden="true" />
-          )}
+          </div>
         </div>
 
       </header>
@@ -491,6 +669,16 @@ export default function App() {
       <section className="history-section scoreboard">
         <div className="history-head">
           <span className="history-label">history</span>
+          <button
+            type="button"
+            className={`ranked-badge${ranked ? ' on' : ''}`}
+            aria-pressed={ranked}
+            onClick={() => (ranked ? leaveRanked() : enterRanked())}
+            title={ranked ? '랭킹전 끄기(연습으로)' : '랭킹전 켜기'}
+          >
+            <span className="ranked-dot" aria-hidden="true" />
+            RANKED {ranked && <TeamChip team={team} />}
+          </button>
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
@@ -512,6 +700,8 @@ export default function App() {
               secret={state.secret}
               attempts={state.guesses.length}
               onRestart={newGame}
+              ranked={ranked ? rankResult : null}
+              onShowBoard={() => setSection('kbo')}
               guesses={state.guesses}
               onShare={() => setSharing(true)}
             />
@@ -527,7 +717,7 @@ export default function App() {
           digits={state.digits}
           disabled={finished}
           resetSignal={padReset}
-          onSubmit={judgeGuess}
+          onSubmit={ranked ? submitRanked : judgeGuess}
           memo={state.memo}
           onMemoToggle={toggleMemo}
           onMemoClear={clearMemo}
@@ -546,6 +736,8 @@ export default function App() {
         />
       )}
         </>
+      ) : section === 'kbo' ? (
+        <KboBoard myTeam={team} onPickTeam={() => setPicker({})} />
       ) : launch === null ? (
         <div className="versus versus-center">
           <div className="online-menu-card">
@@ -559,6 +751,19 @@ export default function App() {
                 onChange={(e) => setMNick(e.target.value)}
               />
             </label>
+            <div className="versus-field">
+              <span className="versus-label">응원 구단</span>
+              <button
+                type="button"
+                className="fan-team-btn"
+                onClick={() =>
+                  setPicker({ message: '온라인 대전에서 다른 구단 팬을 이기면 우리 구단이 1승!' })
+                }
+              >
+                {team ? <TeamChip team={team} withName /> : <span className="fan-team-none">구단 고르기</span>}
+                <span className="fan-team-edit">변경</span>
+              </button>
+            </div>
             <div className="versus-field">
               <span className="versus-label">자릿수</span>
               <div className="seg" role="group" aria-label="자릿수">
@@ -793,9 +998,26 @@ export default function App() {
                 >
                   라이트
                 </button>
+                <button
+                  type="button"
+                  className={`seg-btn seg-team${theme === 'team' ? ' active' : ''}`}
+                  aria-pressed={theme === 'team'}
+                  onClick={() => changeTheme('team')}
+                >
+                  {team ? <TeamChip team={team} /> : null}
+                  응원 구단
+                </button>
               </div>
             </div>
+            {rankedTeam && theme !== 'team' && (
+              <p className="settings-desc">
+                랭킹전 중엔 {rankedTeam.name} 테마가 적용돼요. 랭킹전을 끄면 고른 테마로 돌아가요.
+              </p>
+            )}
 
+            {/* 아래는 솔로 게임 설정 — 멀티·KBO 탭에선 테마만 보인다. */}
+            {section === 'solo' && (
+              <>
             <div className="settings-row">
               <span className="settings-label">자릿수</span>
               <div className="seg" role="group" aria-label="자릿수">
@@ -813,6 +1035,12 @@ export default function App() {
               </div>
             </div>
 
+            {ranked ? (
+              <div className="settings-row">
+                <span className="settings-label">시도</span>
+                <span className="settings-fixed">랭킹전은 {RANKED_MAX_ATTEMPTS}회 고정</span>
+              </div>
+            ) : (
             <div className="settings-row">
               <span className="settings-label">시도</span>
               <div className="seg" role="group" aria-label="시도 횟수">
@@ -840,7 +1068,8 @@ export default function App() {
                 </button>
               </div>
             </div>
-            {attemptsCustom && (
+            )}
+            {!ranked && attemptsCustom && (
               <div className="settings-row settings-attempts-custom">
                 <span className="settings-label">직접 입력</span>
                 <div className="settings-attempts-field">
@@ -910,6 +1139,8 @@ export default function App() {
             >
               ↻ 새 게임
             </button>
+              </>
+            )}
             <button
               type="button"
               className="settings-close"
@@ -918,30 +1149,17 @@ export default function App() {
               닫기
             </button>
 
-            {/* 숨은 이스터에그: 조용히 구단 테마로(우하단 나란히). */}
-            <button
-              type="button"
-              className={`team-egg team-egg-doosan${theme === 'doosan' ? ' on' : ''}`}
-              aria-label="테마 이스터에그(두산)"
-              onClick={() => changeTheme(theme === 'doosan' ? 'dark' : 'doosan')}
-            >
-              🐻
-            </button>
-            <button
-              type="button"
-              className={`team-egg team-egg-lg${theme === 'lgtwins' ? ' on' : ''}`}
-              aria-label="테마 이스터에그(LG)"
-              onClick={() => changeTheme(theme === 'lgtwins' ? 'dark' : 'lgtwins')}
-            >
-              👯
-            </button>
           </div>
         </div>
       )}
 
       {pendingDigits !== null && (
         <ConfirmDialog
-          message={`진행 중인 게임이 있어요. ${pendingDigits}자리로 바꾸면 지금 판은 사라져요. 바꿀까요?`}
+          message={
+            ranked
+              ? `진행 중인 랭킹전이 있어요. ${pendingDigits}자리로 바꾸면 지금 판은 실패(0점)로 기록돼요. 바꿀까요?`
+              : `진행 중인 게임이 있어요. ${pendingDigits}자리로 바꾸면 지금 판은 사라져요. 바꿀까요?`
+          }
           confirmLabel="바꾸기"
           cancelLabel="취소"
           onConfirm={() => {
@@ -952,6 +1170,30 @@ export default function App() {
           onCancel={() => setPendingDigits(null)}
         />
       )}
+
+      {pendingForfeit && (
+        <ConfirmDialog
+          message="진행 중인 랭킹전을 그만두면 실패(0점)로 기록돼요. 새 판을 시작할까요?"
+          confirmLabel="새 판"
+          cancelLabel="계속하기"
+          onConfirm={() => {
+            setPendingForfeit(false);
+            startRankedGame({ forfeit: true });
+          }}
+          onCancel={() => setPendingForfeit(false)}
+        />
+      )}
+
+      {picker && (
+        <TeamPicker
+          nick={mNick}
+          team={team}
+          message={picker.message}
+          onSave={saveFan}
+          onClose={() => setPicker(null)}
+        />
+      )}
+
 
       {pendingLeave && (
         <ConfirmDialog

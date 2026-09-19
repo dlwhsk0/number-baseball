@@ -41,10 +41,28 @@
 
 ## 기능
 - **컨트롤**(`.controls`): **타이틀·부제 없음**(인트로에서만). 밝기 토글 없음(단일 다크).
-  - 1행: `[?]`(좌, 첫 방문 시 `.help-callout` 말풍선) · `[ 솔로 | 멀티 ]` 세그먼트(`section`) · **`[⚙]`**(우, 솔로만 — 설정 시트).
-  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **테마 [다크|라이트]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임`. 우하단에 숨은 테마 이스터에그 트리거들(🐻 두산 / 👯 LG).
+  - 1행: `[?]`(좌, 첫 방문 시 `.help-callout` 말풍선) · `[ 솔로 | 멀티 | KBO ]` 세그먼트(`section`) · **`[⚙]`**(우, 모든 탭 — 멀티·KBO 탭에선 설정 시트에 테마만).
+  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **테마 [다크|라이트|응원 구단]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임`.
   - 멀티는 헤더에 별도 세그먼트 없음(아래 **멀티 시작 메뉴** 카드가 전부 담당). `⚙` 자리는 `.gear-spacer`.
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
+- **KBO 팬 랭킹**(구단 대항전): 팬이 응원 구단(KBO 10개 구단, `src/game/teams.ts` ↔ `server/src/teams.ts` 복제)을 달고 경쟁.
+  신원은 로그인 없이 **익명 기기 id**(`localStorage.nb_player_id` uuid, 형식 깨지면 재발급) + `nb_team` + 닉네임 `nb_nick`(`src/net/fan.ts`). 구단 선택은 `TeamPicker`(닉네임+10구단 시트).
+  **구단 표시는 이름이 아니라 공식 엠블럼**(`TeamChip` — 투명 배경 로고 그대로, `withName`이면 옆에 구단명). 로고는 `public/teams/<id>.png`(각 구단 공식 홈페이지 CI/BI 자료, 최대 256px — 다크 배경에서 묻히는 KIA는 흰 외곽선 SVG판, 롯데는 원 안을 채운 판).
+  헤더 KBO 탭 라벨은 **KBO 공식 로고**(`public/kbo-logo.png`, koreabaseball.com 로고 페이지의 AI 자료 가로조합을 흰 단색으로) — CSS `mask`로 써서 세그먼트 글자색을 따른다.
+  - **솔로 랭킹전**(전광판 헤더 `history` 옆 **`RANKED` 토글 버튼**으로 켜고 끔 — 설정 시트엔 없음, `nb_ranked`):
+    **랭킹전 중엔 응원 구단 테마가 자동 적용**(App `effectiveTheme` — 솔로+랭킹전+구단이면 `Team.theme`, 저장된 `nb_theme`는 안 바꿈. 두산·LG는 기존 `doosan`/`lgtwins`, 나머지는 `index.css`의 `team-<id>` 토큰 + 전광판에 구단 로고 워터마크 `:root[data-team]`/`--team-logo`). `index.html` 인라인 스크립트도 같은 규칙으로 페인트 전 적용. **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
+    시도 **20회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 21 − 시도(1회=20점…20회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
+    추측이 있는 판을 버리면(새 게임·자릿수 변경·30분 방치) **실패로 기록**(체리피킹 방지), 1인 **24시간 30판 상한**(`RANKED_DAILY_LIMIT`), 같은 플레이어의 시작 요청은 직렬화.
+    보조로 **IP당 24시간 200판**(`RANKED_IP_DAILY_LIMIT`, 0=끔, 메모리) — X-Forwarded-For **맨 오른쪽**(Traefik이 붙인 값)만 신뢰, 사설 IP면 미적용. 계정이 없어 봇 완전 차단은 아님(uuid 교체 자동화 억제용).
+    클라는 요청 세대(`rankGenRef`)로 새 판·연습 전환 뒤 도착한 늦은 응답을 버리고, 타임아웃된 요청은 늦게 연결돼도 보내지 않는다. 클라는 `useGame`의 `restore`/`applyJudgement`/`revealSecret`로 서버 결과 반영(secret='').
+    결과 카드(`ResultBanner` `ranked`)에 점수·구단 누적·순위. 연습 모드는 기존 그대로(오프라인 가능).
+  - **멀티 구단 대결**: 온라인 `create`/`join`에 `playerId`·`team` 동봉 → 판이 끝나면 **구단이 다른 참가자 쌍마다** 승/패/무 기록(`pairMatches`).
+    주고받기=승자 vs 패자, 스피드=최종 순위 상위가 승(둘 다 미해결=무). 주고받기 **VS 매치업 카드엔 양쪽 구단 엠블럼 + 구단색(`Team.accent`) 테두리·발광**(`VsSide`). 같은 구단·구단 없음·같은 기기·추측 0회·중도 이탈은 제외. 로컬(패스앤플레이)은 기록 안 함. 로비·순위·VS 연출에 구단 칩.
+  - **KBO 탭**(헤더 세그먼트 `section='kbo'`, `src/components/KboBoard.tsx` — 모달 아님, 인라인 화면·안쪽만 스크롤): 상단 **내 응원 구단 카드**(탭하면 구단 변경 — 설정 시트엔 구단 항목 없음, KBO 탭이 구단 변경의 기본 위치) — 구단 순위(솔로 누적, 판 없으면 -)·구단 대결 순위(승패무)·내 개인 순위 요약 + [구단](솔로 누적 합계) · [개인](누적 TOP50 + 내 순위) · [구단 대결](KBO식 승·패·무·승률·게임차).
+    이벤트 `leaderboard`, 서버 30초 캐시(기록 시 무효화 — 세대 번호로 조회 중 기록된 옛 결과는 캐시 안 함). 솔로 랭킹전 결과의 [순위 보기]는 KBO 탭으로 이동.
+    구단 대결 기록은 한 판의 쌍들을 한 트랜잭션으로.
+  - **저장소 = Postgres**(`server/src/db.ts`, env `DATABASE_URL`, 시작 시 `CREATE TABLE IF NOT EXISTS` — `players`/`solo_games`/`match_results`). **없으면 랭킹만 비활성**(대전 정상). Dokploy 설정은 `docs/dokploy-deploy.md` §5-B.
+    스모크: `server/test/ranked-smoke.mjs`, `team-versus-smoke.mjs`(DB 붙은 서버 필요).
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
 - **대결 모드**(App `section='multi'`): **멀티 시작 메뉴** — 하나의 글라스 카드(`.online-menu-card`)에 위→아래로
@@ -56,7 +74,7 @@
   - 온라인 컴포넌트(`OnlineSpeed`/`OnlineDuel`)는 **액션 구동식**: `entry={{action:'create'|'join', nick, digits, code}}` + `onExit`를 받아
     연결되면 자동으로 `doCreate`/`doJoin` 실행(`autoRanRef` 가드), 자체 메뉴 없이 로딩 화면만. 로컬은 `SpeedVersus`/`DuelVersus`(자체 셋업 유지).
   로컬=한 기기 패스앤플레이(`SpeedVersus`/`DuelVersus`, 서버 없음), 온라인=서버 대전(`OnlineSpeed`/`OnlineDuel`). 온라인은 스피드·턴제 **둘 다** 지원.
-  - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. 방 만들기/코드 입장(2~6명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(순위·점수·시간) → **전원 맞히면 종료**. 세션 재접속 지원(`nb_speed_session`).
+  - **온라인 스피드**: `src/versus/OnlineSpeed.tsx` + 서버 speed 모드. **시작 매치업 연출**(`SpeedIntro` — 참가자 전원 구단 엠블럼 카드 + 3·2·1): 서버가 `startAt`을 `SPEED_INTRO_MS`(기본 3000)만큼 미루고 `speedStart.introMs`로 알림, 연출 중 추측은 거부·제한시간도 그 뒤부터 → 연출이 레이스 시간을 안 먹는다(스모크는 `startGate`로 연출 뒤 진행). 방 만들기/코드 입장(2~6명) → 방장 시작 → **공통 숫자를 전원 동시 레이스**(서버 판정) → 라이브 리더보드(순위·점수·시간) → **전원 맞히면 종료**. 세션 재접속 지원(`nb_speed_session`).
     - **순위 = 합산 점수**(낮을수록 상위): `점수 = 추측 횟수 + 시간(초)/SCORE_SEC_PER_POINT`(기본 20초=1점, `server`에서 계산해 `SpeedStanding.score`로 전달). 지연 페널티 없음(총 시간이 점수에 반영). 미해결은 solved 뒤에 시도수 순.
     - **제한시간 자릿수별**: 3자리 5분·4자리 7분(`SPEED_LIMIT_3_MS`/`SPEED_LIMIT_4_MS`, `speedLimitMs(digits)`). 만료 시 그 시점 순위로 강제 종료. 진행 중 상대 다 나가면 종료(기권승).
     서버: 방 `mode:'duel'|'speed'`, 스피드는 `speedSecret`·플레이어별 `solved/attempts/solveMs/history`·`gone`. 이벤트 `startSpeed`/`speedStart`(payload `limitMs`)/`speedRoster`/`speedProgress`/`speedOver`/`speedReset`.
@@ -120,9 +138,10 @@
   **물리 키보드 입력**: 숫자=입력(메모 모드면 메모), Backspace=지우기, Enter=제출(`Keypad`의 전역 keydown, 모달 열리면 무시).
   표시는 키 전체를 덮는 큰 도형(워터마크), 색은 판정색 대응(주황/초록/빨강). 새 게임마다 초기화. 표시 전용이라 입력을 막지 않음. 상태는 `GameState.memo`.
 - **디자인 시스템**: **야구장(전광판+타자석)** 컨셉 + **iOS 글라스**. 짙은 네이비(`--bg #0a0d15`) 위 반투명 프로스티드 박스, 세븐세그먼트 LED 숫자.
-  **다크가 기본**. 테마는 **설정 시트에서 [다크|라이트] 선택**(`App`의 `theme:'dark'|'light'|'doosan'`, `localStorage.nb_theme` 저장). `index.html` 인라인 스크립트가 페인트 전에 저장 테마를 복원(깜빡임 방지). 글라스는 다크/두산 전용(라이트는 불투명).
+  **다크가 기본**. 테마는 **설정 시트에서 [다크|라이트|응원 구단] 선택**(`App`의 `theme:'dark'|'light'|'team'`, `localStorage.nb_theme` 저장, 옛 `doosan`/`lgtwins` 값은 `team`으로 이관). `index.html` 인라인 스크립트가 페인트 전에 저장 테마를 복원(깜빡임 방지). 글라스는 다크/두산 전용(라이트는 불투명).
   라이트('주간 경기' 팔레트) 토큰은 `index.css`의 `:root[data-theme='light']`(밝은 보드·어두운 LCD 세그먼트·은은한 발광).
-  **구단 테마**(숨은 이스터에그): **두산 베어스**(`data-theme='doosan'`, 네이비+레드) / **LG 트윈스**(`data-theme='lgtwins'`, 블랙+LG레드). 설정 시트 우하단에 은은히 숨긴 트리거 `.team-egg`(🐻 두산 · 👯 LG) 탭 시 전환, 다시 다크/라이트 고르면 해제(토스트). 각 테마일 때 전광판 중앙에 구단 로고 워터마크(`.scoreboard::after`, `public/doosan-bears.svg`·`lg-twins.svg` — 투명 SVG, 솔로는 헤더 아래 정중앙 보정). 테마 토큰은 `index.css`, `index.html` 인라인 스크립트가 저장 테마 복원.
+  **구단 테마(전 구단 10개)**: `theme='team'`이면 **응원 구단(KBO 탭에서 고른 `nb_team`)의 테마**를 모든 탭에 적용(구단을 따로 고르는 아이콘 없음 — 구단을 바꾸면 테마도 따라감, 구단이 없으면 선택 시트부터). 솔로 랭킹전 중엔 테마 설정과 무관하게 구단 테마.
+  토큰: 두산 `doosan`·LG `lgtwins` + 나머지 8개 `team-<id>`(`index.css`, `Team.theme`로 매핑). 구단 테마일 때 전광판 중앙에 구단 로고 워터마크(`:root[data-team] .scoreboard::after`, 로고는 App이 `--team-logo`로 — 솔로는 헤더 아래 정중앙 보정). `index.html` 인라인 스크립트가 같은 규칙으로 페인트 전 복원.
   포인트색은 **그린+화이트 믹스**: 숫자(판독값)는 화이트(`--led`), 그린(`--accent` `#4dff5e`)은 액센트 —
   확인 버튼·헤더 발광·활성 컨트롤, 그리고 **정답(입력) 칸의 세그먼트/발광**. S·B·O 램프색은 주황·초록·빨강.
   - **토큰**(`src/index.css` `:root`, 단일 다크): `--bg`(#000)·`--cell`·`--key`·`--panel(-2)`,
@@ -138,7 +157,7 @@
   - **모션**: '적당히' — 슬롯 팝, 기록 행 등장, 램프 점등, 승리 `win-pulse`. `prefers-reduced-motion`이면 전부 정지(`index.css`).
   - `index.html` 인라인 스크립트/`theme-color`(#000)는 단일 다크라 사실상 고정. accent 위 글자는 `--on-accent`.
 - **푸터**: GitHub 로고 버튼. **이스터에그 2**: 여러 번(7회) 누르면 '개발자 모드' 해금 — 토스트 멘트가 뜨다가
-  마지막에 인사말+프로필 링크 모달(`App`의 `devUnlocked`). (이스터에그 1은 설정 속 숨긴 로고 탭 → 두산 베어스 테마.)
+  마지막에 인사말+프로필 링크 모달(`App`의 `devUnlocked`). 
 - **게임 방법(튜토리얼)**: 헤더 좌측 상단 `?` 원형 버튼을 누르면 **단계별 튜토리얼**(`src/components/RulesModal.tsx`)이
   열린다(5단계, `.tut-*`, 상단 진행 점 + 하단 [이전]/[다음]/[시작하기]). ①소개·규칙 ②판정 S·B·O 워크드 예시
   ③**키패드 메모 직접 눌러보기**(`Keypad markButtons` 실동작) ④**칸 길게 눌러 후보 메모 직접 해보기**(400ms 롱프레스→`note-pop`, 숨은 기능 안내)

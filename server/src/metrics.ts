@@ -51,3 +51,7 @@ export function registerRuntimeGauges(getters: {
     },
   });
 }
+
+// ---------- 팬 랭킹 ----------
+export const rankedGames = c('nb_ranked_games_total', '솔로 랭킹전 종료 수', ['result']);
+export const rankWriteErrors = c('nb_rank_write_errors_total', '랭킹 DB 기록 실패', ['kind']);

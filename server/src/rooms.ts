@@ -7,6 +7,9 @@ import type { GuessRecord, Outcome, Mode, SpeedStanding } from './types.js';
 export interface Player {
   id: string; // 현재 소켓 id(재접속하면 바뀜)
   nick: string;
+  /** 팬 랭킹: 익명 기기 id(uuid)·응원 구단 id. 없으면 구단 대결 기록에서 빠진다. */
+  playerId: string | null;
+  team: string | null;
   /** 턴제: 상대가 맞힐 비밀 숫자. 서버만 알고 종료 시 공개. */
   secret: string | null;
   /** 재접속 인증 토큰. */
@@ -68,10 +71,18 @@ function genToken(): string {
   return randomBytes(12).toString('hex');
 }
 
-function newPlayer(id: string, nick: string): Player {
+/** 방 입장 시 팬 신원(검증된 값만). */
+export interface Fan {
+  playerId: string | null;
+  team: string | null;
+}
+
+function newPlayer(id: string, nick: string, fan: Fan): Player {
   return {
     id,
     nick,
+    playerId: fan.playerId,
+    team: fan.team,
     secret: null,
     token: genToken(),
     connected: true,
@@ -83,13 +94,19 @@ function newPlayer(id: string, nick: string): Player {
   };
 }
 
-export function createRoom(hostId: string, nick: string, digits: number, mode: Mode): Room {
+export function createRoom(
+  hostId: string,
+  nick: string,
+  digits: number,
+  mode: Mode,
+  fan: Fan,
+): Room {
   const room: Room = {
     code: genCode(),
     mode,
     digits,
     maxPlayers: mode === 'speed' ? 6 : 2,
-    players: [newPlayer(hostId, nick)],
+    players: [newPlayer(hostId, nick, fan)],
     phase: 'waiting',
     turn: 0,
     pending: false,
@@ -107,6 +124,7 @@ export function joinRoom(
   code: string,
   id: string,
   nick: string,
+  fan: Fan,
 ): { room?: Room; index?: number; error?: string } {
   const room = rooms.get(code);
   if (!room) return { error: '방을 찾을 수 없어요. 코드를 확인해주세요.' };
@@ -114,7 +132,7 @@ export function joinRoom(
   // 스피드는 시작 후 입장 불가.
   if (room.mode === 'speed' && room.phase !== 'waiting') return { error: '이미 시작한 방이에요.' };
   const index = room.players.length;
-  room.players.push(newPlayer(id, nick));
+  room.players.push(newPlayer(id, nick, fan));
   return { room, index };
 }
 
@@ -165,6 +183,7 @@ export function speedStandings(room: Room): SpeedStanding[] {
       solved: p.solved,
       solveMs: p.solveMs,
       connected: p.connected,
+      team: p.team,
       // 합산 점수(낮을수록 상위) = 추측 횟수 + 시간/포인트. 미해결이면 null.
       score: p.solved ? p.attempts + (p.solveMs ?? 0) / SCORE_MS_PER_POINT : null,
     }))

@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { getSocket } from '../net/socket';
 import type { GuessRecord } from '../game/useGame';
 import { GuessPad } from '../components/GuessPad';
 import { History } from '../components/History';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { SpeedStanding, SpeedHistoryEntry } from '../net/protocol';
+import { fanIdentity, getTeam } from '../net/fan';
+import { TeamChip } from '../components/TeamChip';
+import { teamById } from '../game/teams';
 
 export interface OnlineEntry {
   action: 'create' | 'join';
@@ -77,7 +80,7 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
         {s.solved ? (rank <= 3 ? MEDALS[rank - 1] : rank) : '-'}
       </span>
       <span className="sp-name">
-        {s.nick}
+        <TeamChip team={s.team} /> {s.nick}
         {me ? ' (나)' : ''}
         {!s.connected ? ' ⚡끊김' : ''}
       </span>
@@ -91,6 +94,55 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
   );
 }
 
+
+/** 스피드 시작 매치업 — 참가자 전원을 구단 엠블럼 카드로 모아 보여주고 3·2·1 카운트다운. */
+function SpeedIntro({
+  players,
+  myIndex,
+  left,
+  digits,
+}: {
+  players: { index: number; nick: string; team: string | null }[];
+  myIndex: number;
+  left: number;
+  digits: number;
+}) {
+  const count = Math.ceil(left / 1000);
+  return (
+    <div className="versus versus-center sp-intro">
+      <p className="vs-ready">⚡ 스피드 레이스</p>
+      <ul className={`sp-intro-grid n${Math.min(players.length, 6)}`}>
+        {players.map((p, i) => {
+          const t = teamById(p.team);
+          return (
+            <li
+              key={p.index}
+              className={`sp-intro-card${t ? ' has-team' : ''}${p.index === myIndex ? ' me' : ''}`}
+              style={
+                { '--team-c': t?.accent ?? 'var(--border)', animationDelay: `${i * 90}ms` } as CSSProperties
+              }
+            >
+              {t ? (
+                <img className="sp-intro-logo" src={t.logo} alt={t.name} draggable={false} />
+              ) : (
+                <span className="sp-intro-logo sp-intro-nologo" aria-hidden="true">⚾</span>
+              )}
+              <span className="sp-intro-nick">
+                {p.nick}
+                {p.index === myIndex ? ' (나)' : ''}
+              </span>
+              {t && <span className="sp-intro-team">{t.short}</span>}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="sp-intro-count" key={count} aria-live="polite">
+        {count > 0 ? count : 'GO!'}
+      </div>
+      <p className="vs-sub">{digits}자리 · 같은 숫자를 누가 먼저 맞힐까</p>
+    </div>
+  );
+}
 
 /** 온라인 스피드 대전 — 공통 숫자를 2~6명이 동시에 풀어 순위를 겨룬다(서버 권위). */
 export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
@@ -112,11 +164,15 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const [myIndex, setMyIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const [roster, setRoster] = useState<{ index: number; nick: string; connected: boolean }[]>([]);
+  const [roster, setRoster] = useState<
+    { index: number; nick: string; connected: boolean; team: string | null }[]
+  >([]);
   const [standings, setStandings] = useState<SpeedStanding[]>([]);
   const [startAt, setStartAt] = useState(0);
   const [limitMs, setLimitMs] = useState(0);
   const [now, setNow] = useState(0);
+  /** 시작 매치업 연출이 끝나는 시각(로컬 ms). 이 전엔 레이스 대신 연출 화면. */
+  const [introUntil, setIntroUntil] = useState(0);
   const [myHistory, setMyHistory] = useState<GuessRecord[]>([]);
   const [over, setOver] = useState<OverInfo | null>(null);
   const [left, setLeft] = useState(false);
@@ -180,6 +236,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
           raceDigitsRef.current = rm.digits;
           setStandings(rm.standings);
           setStartAt(rm.startAt);
+          setIntroUntil(rm.startAt); // 연출 도중 재접속이면 남은 만큼만
           setLimitMs(rm.limitMs);
           setMyHistory(rm.myHistory);
           if (rm.phase === 'over' && rm.over) {
@@ -203,8 +260,10 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     s.on('connect', onConnect);
     s.on('disconnect', onDisconnect);
     s.on('speedRoster', ({ players }) => setRoster(players));
-    s.on('speedStart', ({ startAt: at, digits: d, limitMs: lim }) => {
+    s.on('speedStart', ({ startAt: at, digits: d, limitMs: lim, introMs }) => {
       raceDigitsRef.current = d;
+      // 서버 startAt은 연출 뒤 시각 — 기기 시계 차이를 피하려고 연출 끝은 받은 순간 기준으로 잡는다.
+      setIntroUntil(Date.now() + (introMs ?? 0));
       setDigits(d);
       setStartAt(at);
       setLimitMs(lim);
@@ -276,14 +335,14 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const doCreate = () => {
     setError(null);
     saveNick();
-    socketRef.current.emit('create', { nick, digits, mode: 'speed' }, (r) => {
+    socketRef.current.emit('create', { nick, digits, mode: 'speed', ...fanIdentity() }, (r) => {
       if (r.ok) {
         sessionRef.current = { code: r.code, index: 0, token: r.token };
         saveSession(sessionRef.current);
         setCode(r.code);
         myIndexRef.current = 0;
         setMyIndex(0);
-        setRoster([{ index: 0, nick: nick.trim() || '플레이어', connected: true }]);
+        setRoster([{ index: 0, nick: nick.trim() || '플레이어', connected: true, team: getTeam() }]);
         setPhase('lobby');
       }
     });
@@ -297,7 +356,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     }
     setError(null);
     saveNick();
-    socketRef.current.emit('join', { nick, code: c }, (r) => {
+    socketRef.current.emit('join', { nick, code: c, ...fanIdentity() }, (r) => {
       if (!r.ok || r.index == null) {
         setError(r.error ?? '입장에 실패했어요.');
         return;
@@ -407,7 +466,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
           <ul className="sp-roster">
             {roster.map((p) => (
               <li key={p.index} className={p.index === myIndex ? 'me' : ''}>
-                {p.nick}
+                <TeamChip team={p.team} /> {p.nick}
                 {p.index === myIndex ? ' (나)' : ''}
                 {p.index === 0 ? ' 👑' : ''}
                 {!p.connected ? ' ⚡' : ''}
@@ -433,6 +492,10 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
         {error && <p className="online-error">{error}</p>}
       </div>
     );
+  }
+
+  if (phase === 'race' && now < introUntil) {
+    return <SpeedIntro players={roster} myIndex={myIndex} left={introUntil - now} digits={digits} />;
   }
 
   if (phase === 'race') {
@@ -482,7 +545,9 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
                       style={{ transform: `translateY(${r * ROW}px)` }}
                     >
                       <span className="rank-pos">{s.solved ? (r < 3 ? MEDALS[r] : r + 1) : '·'}</span>
-                      <span className="rank-name">{s.nick}</span>
+                      <span className="rank-name">
+                        <TeamChip team={s.team} /> {s.nick}
+                      </span>
                       <span className="rank-att">
                         {s.solved && s.score != null ? s.score.toFixed(1) : s.attempts}
                       </span>

@@ -42,7 +42,13 @@ export type GameAction =
   | { type: 'clearMemo' }
   | { type: 'setBeginner'; beginner: boolean }
   | { type: 'setMaxAttempts'; maxAttempts: number }
-  | { type: 'reset'; secret: string; maxAttempts: number; digits?: number; beginner?: boolean };
+  | { type: 'reset'; secret: string; maxAttempts: number; digits?: number; beginner?: boolean }
+  /** 랭킹전: 서버가 판정한 결과를 그대로 반영(정답은 서버만 안다). */
+  | { type: 'applyJudgement'; guess: string; judgement: Judgement; status: GameStatus }
+  /** 랭킹전 종료 시 서버가 공개한 정답. */
+  | { type: 'revealSecret'; secret: string }
+  /** 랭킹전 시작/이어하기: 정답 없이(secret='') 기존 기록으로 판을 세팅. */
+  | { type: 'restore'; digits: number; maxAttempts: number; beginner: boolean; guesses: GuessRecord[] };
 
 function emptySlots(digits: number): string[] {
   return Array<string>(digits).fill('');
@@ -92,6 +98,30 @@ export function toggleMemoMark(
   if (next[digit] === mark) delete next[digit];
   else next[digit] = mark;
   return next;
+}
+
+/** 힌트(개인 기능, 자릿수 무관): 전부 아웃이면 ✕, 0아웃(S+B=자릿수)이면 △ 자동 메모. */
+function hintMemo(
+  state: GameState,
+  guess: string,
+  judgement: Judgement,
+  status: GameStatus,
+): GameState['memo'] {
+  if (!state.beginner) return state.memo;
+  if (judgement.isOut) {
+    // 전부 아웃 → 그 숫자들은 무조건 정답에 '없음' → 아웃(✕) 표시.
+    const memo = { ...state.memo };
+    for (const d of guess) memo[d] = 'out';
+    return memo;
+  }
+  if (judgement.strikes + judgement.balls === state.digits && status !== 'won') {
+    // 0아웃(S+B=자릿수) → 그 숫자들은 무조건 정답에 '있음'(위치는 미정) → 볼(△) 표시.
+    //   단, 이미 스트라이크로 확정한 건 그대로 둔다(더 구체적).
+    const memo = { ...state.memo };
+    for (const d of guess) if (memo[d] !== 'strike') memo[d] = 'ball';
+    return memo;
+  }
+  return state.memo;
 }
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
@@ -148,19 +178,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       else if (guesses.length >= state.maxAttempts) status = 'lost';
 
       // 힌트(개인 기능). 자릿수 무관.
-      let memo = state.memo;
-      if (state.beginner) {
-        if (judgement.isOut) {
-          // 전부 아웃 → 그 숫자들은 무조건 정답에 '없음' → 아웃(✕) 표시.
-          memo = { ...state.memo };
-          for (const d of guess) memo[d] = 'out';
-        } else if (judgement.strikes + judgement.balls === state.digits && status !== 'won') {
-          // 0아웃(S+B=자릿수) → 그 숫자들은 무조건 정답에 '있음'(위치는 미정) → 볼(△) 표시.
-          //   단, 이미 스트라이크로 확정한 건 그대로 둔다(더 구체적).
-          memo = { ...state.memo };
-          for (const d of guess) if (memo[d] !== 'strike') memo[d] = 'ball';
-        }
-      }
+      const memo = hintMemo(state, guess, judgement, status);
 
       // 고정된 칸은 다음 추측에도 유지, 나머지는 비운다.
       const nextSlots = state.slots.map((d, i) => (state.locked[i] ? d : ''));
@@ -177,17 +195,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (isWin(judgement, state.digits)) status = 'won';
       else if (guesses.length >= state.maxAttempts) status = 'lost';
 
-      let memo = state.memo;
-      if (state.beginner) {
-        if (judgement.isOut) {
-          memo = { ...state.memo };
-          for (const d of guess) memo[d] = 'out';
-        } else if (judgement.strikes + judgement.balls === state.digits && status !== 'won') {
-          memo = { ...state.memo };
-          for (const d of guess) if (memo[d] !== 'strike') memo[d] = 'ball';
-        }
-      }
+      const memo = hintMemo(state, guess, judgement, status);
       return { ...state, guesses, status, memo };
+    }
+    case 'applyJudgement': {
+      if (state.status !== 'playing') return state;
+      const { guess, judgement, status } = action;
+      const guesses = [...state.guesses, { guess, judgement }];
+      return { ...state, guesses, status, memo: hintMemo(state, guess, judgement, status) };
+    }
+    case 'revealSecret':
+      return { ...state, secret: action.secret };
+    case 'restore': {
+      // 이어하기: 힌트가 켜져 있으면 지난 기록으로 자동 메모(✕/△)를 다시 계산.
+      let next = initGame('', action.maxAttempts, action.digits, action.beginner);
+      for (const g of action.guesses) {
+        next = { ...next, memo: hintMemo(next, g.guess, g.judgement, 'playing') };
+      }
+      return { ...next, guesses: action.guesses };
     }
     case 'memo': {
       if (state.status !== 'playing') return state;
@@ -238,6 +263,12 @@ export function useGame(initialDigits = 3, initialHint = false, maxAttempts = 10
     setHint: (hint: boolean) => dispatch({ type: 'setBeginner', beginner: hint }),
     /** 시도 제한 라이브 변경. */
     setMaxAttempts: (n: number) => dispatch({ type: 'setMaxAttempts', maxAttempts: n }),
+    /** 랭킹전: 서버 판정 반영 / 정답 공개 / 판 세팅(이어하기). */
+    applyJudgement: (guess: string, judgement: Judgement, status: GameStatus) =>
+      dispatch({ type: 'applyJudgement', guess, judgement, status }),
+    revealSecret: (secret: string) => dispatch({ type: 'revealSecret', secret }),
+    restore: (digits: number, max: number, hint: boolean, guesses: GuessRecord[]) =>
+      dispatch({ type: 'restore', digits, maxAttempts: max, beginner: hint, guesses }),
     /** 지정 자릿수·힌트로 새 게임. */
     reset: (digits: number, hint: boolean) => {
       dispatch({ type: 'reset', secret: generateSecret(digits), maxAttempts, digits, beginner: hint });

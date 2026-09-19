@@ -11,12 +11,23 @@
     <meta name="apple-mobile-web-app-title" content="숫자야구" />
     <meta name="description" content="서로 다른 세 자리 숫자를 맞히는 숫자 야구 게임" />
     <title>숫자 야구</title>
-    <!-- 다크가 기본. 저장된 테마(라이트/두산)를 페인트 전에 복원해 깜빡임 방지. -->
+    <!-- 다크가 기본. 저장된 테마(라이트/응원 구단)를 페인트 전에 복원해 깜빡임 방지.
+         응원 구단 테마이거나 솔로 랭킹전(앱은 솔로로 열림)이면 구단 테마를 먼저 입힌다(App의 effectiveTheme과 같은 규칙). -->
     <script>
       try {
         var t = localStorage.getItem('nb_theme');
-        if (t === 'light' || t === 'doosan' || t === 'lgtwins')
-          document.documentElement.setAttribute('data-theme', t);
+        var team = localStorage.getItem('nb_team');
+        var teams = ['kia', 'samsung', 'lg', 'doosan', 'kt', 'ssg', 'lotte', 'hanwha', 'nc', 'kiwoom'];
+        // 옛 이스터에그 값(doosan/lgtwins)은 '응원 구단' 테마로 이관(App과 같은 규칙).
+        if (t === 'doosan' || t === 'lgtwins') {
+          if (teams.indexOf(team) < 0) team = t === 'doosan' ? 'doosan' : 'lg';
+          t = 'team';
+        }
+        // 응원 구단 테마를 골랐거나 솔로 랭킹전이 켜져 있으면 구단 테마.
+        if ((t === 'team' || localStorage.getItem('nb_ranked') === '1') && teams.indexOf(team) >= 0)
+          t = team === 'lg' ? 'lgtwins' : team === 'doosan' ? 'doosan' : 'team-' + team;
+        if (t === 'team') t = 'dark';
+        if (t && t !== 'dark') document.documentElement.setAttribute('data-theme', t);
       } catch (e) {}
     </script>
     <!-- 구 주소 → 대표 주소(homerun-bb) 이사. 브라우저에서 열었을 때만 페인트 전에 넘긴다.
