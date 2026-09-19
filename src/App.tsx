@@ -319,13 +319,10 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   // 전광판 펼치기: 기록을 길게 보려고 타자석(입력)을 잠시 접는다. 입력 상태는 GuessPad가 그대로 유지.
   const [histExpandedRaw, setHistExpanded] = useState(false);
-  // 종료 후 기록 다시보기 — 어느 판의 기록인지(guesses 참조)로 기억해 새 판이면 자동 해제.
-  const [reviewOf, setReviewOf] = useState<GuessRecord[] | null>(null);
   const [sharing, setSharing] = useState(false);
   const [hintInfo, setHintInfo] = useState(false);
   const finished = state.status !== 'playing';
   const histExpanded = histExpandedRaw && !finished && state.guesses.length > 0;
-  const reviewing = finished && reviewOf === state.guesses;
   // 펼친 상태에서 키보드로 입력하면(숫자·지우기·제출·Esc) 타자석을 다시 연다.
   useEffect(() => {
     if (!histExpanded) return;
@@ -508,29 +505,14 @@ export default function App() {
             </button>
           )}
         </div>
-        {reviewing ? (
-          <>
-            <div className="review-bar">
-              <button type="button" className="review-back" onClick={() => setReviewOf(null)}>
-                ← 결과
-              </button>
-              <span className="review-answer">
-                정답 <b>{state.secret}</b>
-              </span>
-              <button type="button" className="review-share" onClick={() => setSharing(true)}>
-                📤 공유
-              </button>
-            </div>
-            <History guesses={state.guesses} stagger highlightLast={state.status === 'won'} />
-          </>
-        ) : finished ? (
+        {finished ? (
           <div className="score-result">
             <ResultBanner
               status={state.status}
               secret={state.secret}
               attempts={state.guesses.length}
               onRestart={newGame}
-              onReview={() => setReviewOf(state.guesses)}
+              guesses={state.guesses}
               onShare={() => setSharing(true)}
             />
           </div>

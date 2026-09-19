@@ -1,4 +1,5 @@
-import type { GameStatus } from '../game/useGame';
+import type { GameStatus, GuessRecord } from '../game/useGame';
+import { History } from './History';
 import { Seg7 } from './Seg7';
 
 interface Props {
@@ -6,8 +7,8 @@ interface Props {
   secret: string;
   attempts: number;
   onRestart: () => void;
-  /** 이번 판 기록 다시보기. */
-  onReview?: () => void;
+  /** 이번 판 기록 — 결과 카드 아래에 펼쳐 보여준다(스크롤로 내려서 확인). */
+  guesses?: GuessRecord[];
   /** 기록 이미지 저장·공유 시트 열기. */
   onShare?: () => void;
 }
@@ -26,7 +27,7 @@ function NumCells({ value }: { value: string }) {
 }
 
 /** 혼자 모드 결과 — 멀티(온라인) 결과 카드와 같은 스타일로. */
-export function ResultBanner({ status, secret, attempts, onRestart, onReview, onShare }: Props) {
+export function ResultBanner({ status, secret, attempts, onRestart, guesses, onShare }: Props) {
   if (status === 'playing') return null;
 
   const won = status === 'won';
@@ -47,23 +48,33 @@ export function ResultBanner({ status, secret, attempts, onRestart, onReview, on
         </div>
       </div>
 
-      <button type="button" className="versus-primary result-restart" onClick={onRestart}>
-        ↻ 다시하기
-      </button>
-      {(onReview || onShare) && (
-        <div className="result-subactions">
-          {onReview && (
-            <button type="button" className="versus-secondary" onClick={onReview}>
-              📜 기록 다시보기
+      {guesses && guesses.length > 0 && (
+        <div className="result-history">
+          <div className="result-history-head">
+            <span>history</span>
+            {guesses.length > 2 && <span className="result-history-more">↓ 스크롤</span>}
+          </div>
+          <History guesses={guesses} stagger highlightLast={won} />
+        </div>
+      )}
+
+      {/* 기록이 길어도 다시하기·공유는 항상 보이게 하단 고정 */}
+      <div className="result-actions">
+        {onShare ? (
+          <div className="result-subactions">
+            <button type="button" className="versus-primary result-restart" onClick={onRestart}>
+              ↻ 다시하기
             </button>
-          )}
-          {onShare && (
             <button type="button" className="versus-secondary" onClick={onShare}>
               📤 기록 공유
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <button type="button" className="versus-primary result-restart" onClick={onRestart}>
+            ↻ 다시하기
+          </button>
+        )}
+      </div>
     </div>
   );
 }
