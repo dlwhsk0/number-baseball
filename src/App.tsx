@@ -23,6 +23,7 @@ import { TeamChip } from './components/TeamChip';
 import { TeamPicker } from './components/TeamPicker';
 import { KboBoard } from './components/KboBoard';
 import { ShareSheet } from './components/ShareSheet';
+import { usePullExpand } from './components/usePullExpand';
 import './App.css';
 
 type Section = 'solo' | 'multi' | 'kbo';
@@ -329,23 +330,25 @@ export default function App() {
   };
   const [pendingDigits, setPendingDigits] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  // 전광판 펼치기: 기록을 길게 보려고 타자석(입력)을 잠시 접는다. 입력 상태는 GuessPad가 그대로 유지.
-  const [histExpandedRaw, setHistExpanded] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [hintInfo, setHintInfo] = useState(false);
   const finished = state.status !== 'playing';
-  const histExpanded = histExpandedRaw && !finished && state.guesses.length > 0;
-  // 펼친 상태에서 키보드로 입력하면(숫자·지우기·제출·Esc) 타자석을 다시 연다.
+  // 전광판 당겨서 펼치기: 아래 손잡이를 끌어내리면 타자석을 밀어내고 기록을 전체 화면으로.
+  const pull = usePullExpand();
+  const { collapse: collapsePull } = pull;
+  // 펼친 상태에서 키보드로 입력하면(숫자·지우기·제출·Esc) 타자석을 다시 올린다.
   useEffect(() => {
-    if (!histExpanded) return;
+    if (!pull.open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (/^[0-9]$/.test(e.key) || ['Backspace', 'Enter', 'Escape'].includes(e.key)) {
-        setHistExpanded(false);
-      }
+      if (/^[0-9]$/.test(e.key) || ['Backspace', 'Enter', 'Escape'].includes(e.key)) collapsePull();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [histExpanded]);
+  }, [pull.open, collapsePull]);
+  // 판이 끝나면(타자석 사라짐) 접힌 상태로 되돌려 다음 판은 평소 배치로 시작.
+  useEffect(() => {
+    if (finished) collapsePull();
+  }, [finished, collapsePull]);
 
   // PWA: 새 버전은 autoUpdate로 백그라운드 설치 → 다음 실행 때 자동 적용(팝업 없음).
   // 진행 중 강제 리로드를 막기 위해 여기서 즉시 리로드는 하지 않는다.
@@ -667,16 +670,6 @@ export default function App() {
           <span className="attempts">
             {state.guesses.length} / {state.maxAttempts}
           </span>
-          {!finished && state.guesses.length > 0 && (
-            <button
-              type="button"
-              className={`hist-expand-btn${histExpanded ? ' on' : ''}`}
-              aria-pressed={histExpanded}
-              onClick={() => setHistExpanded((v) => !v)}
-            >
-              {histExpanded ? '▾ 접기' : '▴ 펼치기'}
-            </button>
-          )}
         </div>
         {finished ? (
           <div className="score-result">
@@ -694,10 +687,28 @@ export default function App() {
         ) : (
           <History guesses={state.guesses} followLatest />
         )}
+        {!finished && (
+          <div
+            className={`pull-handle${pull.open ? ' open' : ''}${pull.dragging ? ' dragging' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-expanded={pull.open}
+            aria-label={pull.open ? '기록 접기(당겨 올리기)' : '기록 펼치기(당겨 내리기)'}
+            {...pull.handleProps}
+          >
+            <span className="pull-grip" />
+          </div>
+        )}
       </section>
 
       {/* 하단: 타자석 — 입력(게임 중에만). 입력·키패드·메모·후보는 공용 GuessPad. */}
       {!finished && (
+        <div
+          ref={pull.boxRef}
+          className="batter-wrap"
+          style={pull.boxStyle}
+          inert={pull.open && !pull.dragging}
+        >
         <GuessPad
           digits={state.digits}
           disabled={finished}
@@ -706,7 +717,7 @@ export default function App() {
           memo={state.memo}
           onMemoToggle={toggleMemo}
           onMemoClear={clearMemo}
-          boardClass={`batter-box${histExpanded ? ' is-collapsed' : ''}`}
+          boardClass="batter-box"
           overlay={
             soloReveal ? (
               <div className="solo-reveal" aria-live="polite">
@@ -719,6 +730,7 @@ export default function App() {
             ) : undefined
           }
         />
+        </div>
       )}
         </>
       ) : section === 'kbo' ? (
@@ -949,6 +961,7 @@ export default function App() {
             maxAttempts: state.maxAttempts,
             guesses: state.guesses,
           }}
+          team={rankedTeam}
           onClose={() => setSharing(false)}
         />
       )}

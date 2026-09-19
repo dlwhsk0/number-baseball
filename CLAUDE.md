@@ -125,13 +125,13 @@
   칸(`.slot`)은 `container-type: inline-size` 컨테이너 → 세그먼트 폰트를 `cqw`(칸 너비)로 잡아 3·4자리 무관하게 칸에 딱 맞게(밀림 방지).
   **자리별 추리 메모**(솔로): 입력칸을 ~0.4초 **길게 누르면** 그 칸 후보 편집 — 키패드 위로 오버레이 팝업(0-9 토글, 레이아웃 안 밀림). 후보는 **칸 우상단 배지**(`.slot-cands`)로 겹쳐 표시(높이 영향 없음). 상태는 App의 `notes: string[][]`(자리별 후보, 새 판·자릿수 변경 시 초기화). 짧은 탭은 기존대로 지우기. (`GameState.locked`/`toggleLock` 로직은 남아있으나 현재 UI 미사용.)
 - **결과 화면**: 혼자·멀티가 같은 카드 스타일(`.online-result`). **솔로는 결과를 전광판(상단)에서 발표**(`.score-result` 안에 `ResultBanner`); 게임 종료 시 하단 타자석은 사라짐.
-- **전광판 펼치기**(솔로 진행 중): 전광판 헤드 `[▴ 펼치기]`(`.hist-expand-btn`) → 타자석을 `.is-collapsed`로 **숨김(언마운트 X, 입력·후보 유지)**, 기록이 전체 높이. `[▾ 접기]`·키보드 입력(숫자/⌫/Enter/Esc)으로 복귀. App `histExpanded`(종료·새 판이면 자동 해제). 솔로 기록은 `History followLatest`로 새 추측 시 최신 행으로 스크롤.
+- **전광판 당겨서 펼치기**(솔로 진행 중, `src/components/usePullExpand.ts`): 전광판 아래 손잡이(`.pull-handle`)를 **끌어내리면** 타자석 래퍼(`.batter-wrap`)에 음수 margin-bottom을 줘 밀어내고 기록이 전체 높이 — 손가락 1:1 추적, 끝을 넘기면 고무줄 저항, 놓으면 거리(22%)·속도 기준으로 탄성 스냅(오버슈트 cubic-bezier). **다시 끌어올리면** 복귀, 탭=토글, 키보드 입력·게임 종료 시 자동 복귀. 타자석은 언마운트 X(입력·후보 유지, 펼친 동안 `inert`). 끈 뒤 손잡이 blur(Enter가 던지기로 가게). 솔로 기록은 `History followLatest`(새 추측·크기 변화 때 최신 행으로 스크롤).
 - **종료 후 기록**(솔로): 결과 카드(`ResultBanner` `guesses`) 바로 아래에 이번 판 기록(`.result-history` — `History stagger highlightLast`, 행 순차 등장·정답 행 강조)을 붙여 보여준다. `.score-result`가 통째로 스크롤, `[다시하기][기록 공유]`는 `.result-actions`로 하단 sticky 고정.
-- **기록 공유**(`src/components/ShareSheet.tsx` + `src/share/recordCard.ts`): 결과 카드 `[📤 기록 공유]` → 시트. `drawRecordCard(record, format)`가 **Canvas 2D로 직접**(라이브러리 없음) 1080px 카드 PNG를 그림(세븐세그먼트·S/B/O 전구, 현재 테마 토큰 사용).
-  **형식 `[스토리 9:16 | 게시물 4:5]`**(`CARD_FORMATS`, 선택은 `localStorage.nb_share_fmt`): 비율 고정 — 기록 수에 맞춰 행 높이(40~124)·헤더 배율(0.72/1/1.25) 자동 조절 후 세로 가운데. 스토리는 위·아래 UI 가림 영역(`safeTop/safeBottom`)을 비움. 최소 행으로도 넘치면 그때만 세로로 늘어남.
-  버튼: `[공유하기]`(`navigator.share` files+text, 지원 시만) · `[이미지 저장]` · `[이미지+문구 복사]`(`ClipboardItem`, 실패 시 문구만) · `[문구 복사]` · `[링크 복사]` · 미지원이면 `[𝕏 에 올리기]`(intent). 문구는 `buildShareText` — 숫자 없이 🟠S🟢B🔴O 이모지(워들식)+URL.
-  **링크**: 웹에선 인스타 스토리 링크 스티커를 자동으로 못 붙이므로, `[공유하기]` 누르는 순간 클립보드에 **스토리=링크 / 게시물=문구 전체**를 넣어 두고 붙여넣기를 안내.
-  **링크 미리보기**: `index.html`의 OG/Twitter 메타 + `public/og-image.png`(1200×630, 카톡·X 등 링크 카드). SW 프리캐시엔 안 넣음.
+- **기록 공유**(`src/components/ShareSheet.tsx` + `src/share/recordCard.ts`): 결과 카드 `[📤 기록 공유]` → **아이폰 공유 시트 스타일**(아래에서 올라옴) — 미리보기 + 아이콘 4개 **[인스타 · X · 이미지 · 문구]**.
+  - **인스타**: 스토리용 9:16 이미지를 파일 공유(모바일 시트 → 인스타). 웹에선 링크 스티커 자동 부착이 불가 → 누르는 순간 **링크를 클립보드에 복사**하고 "🔗 스티커에 붙여넣기" 안내. **X**: 꼬들처럼 문구가 채워진 트윗 작성 창(intent). **이미지**: 게시물 4:5 이미지(모바일=공유 시트의 '이미지 저장', 데스크톱=다운로드). **문구**: `buildShareText`(숫자 없이 🟠S🟢B🔴O 이모지 워들식 + URL) 복사.
+  - `drawRecordCard(record, format, {logo})`: **Canvas 2D로 직접**(라이브러리 없음) 1080px PNG — 형식 `CARD_FORMATS`(story 1080×1920 UI 가림 영역 비움 / post 1080×1350), 기록 수에 맞춰 행 높이(40~124)·헤더 배율 자동, 넘치면 그때만 세로로 늘어남. 색은 **현재 테마 토큰**(응원 구단 테마 포함).
+  - **구단 로고**: 응원 구단 테마 적용 중(App `rankedTeam`)이면 타이틀 옆 엠블럼 + 기록 보드 워터마크. 시트의 `[○○ 로고 넣기]` 스위치로 끌 수 있음(`localStorage.nb_share_logo`).
+  - **링크 미리보기**: `index.html` OG/Twitter 메타 + `public/og-image.png`(1200×630). SW 프리캐시엔 안 넣음.
 - **추측 발표 카드**(`src/components/RevealCard.tsx`, 온라인·혼자 공용): 큰 숫자 + S·B·O 전구 + 특이 이벤트 멘트(쓰리아웃/올볼/한 끗/정답).
   일반 결과는 **하얀 테두리**, 특이 이벤트는 **색 테두리(굵게)+슬램 등장+색 발광 펄스**로 확연히 구분. `tone='mine'`이면 그린 테두리(온라인 내 결과).
   혼자 모드는 추측할 때마다 이 카드가 입력 위로 1.5초 팝업(`.solo-reveal`, `pointer-events:none`이라 입력 안 막음). 승리/패배 추측은 카드 대신 결과 화면으로.

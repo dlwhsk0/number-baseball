@@ -221,7 +221,33 @@ const BOARD_HEAD = 56;
 
 /** 기록 카드를 그린 캔버스. 형식의 비율(1080×h)에 맞춰 행 높이를 조절하고, 가운데 정렬.
  *  기록이 아주 많아 최소 행 높이로도 안 들어가면 그때만 세로로 늘어난다. */
-export function drawRecordCard(r: RecordSummary, format: CardFormat = 'post'): HTMLCanvasElement {
+/** 구단 엠블럼(응원 구단 테마일 때) — 타이틀 옆 + 기록 보드 워터마크. */
+export interface CardOptions {
+  logo?: HTMLImageElement | null;
+}
+
+/** 이미지 비율 유지하며 (cx, cy) 중심의 maxW×maxH 상자에 맞춰 그린다. */
+function drawContain(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  cx: number,
+  cy: number,
+  maxW: number,
+  maxH: number,
+) {
+  const s = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+  const w = img.naturalWidth * s;
+  const h = img.naturalHeight * s;
+  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+  return w;
+}
+
+export function drawRecordCard(
+  r: RecordSummary,
+  format: CardFormat = 'post',
+  opts: CardOptions = {},
+): HTMLCanvasElement {
+  const logo = opts.logo && opts.logo.naturalWidth > 0 ? opts.logo : null;
   const pal = readPalette();
   const n = r.guesses.length;
   const won = r.status === 'won';
@@ -288,7 +314,20 @@ export function drawRecordCard(r: RecordSummary, format: CardFormat = 'post'): H
   // 타이틀
   ctx.fillStyle = pal.muted;
   ctx.font = `800 34px ${FONT}`;
-  ctx.fillText(`숫자 야구 · ${r.digits}자리`, W / 2, 132);
+  const title = `숫자 야구 · ${r.digits}자리`;
+  if (logo) {
+    // 구단 엠블럼 + 타이틀을 한 줄 가운데로.
+    const lh = 64;
+    const lw = Math.min(110, (logo.naturalWidth / logo.naturalHeight) * lh);
+    const tw = ctx.measureText(title).width;
+    const x0 = W / 2 - (lw + 14 + tw) / 2;
+    drawContain(ctx, logo, x0 + lw / 2, 120, lw, lh);
+    ctx.textAlign = 'left';
+    ctx.fillText(title, x0 + lw + 14, 132);
+    ctx.textAlign = 'center';
+  } else {
+    ctx.fillText(title, W / 2, 132);
+  }
 
   // 헤드라인
   ctx.font = `900 92px ${FONT}`;
@@ -328,6 +367,13 @@ export function drawRecordCard(r: RecordSummary, format: CardFormat = 'post'): H
   ctx.lineWidth = 3;
   ctx.strokeStyle = pal.border;
   ctx.stroke();
+  if (logo) {
+    // 앱 전광판처럼 구단 로고 워터마크.
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    drawContain(ctx, logo, W / 2, by + boardH / 2, bw * 0.6, boardH * 0.7);
+    ctx.restore();
+  }
 
   ctx.textAlign = 'left';
   ctx.fillStyle = pal.muted;
