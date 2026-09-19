@@ -251,7 +251,8 @@ export interface ServerToClientEvents {
     players: { index: number; nick: string; connected: boolean; team: string | null }[];
   }) => void;
   /** 레이스 시작 — 전원 동시. */
-  speedStart: (p: { startAt: number; digits: number; limitMs: number }) => void;
+  /** introMs: 매치업 연출 길이 — startAt은 이미 그만큼 미래(연출 뒤 레이스 시작). */
+  speedStart: (p: { startAt: number; digits: number; limitMs: number; introMs?: number }) => void;
   /** 리더보드 라이브 갱신(누가 몇 번, 맞혔는지). */
   speedProgress: (p: { standings: SpeedStanding[] }) => void;
   /** 전원 맞힘 → 종료·순위. */

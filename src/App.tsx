@@ -26,7 +26,8 @@ import './App.css';
 
 type Section = 'solo' | 'multi' | 'kbo';
 type GameType = 'speed' | 'duel';
-type Theme = 'dark' | 'light' | 'doosan' | 'lgtwins';
+/** 사용자가 고르는 테마. 'team' = 응원 구단 테마(구단은 KBO 탭에서 고른 nb_team). */
+type Theme = 'dark' | 'light' | 'team';
 
 // 도메인 이사: 구 주소는 index.html의 인라인 스크립트가 페인트 전에 대표 주소로 넘긴다.
 // 단 설치된 PWA(standalone)는 넘기면 scope를 벗어나 앱이 깨지므로, 대신 재설치 안내 배너를 띄운다.
@@ -257,40 +258,50 @@ export default function App() {
     setShowRules(true);
   }, [showIntro, seenRules]);
 
-  // 테마: 설정에서 다크/라이트 선택(저장). 두산·LG는 숨은 이스터에그(설정 속 트리거 탭).
+  // 테마: 설정에서 [다크|라이트|응원 구단] 선택(저장). 옛 이스터에그 값(doosan/lgtwins)은 '응원 구단'으로 이관.
   const [theme, setTheme] = useState<Theme>(() => {
-    const s = typeof localStorage !== 'undefined' ? localStorage.getItem('nb_theme') : null;
-    return s === 'light' || s === 'doosan' || s === 'lgtwins' ? s : 'dark';
+    try {
+      const s = localStorage.getItem('nb_theme');
+      if (s === 'light' || s === 'team') return s;
+      if (s === 'doosan' || s === 'lgtwins') {
+        if (!getTeam()) saveTeam(s === 'doosan' ? 'doosan' : 'lg');
+        return 'team';
+      }
+    } catch {
+      /* 무시 */
+    }
+    return 'dark';
   });
   const [eggMsg, setEggMsg] = useState<string | null>(null);
-  // 사용자가 실제로 테마를 바꿨을 때만 토스트(마운트·StrictMode 재실행 땐 안 뜨게).
-  const userToggledThemeRef = useRef(false);
+  const eggTimerRef = useRef<number | undefined>(undefined);
 
-  // 사용자가 고른 테마 저장(+토스트). 실제 적용은 아래 effectiveTheme 효과가 한다(랭킹전 구단 테마가 덮을 수 있어서).
+  // 사용자가 고른 테마 저장. 실제 적용은 아래 effectiveTheme 효과(랭킹전·응원 구단 반영).
   useEffect(() => {
     try {
       localStorage.setItem('nb_theme', theme);
     } catch {
       /* 저장 불가 무시 */
     }
-    if (!userToggledThemeRef.current) return;
-    userToggledThemeRef.current = false;
-    const msg =
-      theme === 'light'
-        ? '☀️ 라이트 모드'
-        : theme === 'doosan'
-          ? '🐻 두산 베어스 테마!'
-          : theme === 'lgtwins'
-            ? '👯 LG 트윈스 테마!'
-            : '🌙 다크 모드';
-    setEggMsg(msg);
-    const t = window.setTimeout(() => setEggMsg(null), 1600);
-    return () => window.clearTimeout(t);
   }, [theme]);
 
-  const changeTheme = (t: Theme) => {
-    userToggledThemeRef.current = true;
+  const themeToast = (msg: string) => {
+    setEggMsg(msg);
+    if (eggTimerRef.current) window.clearTimeout(eggTimerRef.current);
+    eggTimerRef.current = window.setTimeout(() => setEggMsg(null), 1600);
+  };
+  const changeTheme = (t: Theme, teamId: string | null = team) => {
+    if (t === 'team' && !teamById(teamId)) {
+      // 응원 구단이 없으면 먼저 고르게 하고, 고르면 바로 그 테마로.
+      setPicker({
+        message: '응원 구단 테마로 바꿀게요. 구단을 골라주세요!',
+        after: (picked) => changeTheme('team', picked),
+      });
+      return;
+    }
     setTheme(t);
+    themeToast(
+      t === 'light' ? '☀️ 라이트 모드' : t === 'team' ? `⚾ ${teamById(teamId)?.name} 테마` : '🌙 다크 모드',
+    );
   };
 
   // 이스터에그 2: 하단 깃허브 로고를 여러 번 누르면 '개발자 모드' 해금(삼성 개발자모드 오마주).
@@ -476,8 +487,10 @@ export default function App() {
   };
 
   // 화면에 적용할 테마 — 솔로 랭킹전 중엔 응원 구단 테마가 사용자 테마를 잠시 덮는다(저장값은 안 바꿈).
-  const rankedTeam = section === 'solo' && ranked ? teamById(team) : undefined;
-  const effectiveTheme: string = rankedTeam ? rankedTeam.theme : theme;
+  // 사용자가 '응원 구단' 테마를 골랐으면 어느 탭이든 그 구단 테마.
+  const rankedTeam =
+    (section === 'solo' && ranked) || theme === 'team' ? teamById(team) : undefined;
+  const effectiveTheme: string = rankedTeam ? rankedTeam.theme : theme === 'team' ? 'dark' : theme;
   useEffect(() => {
     const root = document.documentElement;
     if (effectiveTheme === 'dark') root.removeAttribute('data-theme');
@@ -944,9 +957,18 @@ export default function App() {
                 >
                   라이트
                 </button>
+                <button
+                  type="button"
+                  className={`seg-btn seg-team${theme === 'team' ? ' active' : ''}`}
+                  aria-pressed={theme === 'team'}
+                  onClick={() => changeTheme('team')}
+                >
+                  {team ? <TeamChip team={team} /> : null}
+                  응원 구단
+                </button>
               </div>
             </div>
-            {rankedTeam && (
+            {rankedTeam && theme !== 'team' && (
               <p className="settings-desc">
                 랭킹전 중엔 {rankedTeam.name} 테마가 적용돼요. 랭킹전을 끄면 고른 테마로 돌아가요.
               </p>
@@ -1086,23 +1108,6 @@ export default function App() {
               닫기
             </button>
 
-            {/* 숨은 이스터에그: 조용히 구단 테마로(우하단 나란히). */}
-            <button
-              type="button"
-              className={`team-egg team-egg-doosan${theme === 'doosan' ? ' on' : ''}`}
-              aria-label="테마 이스터에그(두산)"
-              onClick={() => changeTheme(theme === 'doosan' ? 'dark' : 'doosan')}
-            >
-              🐻
-            </button>
-            <button
-              type="button"
-              className={`team-egg team-egg-lg${theme === 'lgtwins' ? ' on' : ''}`}
-              aria-label="테마 이스터에그(LG)"
-              onClick={() => changeTheme(theme === 'lgtwins' ? 'dark' : 'lgtwins')}
-            >
-              👯
-            </button>
           </div>
         </div>
       )}
