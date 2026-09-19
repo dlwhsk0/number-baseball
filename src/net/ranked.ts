@@ -10,17 +10,23 @@ function request<T extends { ok: boolean; error?: string }>(
   return new Promise((resolve) => {
     const s = getSocket();
     let finished = false;
-    const done = (r: T) => {
+    // 타임아웃 뒤 늦게 연결돼도 보내지 않는다(사용자가 실패로 본 추측·판이 서버에 남지 않게).
+    const onConnect = () => {
+      if (!finished) send(done);
+    };
+    const timer = window.setTimeout(() => done({ ok: false, error: NO_SERVER } as T), 8000);
+    function done(r: T) {
       if (finished) return;
       finished = true;
+      window.clearTimeout(timer);
+      s.off('connect', onConnect);
       resolve(r);
-    };
+    }
     if (s.connected) send(done);
     else {
-      s.once('connect', () => send(done));
+      s.once('connect', onConnect);
       s.connect();
     }
-    window.setTimeout(() => done({ ok: false, error: NO_SERVER } as T), 8000);
   });
 }
 

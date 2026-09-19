@@ -206,11 +206,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
     case 'revealSecret':
       return { ...state, secret: action.secret };
-    case 'restore':
-      return {
-        ...initGame('', action.maxAttempts, action.digits, action.beginner),
-        guesses: action.guesses,
-      };
+    case 'restore': {
+      // 이어하기: 힌트가 켜져 있으면 지난 기록으로 자동 메모(✕/△)를 다시 계산.
+      let next = initGame('', action.maxAttempts, action.digits, action.beginner);
+      for (const g of action.guesses) {
+        next = { ...next, memo: hintMemo(next, g.guess, g.judgement, 'playing') };
+      }
+      return { ...next, guesses: action.guesses };
+    }
     case 'memo': {
       if (state.status !== 'playing') return state;
       return { ...state, memo: toggleMemoMark(state.memo, action.digit, action.mark) };

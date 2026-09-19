@@ -15,12 +15,14 @@ function uuid(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 let memId: string | null = null;
-/** 이 기기의 플레이어 id(없으면 생성해 저장). */
+/** 이 기기의 플레이어 id(없거나 형식이 깨졌으면 새로 만들어 저장 — 서버는 uuid만 받는다). */
 export function getPlayerId(): string {
   try {
     const s = localStorage.getItem(ID_KEY);
-    if (s) return s;
+    if (s && UUID_RE.test(s)) return s;
     const id = uuid();
     localStorage.setItem(ID_KEY, id);
     return id;

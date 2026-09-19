@@ -263,6 +263,28 @@ describe('gameReducer — 랭킹전(서버 판정)', () => {
     expect(after).toBe(s);
   });
 
+  it('restore: 힌트가 켜져 있으면 이어받은 기록으로 자동 메모를 다시 계산', () => {
+    const s = gameReducer(start(''), {
+      type: 'restore',
+      digits: 3,
+      maxAttempts: 10,
+      beginner: true,
+      guesses: [
+        { guess: '456', judgement: j(0, 0) },
+        { guess: '123', judgement: j(1, 2) },
+      ],
+    });
+    expect(s.memo).toEqual({ '4': 'out', '5': 'out', '6': 'out', '1': 'ball', '2': 'ball', '3': 'ball' });
+    const off = gameReducer(start(''), {
+      type: 'restore',
+      digits: 3,
+      maxAttempts: 10,
+      beginner: false,
+      guesses: [{ guess: '456', judgement: j(0, 0) }],
+    });
+    expect(off.memo).toEqual({});
+  });
+
   it('revealSecret: 종료 시 서버가 준 정답 공개', () => {
     const s = gameReducer(start(''), { type: 'revealSecret', secret: '582' });
     expect(s.secret).toBe('582');
