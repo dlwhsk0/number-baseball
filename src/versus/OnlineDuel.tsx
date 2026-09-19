@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getSocket } from '../net/socket';
+import { fanIdentity, getTeam } from '../net/fan';
+import { TeamChip } from '../components/TeamChip';
 import { toggleMemoMark, type GuessRecord, type MemoMark } from '../game/useGame';
 import type { Judgement } from '../game/logic';
 import { GuessPad } from '../components/GuessPad';
@@ -151,6 +153,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const [code, setCode] = useState('');
   const [myIndex, setMyIndex] = useState<0 | 1>(0);
   const [opponentNick, setOpponentNick] = useState('상대');
+  const [opponentTeam, setOpponentTeam] = useState<string | null>(null);
 
   const [mySecret, setMySecret] = useState('');
   const [mySecretSet, setMySecretSet] = useState(false);
@@ -211,6 +214,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const applyResume = (r: import('../net/protocol').DuelResume) => {
     setDigits(r.digits);
     setOpponentNick(r.opponentNick);
+    setOpponentTeam(r.opponentTeam ?? null);
     // 로비(상대 아직 없음)에선 상대 끊김 배너 띄우지 않음.
     setOppDisconnected(r.phase !== 'lobby' && !r.opponentConnected);
     setSecretReady(r.secretReady);
@@ -267,7 +271,10 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     s.on('disconnect', onDisconnect);
     s.on('opponentDisconnected', () => setOppDisconnected(true));
     s.on('opponentReconnected', () => setOppDisconnected(false));
-    s.on('opponentJoined', ({ nick: n }) => setOpponentNick(n));
+    s.on('opponentJoined', ({ nick: n, team: t }) => {
+      setOpponentNick(n);
+      setOpponentTeam(t ?? null);
+    });
     s.on('phase', ({ digits: d }) => {
       setDigits(d);
       resetRound();
@@ -327,6 +334,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
         const wasPlaying = phaseRef.current === 'secret' || phaseRef.current === 'playing';
         resetRound();
         setOpponentNick('상대');
+        setOpponentTeam(null);
         setHostForfeit(wasPlaying);
         setPhase('lobby');
         return;
@@ -427,7 +435,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   const doCreate = () => {
     setError(null);
     saveNick();
-    socketRef.current.emit('create', { nick, digits, mode: 'duel' }, (r) => {
+    socketRef.current.emit('create', { nick, digits, mode: 'duel', ...fanIdentity() }, (r) => {
       if (r.ok) {
         sessionRef.current = { code: r.code, index: 0, token: r.token };
         saveSession(sessionRef.current);
@@ -447,7 +455,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     }
     setError(null);
     saveNick();
-    socketRef.current.emit('join', { nick, code: c }, (r) => {
+    socketRef.current.emit('join', { nick, code: c, ...fanIdentity() }, (r) => {
       if (!r.ok) {
         setError(r.error ?? '입장에 실패했어요.');
         return;
@@ -459,6 +467,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
       setMyIndex(1);
       if (r.digits) setDigits(r.digits);
       if (r.opponentNick) setOpponentNick(r.opponentNick);
+      setOpponentTeam(r.opponentTeam ?? null);
     });
   };
 
@@ -601,7 +610,9 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
         <div className="vs-stage">
           <div className="vs-name top">
             <span className="vs-name-tag">나</span>
-            <span className="vs-name-text">{myNick}</span>
+            <span className="vs-name-text">
+              <TeamChip team={getTeam()} /> {myNick}
+            </span>
           </div>
           <div className="vs-core" aria-label="VS">
             <span>V</span>
@@ -609,7 +620,9 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
           </div>
           <div className="vs-name bottom">
             <span className="vs-name-tag">상대</span>
-            <span className="vs-name-text">{opponentNick}</span>
+            <span className="vs-name-text">
+              <TeamChip team={opponentTeam} /> {opponentNick}
+            </span>
           </div>
         </div>
         <p className="vs-sub">{digits}자리 · 서로의 숫자를 맞혀라</p>
@@ -762,7 +775,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
           <div className="duel-col opp">
             <div className="duel-col-head">
               <span className="dc-name">
-                <Nick>{opponentNick}</Nick>
+                <TeamChip team={opponentTeam} /> <Nick>{opponentNick}</Nick>
               </span>
               <span className="dc-count">{oppHistory.length}</span>
             </div>

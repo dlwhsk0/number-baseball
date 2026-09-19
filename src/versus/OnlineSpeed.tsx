@@ -5,6 +5,8 @@ import { GuessPad } from '../components/GuessPad';
 import { History } from '../components/History';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { SpeedStanding, SpeedHistoryEntry } from '../net/protocol';
+import { fanIdentity, getTeam } from '../net/fan';
+import { TeamChip } from '../components/TeamChip';
 
 export interface OnlineEntry {
   action: 'create' | 'join';
@@ -77,7 +79,7 @@ function Standing({ s, me, rank }: { s: SpeedStanding; me: boolean; rank: number
         {s.solved ? (rank <= 3 ? MEDALS[rank - 1] : rank) : '-'}
       </span>
       <span className="sp-name">
-        {s.nick}
+        <TeamChip team={s.team} /> {s.nick}
         {me ? ' (나)' : ''}
         {!s.connected ? ' ⚡끊김' : ''}
       </span>
@@ -112,7 +114,9 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const [myIndex, setMyIndex] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const [roster, setRoster] = useState<{ index: number; nick: string; connected: boolean }[]>([]);
+  const [roster, setRoster] = useState<
+    { index: number; nick: string; connected: boolean; team: string | null }[]
+  >([]);
   const [standings, setStandings] = useState<SpeedStanding[]>([]);
   const [startAt, setStartAt] = useState(0);
   const [limitMs, setLimitMs] = useState(0);
@@ -276,14 +280,14 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   const doCreate = () => {
     setError(null);
     saveNick();
-    socketRef.current.emit('create', { nick, digits, mode: 'speed' }, (r) => {
+    socketRef.current.emit('create', { nick, digits, mode: 'speed', ...fanIdentity() }, (r) => {
       if (r.ok) {
         sessionRef.current = { code: r.code, index: 0, token: r.token };
         saveSession(sessionRef.current);
         setCode(r.code);
         myIndexRef.current = 0;
         setMyIndex(0);
-        setRoster([{ index: 0, nick: nick.trim() || '플레이어', connected: true }]);
+        setRoster([{ index: 0, nick: nick.trim() || '플레이어', connected: true, team: getTeam() }]);
         setPhase('lobby');
       }
     });
@@ -297,7 +301,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
     }
     setError(null);
     saveNick();
-    socketRef.current.emit('join', { nick, code: c }, (r) => {
+    socketRef.current.emit('join', { nick, code: c, ...fanIdentity() }, (r) => {
       if (!r.ok || r.index == null) {
         setError(r.error ?? '입장에 실패했어요.');
         return;
@@ -407,7 +411,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
           <ul className="sp-roster">
             {roster.map((p) => (
               <li key={p.index} className={p.index === myIndex ? 'me' : ''}>
-                {p.nick}
+                <TeamChip team={p.team} /> {p.nick}
                 {p.index === myIndex ? ' (나)' : ''}
                 {p.index === 0 ? ' 👑' : ''}
                 {!p.connected ? ' ⚡' : ''}
@@ -482,7 +486,9 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
                       style={{ transform: `translateY(${r * ROW}px)` }}
                     >
                       <span className="rank-pos">{s.solved ? (r < 3 ? MEDALS[r] : r + 1) : '·'}</span>
-                      <span className="rank-name">{s.nick}</span>
+                      <span className="rank-name">
+                        <TeamChip team={s.team} /> {s.nick}
+                      </span>
                       <span className="rank-att">
                         {s.solved && s.score != null ? s.score.toFixed(1) : s.attempts}
                       </span>

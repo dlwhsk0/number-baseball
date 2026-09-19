@@ -4294,3 +4294,301 @@
     opacity: 1;
   }
 }
+
+/* ===== 팬 랭킹(KBO 구단) ===== */
+/* 헤더 좌·우 묶음 — 폭을 같게 잡아 가운데 세그먼트가 정중앙에 오게. */
+.ctrl-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 76px;
+}
+.ctrl-right {
+  justify-content: flex-end;
+}
+.board-btn {
+  font-size: 0.95rem;
+}
+
+/* 구단 칩 — 구단색 배경 + 짧은 이름 */
+.team-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--team, #555);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* 팬 등록 시트(닉네임 + 구단) */
+.fan-sheet {
+  width: min(100%, 380px);
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+.fan-desc {
+  margin: 0;
+  text-align: center;
+}
+.team-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.team-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--cell);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+}
+.team-pick:active {
+  transform: scale(0.97);
+}
+.team-pick-dot {
+  flex: 0 0 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--team);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.team-pick.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), var(--glow-accent);
+}
+.fan-team-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--cell);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.fan-team-btn .team-chip {
+  font-size: 0.78rem;
+}
+.fan-team-none {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.fan-team-edit {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.settings-fixed {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* 솔로 전광판 — 랭킹전 배지 */
+.ranked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-digit);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-shadow: var(--glow-text);
+  cursor: pointer;
+}
+.ranked-badge .team-chip {
+  text-shadow: none;
+  letter-spacing: 0;
+}
+
+/* 솔로 결과 — 랭킹전 점수 */
+.ranked-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 6px;
+}
+.ranked-points {
+  font-family: var(--font-digit);
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+.ranked-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.ranked-mine {
+  color: var(--muted);
+  font-weight: 600;
+}
+.ranked-board-btn {
+  margin-top: 6px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+}
+
+/* 순위표 모달 */
+.board-sheet {
+  width: min(100%, 420px);
+  max-height: 88dvh;
+}
+.board-tabs {
+  align-self: center;
+}
+.board-body {
+  flex: 1 1 auto;
+  min-height: 160px;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+.board-caption {
+  margin: 0 0 8px;
+  font-size: 0.74rem;
+  color: var(--muted);
+  text-align: center;
+}
+.board-empty {
+  margin: 36px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.board-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto 56px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--r-md);
+  background: var(--cell);
+  border: 1px solid var(--border);
+}
+.board-row.me {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.board-mine {
+  margin-top: 10px;
+}
+.board-rank {
+  font-family: var(--font-digit);
+  font-weight: 800;
+  color: var(--muted);
+  text-align: center;
+}
+.board-list > .board-row:nth-child(-n + 3) .board-rank {
+  color: var(--strike);
+}
+.board-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.board-list .board-name:has(.board-nick) {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.board-nick {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+.board-bar {
+  display: block;
+  height: 4px;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--team);
+  box-shadow: 0 0 6px var(--team);
+  transition: width 0.5s ease;
+}
+.board-num {
+  font-family: var(--font-digit);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--led);
+  text-align: right;
+}
+.board-sub {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
+}
+.board-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-family: var(--font-digit);
+  font-size: 0.82rem;
+}
+.board-table th {
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 0 4px 2px;
+  text-align: center;
+}
+.board-table td {
+  padding: 7px 4px;
+  text-align: center;
+  background: var(--cell);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.board-table td:first-child {
+  border-left: 1px solid var(--border);
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  color: var(--muted);
+  font-weight: 800;
+}
+.board-table td:last-child {
+  border-right: 1px solid var(--border);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.board-table tr.me td {
+  border-color: var(--accent);
+  color: var(--accent);
+}
