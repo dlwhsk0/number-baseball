@@ -91,7 +91,11 @@ async function main() {
   }
   assert(final.result.recorded, 'DB 기록됨');
   assert(final.result.team === 'lg' && final.result.teamRank >= 1, `LG 구단 ${final.result.teamRank}위`);
-  assert(final.result.total >= final.result.points && final.result.rank >= 1, `내 누적 ${final.result.total} (${final.result.rank}위)`);
+  // 개인 순위는 평균 점수·배치 10판 — 새 플레이어의 첫 판은 배치고사(rank=null).
+  assert(
+    final.result.total >= final.result.points && final.result.games === 1 && final.result.avg === final.result.points && final.result.rank === null,
+    `내 첫 판: 배치 ${final.result.games}판 · 평균 ${final.result.avg} · 순위 ${final.result.rank}`,
+  );
   const after = await emit(S, 'rankedGuess', { gameId, guess: '123' });
   assert(!after.ok && after.expired, '끝난 판에 추측 불가');
 
@@ -108,7 +112,11 @@ async function main() {
   const lg = lb.data.team.find((t) => t.team === 'lg');
   assert(lg.games >= 2, `LG 판 수 ${lg.games} (포기 포함)`);
   assert(lb.data.me && lb.data.me.games >= 2, `내 기록 ${lb.data.me?.games}판`);
-  assert(lb.data.players.some((p) => p.me) && lb.data.players.every((p) => p.playerId === undefined), '개인 순위: 내 표시 + 남의 id 비노출');
+  // 2판뿐이라 배치 중 → 목록엔 없고 me.rank=null. 남의 id는 안 내려간다.
+  assert(
+    lb.data.me.rank === null && !lb.data.players.some((p) => p.me) && lb.data.players.every((p) => p.playerId === undefined),
+    '개인 순위: 배치 중엔 목록 제외 + 남의 id 비노출',
+  );
   assert(Array.isArray(lb.data.versus) && lb.data.versus.length === 10, '구단 대결표 10행');
 
   S.close();

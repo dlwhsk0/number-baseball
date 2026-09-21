@@ -11,6 +11,26 @@ export function soloPoints(attempts: number, won: boolean, digits: number): numb
   return (RANKED_MAX_ATTEMPTS + 1 - attempts) * (digits >= 4 ? 2 : 1);
 }
 
+/**
+ * 개인 순위는 **한 판 평균 점수**(실패=0점 포함). 판 수로 밀어붙이는 누적 합계 대신 실력이 드러나게.
+ * 이 판 수를 채우기 전(배치고사)엔 순위에 안 오른다 — 한두 판 운 좋은 15점이 1위가 되지 않게.
+ */
+export const PLACEMENT_GAMES = 10;
+
+/** 평균 점수 등급(높은 것부터). 3자리 평균 7번 만에 맞히면 9점=주전, 4자리는 점수 2배라 MVP가 현실적. */
+export const TIERS = [
+  { id: 'mvp', name: 'MVP', min: 12 },
+  { id: 'allstar', name: '올스타', min: 10 },
+  { id: 'starter', name: '주전', min: 8 },
+  { id: 'prospect', name: '유망주', min: 6 },
+  { id: 'rookie', name: '루키', min: 0 },
+] as const;
+export type Tier = (typeof TIERS)[number];
+
+export function tierOf(avg: number): Tier {
+  return TIERS.find((t) => avg >= t.min) ?? TIERS[TIERS.length - 1];
+}
+
 /** 대결 기록에 참여하는 한 사람(순위 순서대로 넘긴다 — 앞이 상위). */
 export interface RankedEntrant {
   playerId: string | null;

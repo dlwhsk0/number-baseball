@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { soloPoints, pairMatches, winPct, gamesBehind, tieRanks } from './ranking';
+import { soloPoints, pairMatches, winPct, gamesBehind, tieRanks, tierOf } from './ranking';
 
 describe('soloPoints — 적게 시도할수록 높은 점수', () => {
   it('1회=15점 … 15회=1점', () => {
@@ -61,5 +61,21 @@ describe('tieRanks — 동순위', () => {
   });
   it('빈 목록', () => {
     expect(tieRanks([], id)).toEqual([]);
+  });
+});
+
+describe('tierOf — 평균 점수 등급', () => {
+  it('경계값은 위 등급', () => {
+    expect(tierOf(12).id).toBe('mvp');
+    expect(tierOf(10).id).toBe('allstar');
+    expect(tierOf(8).id).toBe('starter');
+    expect(tierOf(6).id).toBe('prospect');
+  });
+  it('경계 바로 아래는 아래 등급', () => {
+    expect(tierOf(11.99).id).toBe('allstar');
+    expect(tierOf(5.99).id).toBe('rookie');
+  });
+  it('0점(전부 실패)도 루키', () => {
+    expect(tierOf(0).id).toBe('rookie');
   });
 });

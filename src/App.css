@@ -4714,7 +4714,7 @@
 }
 .kbo-me-ranks {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
 }
 .kbo-me-rank {
@@ -4876,6 +4876,161 @@
   font-weight: 800;
   color: var(--led);
 }
+/* ----- 개인 순위: 등급 배지 · 내 기록 카드 · 배치고사 ----- */
+.tier {
+  flex: 0 0 auto;
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-family: system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.tier.big {
+  padding: 3px 10px;
+  font-size: 0.8rem;
+}
+/* 등급색 — 테마(구단색)와 겹치지 않게 전광판 램프 계열 고정색. */
+.tier-rookie {
+  color: #9aa3b4;
+}
+.tier-prospect {
+  color: #35d07f;
+}
+.tier-starter {
+  color: #5cb8ff;
+}
+.tier-allstar {
+  color: #ff9e3d;
+}
+.tier-mvp {
+  color: #1a1400;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffe27a, #f5b301);
+  box-shadow: 0 0 10px rgba(255, 200, 40, 0.45);
+}
+.tier.placement {
+  color: var(--led);
+}
+:root[data-theme='light'] .tier-rookie {
+  color: #6b7688;
+}
+:root[data-theme='light'] .tier-prospect {
+  color: #15803d;
+}
+:root[data-theme='light'] .tier-starter {
+  color: #1d6fd1;
+}
+:root[data-theme='light'] .tier-allstar {
+  color: #c2600a;
+}
+
+.my-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.my-stat-nick {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+}
+.my-stat-nick b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.my-stat-nick .none {
+  color: var(--muted);
+  font-weight: 600;
+}
+.my-stat-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.my-stat-big {
+  font-family: var(--font-digit);
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--led);
+  font-variant-numeric: tabular-nums;
+}
+.my-stat-big small {
+  margin-left: 2px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.my-stat-rank {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+}
+.my-stat-rank b {
+  font-family: var(--font-digit);
+  font-size: 1.25rem;
+  color: var(--led);
+}
+.my-stat-rank b.ps {
+  color: var(--strike);
+}
+.my-stat-rank small {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.my-stat-goal,
+.my-stat-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.my-stat-goal b {
+  color: var(--text);
+}
+/* 배치고사 진행 — 전광판 전구 10개 */
+.placement-pips {
+  display: flex;
+  gap: 5px;
+}
+.placement-pips i {
+  flex: 1 1 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bulb-off);
+}
+.placement-pips i.on {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent-glow);
+}
+.fan-nick-hint {
+  margin: -4px 2px 0;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 .board-foot {
   margin: 6px 0 0;
   font-size: 0.68rem;

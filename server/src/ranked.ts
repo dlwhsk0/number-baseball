@@ -2,7 +2,7 @@
 // 끝나면(맞힘/15회 소진/포기) Postgres에 기록. 서버 재시작 시 진행 중인 판은 사라진다(방과 같은 한계).
 import { randomBytes } from 'node:crypto';
 import { generateSecret, isValidGuess, judge, isWin } from './logic.js';
-import { RANKED_MAX_ATTEMPTS, soloPoints } from './ranking.js';
+import { RANKED_MAX_ATTEMPTS, soloPoints, tieRanks } from './ranking.js';
 import { isTeamId } from './teams.js';
 import { recordSolo, soloCountLastDay, teamSolo, myRank, dbEnabled, touchPlayer } from './db.js';
 import { rankedGames } from './metrics.js';
@@ -91,6 +91,8 @@ async function finish(g: RankedGame, won: boolean): Promise<RankedResult> {
   });
   let total: number | null = null;
   let rank: number | null = null;
+  let avg: number | null = null;
+  let games: number | null = null;
   let teamPoints = 0;
   let teamRank = 0;
   if (dbEnabled()) {
@@ -98,14 +100,17 @@ async function finish(g: RankedGame, won: boolean): Promise<RankedResult> {
       const [me, teams] = await Promise.all([myRank(g.playerId), teamSolo()]);
       total = me?.points ?? null;
       rank = me?.rank ?? null;
+      avg = me?.avg ?? null;
+      games = me?.games ?? null;
       const i = teams.findIndex((t) => t.team === g.team);
       teamPoints = teams[i]?.points ?? 0;
-      teamRank = i + 1;
+      // KBO 탭 순위표와 같은 동순위 기준.
+      teamRank = i >= 0 ? tieRanks(teams, (t) => t.points)[i] : 0;
     } catch {
       /* 순위 조회 실패는 결과 표시만 생략 */
     }
   }
-  return { points, recorded, total, rank, team: g.team, teamPoints, teamRank };
+  return { points, recorded, total, rank, avg, games, team: g.team, teamPoints, teamRank };
 }
 
 /** 추측이 있었던 판을 포기/방치하면 실패로 기록(나쁜 판만 버리고 다시 하는 체리피킹 방지). */
