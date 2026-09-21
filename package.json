@@ -1,6 +1,8 @@
 {
   "name": "number-baseball",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "dlwhsk0 (https://github.com/dlwhsk0)",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

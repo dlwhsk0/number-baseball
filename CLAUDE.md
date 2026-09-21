@@ -196,6 +196,7 @@
 - **아이콘 변경 안내 배너는 제거됨**(옛 `ICON_VERSION`/`nb_icon_seen`/`beforeinstallprompt` 안내). PWA 설치 유도는 더 이상 하지 않는다 — 아이콘을 바꿔도 안내를 띄우지 않고, 기존 설치 사용자는 OS 캐시라 그대로 둔다.
 
 ## 컨벤션
+- **라이선스: PolyForm Noncommercial 1.0.0**(`LICENSE`, 두 `package.json`의 `license`, README 라이선스 절, `index.html` copyright 메타). 상업적 이용은 사전 서면 허락 필요. KBO·구단 로고(`public/teams`, `kbo-logo.png`)는 제3자 상표라 라이선스 대상 아님. GitHub ruleset `protect-main`(main 강제 푸시·삭제 금지).
 - 커밋 메시지: 한국어, 의미 단위. 배포는 `ship` 스킬 사용.
 - 브랜치(하이브리드): 작은 수정은 `main` 직접, 기능 단위·실험·배포 붙은 작업은 `feat/xxx` 브랜치 → PR 머지.
 - 데이터 모델 / 폴더 구조가 바뀌면 이 문서를 갱신한다.
