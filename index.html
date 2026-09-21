@@ -22,7 +22,7 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <!-- 다크가 기본. 저장된 테마(라이트/응원 구단)를 페인트 전에 복원해 깜빡임 방지.
-         응원 구단이 있으면(앱은 솔로 랭킹전으로 열림) 구단 테마를 먼저 입힌다(App의 effectiveTheme과 같은 규칙). -->
+         솔로 탭으로 열리고 응원 구단이 있으면(랭킹전) 구단 테마를 먼저 입힌다(App의 effectiveTheme과 같은 규칙). -->
     <script>
       try {
         var t = localStorage.getItem('nb_theme');
@@ -33,8 +33,14 @@
           if (teams.indexOf(team) < 0) team = t === 'doosan' ? 'doosan' : 'lg';
           t = 'team';
         }
-        // 응원 구단이 있으면 앱은 솔로 랭킹전으로 열리므로 구단 테마(응원 구단 테마를 고른 경우도).
-        if (teams.indexOf(team) >= 0)
+        // 솔로 탭 + 응원 구단이면 랭킹전이라 구단 테마, 응원 구단 테마를 고른 경우는 어느 탭이든.
+        // 새로고침 전 탭(sessionStorage.nb_section)이 KBO·멀티면 고른 테마 그대로(App의 effectiveTheme과 같은 규칙).
+        var section = null;
+        try {
+          section = sessionStorage.getItem('nb_section');
+        } catch (e) {}
+        var solo = section !== 'multi' && section !== 'kbo';
+        if (teams.indexOf(team) >= 0 && (solo || t === 'team'))
           t = team === 'lg' ? 'lgtwins' : team === 'doosan' ? 'doosan' : 'team-' + team;
         if (t === 'team') t = 'dark';
         if (t && t !== 'dark') document.documentElement.setAttribute('data-theme', t);

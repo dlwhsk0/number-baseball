@@ -27,6 +27,8 @@ import { usePullExpand } from './components/usePullExpand';
 import './App.css';
 
 type Section = 'solo' | 'multi' | 'kbo';
+/** 마지막 탭(새로고침 유지). index.html 테마 복원 스크립트도 이 값을 읽는다. */
+const SECTION_KEY = 'nb_section';
 type GameType = 'speed' | 'duel';
 /** 사용자가 고르는 테마. 'team' = 응원 구단 테마(구단은 KBO 탭에서 고른 nb_team). */
 type Theme = 'dark' | 'light' | 'team';
@@ -95,7 +97,23 @@ export default function App() {
   } = useGame(digits, hint, maxAttempts);
   // GuessPad 입력칸·후보 메모를 새 판/자릿수 변경 시 비우는 신호(값이 바뀌면 리셋).
   const [padReset, setPadReset] = useState(0);
-  const [section, setSection] = useState<Section>('solo');
+  // 탭은 새로고침해도 유지(sessionStorage — 탭/앱을 새로 열면 솔로부터). 멀티는 메뉴로 돌아온다
+  // (진행 중인 방 복원은 하지 않음 — OnlineDuel/OnlineSpeed의 세션 주석 참고).
+  const [section, setSection] = useState<Section>(() => {
+    try {
+      const v = sessionStorage.getItem(SECTION_KEY);
+      return v === 'multi' || v === 'kbo' ? v : 'solo';
+    } catch {
+      return 'solo';
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SECTION_KEY, section);
+    } catch {
+      /* 저장 불가 무시 */
+    }
+  }, [section]);
   const [online, setOnline] = useState(() =>
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   );
