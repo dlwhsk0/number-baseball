@@ -55,7 +55,7 @@
     **랭킹전 중엔 응원 구단 테마가 자동 적용**(App `effectiveTheme` — 솔로+랭킹전+구단이면 `Team.theme`, 저장된 `nb_theme`는 안 바꿈. 두산·LG는 기존 `doosan`/`lgtwins`, 나머지는 `index.css`의 `team-<id>` 토큰 + 전광판에 구단 로고 워터마크 `:root[data-team]`/`--team-logo`). `index.html` 인라인 스크립트도 같은 규칙으로 페인트 전 적용. **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
     시도 **15회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 16 − 시도(1회=15점…15회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
     추측이 있는 판을 버리면(새 게임·자릿수 변경·30분 방치) **실패로 기록**(체리피킹 방지), 1인 **24시간 30판 상한**(`RANKED_DAILY_LIMIT`), 같은 플레이어의 시작 요청은 직렬화.
-    보조로 **IP당 24시간 200판**(`RANKED_IP_DAILY_LIMIT`, 0=끔, 메모리) — X-Forwarded-For **맨 오른쪽**(Traefik이 붙인 값)만 신뢰, 사설 IP면 미적용. 계정이 없어 봇 완전 차단은 아님(uuid 교체 자동화 억제용).
+    보조로 **IP당 하루 상한**(`RANKED_IP_DAILY_LIMIT`, 0=끔).
     클라는 요청 세대(`rankGenRef`)로 새 판·연습 전환 뒤 도착한 늦은 응답을 버리고, 타임아웃된 요청은 늦게 연결돼도 보내지 않는다. 클라는 `useGame`의 `restore`/`applyJudgement`/`revealSecret`로 서버 결과 반영(secret='').
     결과 카드(`ResultBanner` `ranked`)에 점수·구단 누적·순위. 연습 모드는 기존 그대로(오프라인 가능).
   - **멀티 구단 대결**: 온라인 `create`/`join`에 `playerId`·`team` 동봉 → 판이 끝나면 **구단이 다른 참가자 쌍마다** 승/패/무 기록(`pairMatches`).
@@ -196,6 +196,7 @@
 - **아이콘 변경 안내 배너는 제거됨**(옛 `ICON_VERSION`/`nb_icon_seen`/`beforeinstallprompt` 안내). PWA 설치 유도는 더 이상 하지 않는다 — 아이콘을 바꿔도 안내를 띄우지 않고, 기존 설치 사용자는 OS 캐시라 그대로 둔다.
 
 ## 컨벤션
+- **라이선스: PolyForm Noncommercial 1.0.0**(`LICENSE`, 두 `package.json`의 `license`, README 라이선스 절, `index.html` copyright 메타). 상업적 이용은 사전 서면 허락 필요. KBO·구단 로고(`public/teams`, `kbo-logo.png`)는 제3자 상표라 라이선스 대상 아님. GitHub ruleset `protect-main`(main 강제 푸시·삭제 금지).
 - 커밋 메시지: 한국어, 의미 단위. 배포는 `ship` 스킬 사용.
 - 브랜치(하이브리드): 작은 수정은 `main` 직접, 기능 단위·실험·배포 붙은 작업은 `feat/xxx` 브랜치 → PR 머지.
 - 데이터 모델 / 폴더 구조가 바뀌면 이 문서를 갱신한다.

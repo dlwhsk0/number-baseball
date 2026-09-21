@@ -120,9 +120,9 @@ SPEED_LIMIT_4_MS=420000  # 스피드 4자리 제한시간(7분)
 SCORE_SEC_PER_POINT=20   # 스피드 점수: 몇 초를 1점으로 환산할지
 
 # --- 선택: 팬 랭킹(KBO 구단) — 없으면 랭킹만 꺼지고 대전은 정상 ---
-DATABASE_URL=postgresql://nb:<비번>@hana-pg-jrqxjl:5432/number_baseball
+DATABASE_URL=postgresql://<user>:<비번>@<db-host>:5432/<db>
 RANKED_DAILY_LIMIT=30    # 솔로 랭킹전 1인 24시간 판 수 상한
-RANKED_IP_DAILY_LIMIT=200 # IP당 24시간 새 판 상한(0=끔). X-Forwarded-For 맨 오른쪽 값 기준
+RANKED_IP_DAILY_LIMIT=200 # IP당 24시간 새 판 상한(0=끔)
 
 # --- 선택: 관측(기본값 있음) ---
 LOG_LEVEL=info           # pino 로그 레벨 (trace/debug/info/warn/error)
@@ -135,17 +135,15 @@ METRICS_TOKEN=           # 설정 시 /metrics에 Bearer 또는 ?token= 요구
 - `METRICS_PORT`(9091)는 **Domains에 매핑하지 말 것** — 매핑 안 해야 비공개로 남는다.
 
 ### 5-B. 팬 랭킹 DB (Dokploy Postgres)
-랭킹(솔로 랭킹전 점수·구단 대결 승패)은 **ZoomAttandance와 같은 공유 Postgres 서비스(`hana-pg-jrqxjl`)** 에 **별도 DB**로 저장한다.
-- 구성: 역할 `nb`(일반 계정, 슈퍼유저 아님) + DB `number_baseball`(소유자 `nb`). ZoomAttandance DB(`hana-pg`)와 완전히 분리.
-  스키마 분리 대신 DB 분리를 택한 이유: ZoomAttandance가 슈퍼유저로 붙어 있어 같은 DB면 서로 다 보이고, DB 단위라 백업·삭제를 따로 할 수 있다.
+랭킹(솔로 랭킹전 점수·구단 대결 승패)은 Dokploy Postgres 서비스에 **이 앱 전용 DB**로 저장한다.
+- 구성: 전용 일반 역할(슈퍼유저 아님) + 그 역할이 소유한 전용 DB. 다른 앱과 DB 단위로 분리해 권한·백업·삭제를 따로 관리한다.
 - 테이블은 서버가 시작할 때 `CREATE TABLE IF NOT EXISTS`로 직접 만든다(`server/src/db.ts` — `players`/`solo_games`/`match_results`).
 - 서버 앱 Environment:
   ```
-  DATABASE_URL=postgresql://nb:<비번>@hana-pg-jrqxjl:5432/number_baseball
+  DATABASE_URL=postgresql://<user>:<비번>@<db-host>:5432/<db>
   ```
   같은 Dokploy(`dokploy-network`)라 내부 호스트로 붙는다. 비번은 레포에 적지 않는다(Dokploy env에만).
-- 확인: 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`. 랭킹전을 한 판 시작해 `ranked start` 로그의 `ipPublic`이 **true**인지도 본다
-  (false면 Traefik 뒤에서 실제 IP가 안 보이는 것 → IP 상한은 자동으로 미적용, 필요하면 Traefik 설정 확인). 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
+- 확인: 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`. 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
 - 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/ranked-smoke.mjs`
   (실제 DB에 테스트 기록이 LG 구단으로 쌓인다 — 필요하면 `DELETE FROM solo_games WHERE player_id = ...`로 정리.)
 
@@ -321,7 +319,7 @@ Swarm의 `stop-grace-period`를 늘려 그 시간을 확보한다.
 | `SPEED_LIMIT_4_MS` | `420000` | 스피드 4자리 제한(7분) |
 | `DATABASE_URL` | (없음) | 팬 랭킹 Postgres. 없으면 랭킹만 비활성 |
 | `RANKED_DAILY_LIMIT` | `30` | 솔로 랭킹전 1인 24시간 판 수 상한 |
-| `RANKED_IP_DAILY_LIMIT` | `200` | IP당 24시간 새 판 상한(0=끔, 메모리라 재시작 시 초기화). 게임 포트가 Traefik 뒤에서만 열려 있어야 의미 있음 |
+| `RANKED_IP_DAILY_LIMIT` | `200` | IP당 24시간 새 판 상한(0=끔) |
 
 ---
 
