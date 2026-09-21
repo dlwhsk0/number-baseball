@@ -37,6 +37,8 @@ export interface Room {
   mode: Mode;
   digits: number;
   maxPlayers: number;
+  /** 랜덤 매치로 만든 방 — 누가 나가든 방 종료(대기 복귀 없음), 코드 입장 불가. */
+  random: boolean;
   players: Player[]; // 턴제: index 0=방장(선공), 1=후공. 스피드: 0~3.
   phase: Phase;
   // --- 턴제 전용 ---
@@ -106,6 +108,7 @@ export function createRoom(
     mode,
     digits,
     maxPlayers: mode === 'speed' ? 6 : 2,
+    random: false,
     players: [newPlayer(hostId, nick, fan)],
     phase: 'waiting',
     turn: 0,
@@ -128,6 +131,7 @@ export function joinRoom(
 ): { room?: Room; index?: number; error?: string } {
   const room = rooms.get(code);
   if (!room) return { error: '방을 찾을 수 없어요. 코드를 확인해주세요.' };
+  if (room.random) return { error: '방이 가득 찼어요.' };
   if (room.players.length >= room.maxPlayers) return { error: '방이 가득 찼어요.' };
   // 스피드는 시작 후 입장 불가.
   if (room.mode === 'speed' && room.phase !== 'waiting') return { error: '이미 시작한 방이에요.' };

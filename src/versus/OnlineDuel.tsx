@@ -13,7 +13,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Outcome } from '../net/protocol';
 
 export interface OnlineEntry {
-  action: 'create' | 'join';
+  /** random = 같은 자릿수의 모르는 상대와 자동 매칭. */
+  action: 'create' | 'join' | 'random';
   nick: string;
   digits: number;
   code?: string;
@@ -122,6 +123,9 @@ const SESSION_KEY = 'nb_online_session';
 // 세션은 '게임 중 소켓 끊김→재연결' 복구용으로만 메모리(sessionRef)에 담는다.
 // 마운트 때 sessionStorage에서 불러오지 않는다 — 모든 진입은 새 방 만들기/입장이라
 // 옛 세션을 불러오면 만료된 방에 rejoin 시도 → 오류(방 만들기→나가기→다시 만들기).
+// 랜덤 매치 — 이 시간 안에 상대가 없으면 대기를 풀고 방 만들기를 권한다.
+const MATCH_TIMEOUT_S = 60;
+
 function saveSession(s: Session | null) {
   try {
     if (s) sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
@@ -169,6 +173,16 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
   // 저장돼 있으면(리로드 직후) 마운트 시 복원해 자동 rejoin.
   const sessionRef = useRef<Session | null>(null);
   const [resuming, setResuming] = useState(false);
+  // 랜덤 매치: 대기 중 여부·경과 초·시간 초과. 성사된 방이면 isRandom(나가면 대기 복귀 대신 종료).
+  const [searching, setSearching] = useState(false);
+  const searchingRef = useRef(false);
+  searchingRef.current = searching;
+  const [searchSec, setSearchSec] = useState(0);
+  const [noMatch, setNoMatch] = useState(false);
+  const randomRef = useRef(false);
+  const [isRandom, setIsRandom] = useState(false);
+  // 소켓 효과(마운트 1회)에서 최신 startQueue를 부르기 위한 참조.
+  const startQueueRef = useRef<() => void>(() => {});
 
   const [phase, setPhase] = useState<Phase>('menu');
   const [connected, setConnected] = useState(false);
@@ -275,7 +289,11 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
       setConnected(true);
       // 세션이 있으면(게임 중 재연결·리로드 복귀) 저장한 코드·자리·토큰으로 다시 합류.
       const sess = sessionRef.current;
-      if (!sess) return;
+      if (!sess) {
+        // 대기 중 끊겼으면 서버가 줄에서 뺐으므로 다시 선다.
+        if (searchingRef.current) startQueueRef.current();
+        return;
+      }
       myIndexRef.current = sess.index;
       setMyIndex(sess.index);
       s.emit('rejoin', { code: sess.code, index: sess.index, token: sess.token }, (r) => {
@@ -298,6 +316,21 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     s.on('disconnect', onDisconnect);
     s.on('opponentDisconnected', () => setOppDisconnected(true));
     s.on('opponentReconnected', () => setOppDisconnected(false));
+    s.on('matched', (m) => {
+      sessionRef.current = { code: m.code, index: m.index, token: m.token };
+      saveSession(sessionRef.current);
+      randomRef.current = true;
+      setIsRandom(true);
+      setSearching(false);
+      setNoMatch(false);
+      setCode(m.code);
+      myIndexRef.current = m.index;
+      setMyIndex(m.index);
+      setDigits(m.digits);
+      setOpponentNick(m.opponentNick);
+      setOpponentTeam(m.opponentTeam ?? null);
+      // 곧바로 서버가 phase(secret)를 보내 VS 연출 → 비밀 정하기로 넘어간다.
+    });
     s.on('opponentJoined', ({ nick: n, team: t }) => {
       setOpponentNick(n);
       setOpponentTeam(t ?? null);
@@ -356,7 +389,8 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     s.on('rematchRequested', () => setOppWantsRematch(true));
     s.on('opponentLeft', () => {
       // 방은 방장 소유. 내가 방장(index 0)이면 후공이 나간 것 → 방을 유지하고 다시 대기.
-      if (myIndexRef.current === 0) {
+      // 랜덤 방은 누가 나가든 종료 → 아래 결과 화면(새 상대 찾기)으로.
+      if (myIndexRef.current === 0 && !randomRef.current) {
         // 진행 중(비밀 설정~플레이)에 나갔으면 기권승 알림. 대기 전에 판정.
         const wasPlaying = phaseRef.current === 'secret' || phaseRef.current === 'playing';
         resetRound();
@@ -398,6 +432,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
       s.off('disconnect', onDisconnect);
       s.off('opponentDisconnected');
       s.off('opponentReconnected');
+      s.off('matched');
       s.off('opponentJoined');
       s.off('phase');
       s.off('secretProgress');
@@ -498,6 +533,56 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     });
   };
 
+  const startQueue = () => {
+    setError(null);
+    setNoMatch(false);
+    setSearchSec(0);
+    setSearching(true);
+    saveNick();
+    socketRef.current.emit('queue', { nick, digits, ...fanIdentity() }, (r) => {
+      if (!r.ok) {
+        setSearching(false);
+        setError(r.error ?? '매칭을 시작하지 못했어요.');
+      }
+    });
+  };
+  startQueueRef.current = startQueue;
+
+  // 대기 경과 표시 + 시간 초과 시 줄에서 빠지고 방 만들기를 권한다.
+  useEffect(() => {
+    if (!searching) return;
+    const t = window.setInterval(() => setSearchSec((sec) => sec + 1), 1000);
+    return () => window.clearInterval(t);
+  }, [searching]);
+  useEffect(() => {
+    if (!searching || searchSec < MATCH_TIMEOUT_S) return;
+    // leave가 아니라 cancelQueue — 방금 성사된 방에서 나가 버리는 경쟁을 피한다.
+    socketRef.current.emit('cancelQueue');
+    setSearching(false);
+    setNoMatch(true);
+  }, [searching, searchSec]);
+
+  // 랜덤 방에서 새 상대 찾기 — 지금 방을 떠나고(서버는 순서대로 처리) 바로 다시 줄 선다.
+  const findNewMatch = () => {
+    sessionRef.current = null;
+    saveSession(null);
+    socketRef.current.emit('leave', () => {});
+    resetRound();
+    randomRef.current = false;
+    setIsRandom(false);
+    setCode('');
+    setOpponentNick('상대');
+    setOpponentTeam(null);
+    setPhase('menu');
+    startQueue();
+  };
+
+  // 상대가 없을 때 — 대기 대신 방을 만들어 코드로 초대.
+  const switchToCreate = () => {
+    setNoMatch(false);
+    doCreate();
+  };
+
   const submitSecret = (secret: string) => {
     setError(null);
     socketRef.current.emit('setSecret', { secret }, (r) => {
@@ -558,6 +643,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     if (!connected || sessionRef.current || autoRanRef.current) return;
     autoRanRef.current = true;
     if (entryRef.current.action === 'create') doCreate();
+    else if (entryRef.current.action === 'random') startQueue();
     else doJoin();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connected]);
@@ -583,9 +669,34 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
 
   // ---------- 렌더 ----------
   // 메뉴(닉네임·옵션)는 App이 담당 — 여기선 방 만들기/입장·재접속 진행 중 로딩만.
+  if (phase === 'menu' && noMatch) {
+    return (
+      <div className="versus versus-center">
+        <NetStatus connected={connected} oppDisconnected={false} />
+        <p className="handoff-sub">지금은 상대가 없어요</p>
+        <p className="wait-line">방을 만들어 친구에게 코드를 보내거나, 조금 뒤 다시 찾아보세요.</p>
+        <div className="online-menu-card">
+          <button type="button" className="versus-primary" onClick={switchToCreate}>
+            🚪 방 만들어 초대하기
+          </button>
+          <button type="button" className="versus-secondary" onClick={startQueue}>
+            🎲 다시 찾기
+          </button>
+        </div>
+        <button type="button" className="versus-secondary" onClick={backToMenu}>
+          나가기
+        </button>
+      </div>
+    );
+  }
+
   if (phase === 'menu') {
     const label = resuming
       ? '방에 다시 연결하는 중…'
+      : searching
+      ? `상대를 찾는 중… ${searchSec}초`
+      : entry.action === 'random'
+      ? '상대를 찾는 중…'
       : entry.action === 'create'
       ? '방 만드는 중…'
       : '입장하는 중…';
@@ -862,9 +973,14 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
             ? '상대의 연결이 끊겨 이겼어요.'
             : '상대가 대결에서 나가 이겼어요.'}
         </p>
+        {isRandom && (
+          <button type="button" className="versus-primary result-restart" onClick={findNewMatch}>
+            🎲 새 상대 찾기
+          </button>
+        )}
         <button
           type="button"
-          className="versus-primary result-restart"
+          className={`${isRandom ? 'versus-secondary' : 'versus-primary'} result-restart`}
           onClick={backToMenu}
         >
           나가기
@@ -935,6 +1051,11 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
           {rematchWait ? '상대 대기…' : oppWantsRematch ? '재대결 수락' : '재대결'}
         </button>
       </div>
+      {isRandom && (
+        <button type="button" className="versus-secondary result-new-match" onClick={findNewMatch}>
+          🎲 새 상대 찾기
+        </button>
+      )}
     </div>
   );
 }

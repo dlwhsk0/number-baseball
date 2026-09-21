@@ -3757,6 +3757,10 @@
   width: 100%;
   margin-top: 2px;
 }
+/* 랜덤 방 결과 — 재대결 줄 아래 '새 상대 찾기' */
+.online-result .result-new-match {
+  width: 100%;
+}
 /* 재대결 수락 버튼 강조 펄스 */
 .versus-primary.pulse {
   animation: accept-pulse 0.9s ease-in-out infinite;

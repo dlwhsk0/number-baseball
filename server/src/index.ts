@@ -246,12 +246,37 @@ function maybeEndSpeed(room: Room): void {
   if (allSpeedSolved(room) || activeCount(room) < 2) endSpeed(room);
 }
 
+// ---------- 랜덤 매치(턴제) ----------
+// 자릿수별 대기열(메모리). 먼저 기다린 사람이 방장(선공).
+interface QueueEntry {
+  sid: string;
+  nick: string;
+  fan: Fan;
+  since: number;
+}
+const matchQueue = new Map<number, QueueEntry[]>([
+  [3, []],
+  [4, []],
+]);
+// 클라는 60초 뒤 스스로 취소하지만, 백그라운드 등으로 못 한 대기는 여기서 버린다.
+const QUEUE_STALE_MS = 3 * 60 * 1000;
+
+function dequeue(sid: string, digits: number | undefined): void {
+  if (digits == null) return;
+  const q = matchQueue.get(digits);
+  if (!q) return;
+  const i = q.findIndex((e) => e.sid === sid);
+  if (i >= 0) q.splice(i, 1);
+}
+
 io.on('connection', (socket) => {
   const data = socket.data;
   connectionsTotal.inc();
   logger.info({ sid: socket.id }, 'socket connected');
 
   socket.on('create', ({ nick, digits, mode, playerId, team }, ack) => {
+    dequeue(socket.id, data.queued);
+    data.queued = undefined;
     const d = digits === 4 ? 4 : 3;
     const m = mode === 'speed' ? 'speed' : 'duel';
     const room = createRoom(socket.id, sanitizeNick(nick), d, m, sanitizeFan({ playerId, team }));
@@ -264,6 +289,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join', ({ nick, code, playerId, team }, ack) => {
+    dequeue(socket.id, data.queued);
+    data.queued = undefined;
     const c = String(code ?? '').toUpperCase().trim();
     const res = joinRoom(c, socket.id, sanitizeNick(nick), sanitizeFan({ playerId, team }));
     if (res.error || !res.room || res.index == null) {
@@ -305,6 +332,90 @@ io.on('connection', (socket) => {
     socket.to(c).emit('opponentJoined', { nick: room.players[1].nick, team: room.players[1].team });
     room.phase = 'secret';
     io.to(c).emit('phase', { phase: 'secret', digits: room.digits });
+  });
+
+  socket.on('queue', ({ nick, digits, playerId, team }, ack) => {
+    if (typeof ack !== 'function') return;
+    if (data.code) {
+      ack({ ok: false, error: '이미 방에 들어가 있어요.' });
+      return;
+    }
+    const d = digits === 4 ? 4 : 3;
+    dequeue(socket.id, data.queued); // 자릿수를 바꿔 다시 줄 선 경우
+    const me: QueueEntry = {
+      sid: socket.id,
+      nick: sanitizeNick(nick),
+      fan: sanitizeFan({ playerId, team }),
+      since: Date.now(),
+    };
+    const q = matchQueue.get(d)!;
+    const now = Date.now();
+    // 상대 찾기 — 끊긴 소켓·오래된 대기·같은 기기(탭 두 개)는 건너뛴다.
+    let opp: QueueEntry | undefined;
+    let oppSocket: ReturnType<typeof io.sockets.sockets.get>;
+    for (let i = 0; i < q.length; ) {
+      const e = q[i];
+      const s = io.sockets.sockets.get(e.sid);
+      if (!s || s.data.code || now - e.since > QUEUE_STALE_MS) {
+        q.splice(i, 1);
+        continue;
+      }
+      if (me.fan.playerId && e.fan.playerId === me.fan.playerId) {
+        i++;
+        continue;
+      }
+      opp = e;
+      oppSocket = s;
+      q.splice(i, 1);
+      break;
+    }
+    ack({ ok: true });
+    if (!opp || !oppSocket) {
+      q.push(me);
+      data.queued = d;
+      logger.info({ sid: socket.id, digits: d, waiting: q.length }, 'match queued');
+      return;
+    }
+
+    // 성사 — 먼저 기다린 쪽이 방장(0). 이후는 코드 방과 같은 흐름.
+    data.queued = undefined;
+    oppSocket.data.queued = undefined;
+    const room = createRoom(opp.sid, opp.nick, d, 'duel', opp.fan);
+    joinRoom(room.code, socket.id, me.nick, me.fan);
+    room.random = true; // 입장 뒤에 표시 — 이후 코드 입장·대기 복귀 막음
+    oppSocket.data.code = room.code;
+    oppSocket.data.index = 0;
+    data.code = room.code;
+    data.index = 1;
+    oppSocket.join(room.code);
+    socket.join(room.code);
+    roomsCreated.inc({ mode: 'duel' });
+    roomJoins.inc({ mode: 'duel' });
+    const [host, guest] = room.players;
+    oppSocket.emit('matched', {
+      code: room.code,
+      index: 0,
+      token: host.token,
+      digits: d,
+      opponentNick: guest.nick,
+      opponentTeam: guest.team,
+    });
+    socket.emit('matched', {
+      code: room.code,
+      index: 1,
+      token: guest.token,
+      digits: d,
+      opponentNick: host.nick,
+      opponentTeam: host.team,
+    });
+    room.phase = 'secret';
+    io.to(room.code).emit('phase', { phase: 'secret', digits: d });
+    logger.info({ code: room.code, digits: d }, 'random match');
+  });
+
+  socket.on('cancelQueue', () => {
+    dequeue(socket.id, data.queued);
+    data.queued = undefined;
   });
 
   // 입장 전 방 종류만 조회 — 코드 입장 시 스피드/턴제를 자동으로 맞추기 위해(부수효과 없음).
@@ -649,6 +760,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('leave', (ack) => {
+    // 랜덤 매치 대기 취소도 leave로.
+    dequeue(socket.id, data.queued);
+    data.queued = undefined;
     const room = getRoom(data.code);
     if (room) {
       if (room.mode === 'speed' && data.index != null && room.players[data.index]) {
@@ -667,8 +781,9 @@ io.on('connection', (socket) => {
         }
       } else {
         // 턴제 — 방은 방장(index 0) 소유. 방장이 나가면 방 종료, 후공이 나가면 방장은 대기 유지.
+        // 랜덤 방은 모르는 사람끼리라 누가 나가든 종료(남은 쪽은 새 상대를 찾는다).
         const leaverIsHost = data.index === 0;
-        if (leaverIsHost || room.players.length <= 1) {
+        if (leaverIsHost || room.players.length <= 1 || room.random) {
           room.players.forEach((p) => {
             if (p.graceTimer) {
               clearTimeout(p.graceTimer);
@@ -692,6 +807,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     logger.info({ sid: socket.id, code: data.code }, 'socket disconnected');
+    dequeue(socket.id, data.queued);
     const room = getRoom(data.code);
     if (!room || data.index == null) return;
     const idx = data.index;
@@ -724,7 +840,7 @@ io.on('connection', (socket) => {
       if (getRoom(room.code) !== room) return;
       me.graceTimer = undefined;
       if (me.connected) return; // 재접속함
-      if (idx === 0 || room.players.length <= 1) {
+      if (idx === 0 || room.players.length <= 1 || room.random) {
         io.to(room.code).emit('opponentLeft');
         deleteRoom(room.code);
       } else {
