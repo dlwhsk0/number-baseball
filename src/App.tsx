@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useGame, type GuessRecord } from './game/useGame';
 import { GuessPad } from './components/GuessPad';
 import { History } from './components/History';
 import { ResultBanner } from './components/ResultBanner';
-import { RevealCard } from './components/RevealCard';
+import { RevealCard, PendingCard } from './components/RevealCard';
 import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -165,8 +165,10 @@ export default function App() {
   const [soloReveal, setSoloReveal] = useState<GuessRecord | null>(null);
   const prevGuessCountRef = useRef(0);
   const revealTimerRef = useRef<number | undefined>(undefined);
-  useEffect(() => {
+  // 커밋 직후(페인트 전)에 바꿔야 '판정 중' 카드가 결과 카드로 한 프레임 끊김 없이 교체된다.
+  useLayoutEffect(() => {
     const n = state.guesses.length;
+    if (n > prevGuessCountRef.current) setRankPending(null); // 랭킹전 대기 카드 → 결과 카드
     if (n > prevGuessCountRef.current && state.status === 'playing') {
       setSoloReveal(state.guesses[n - 1]);
       if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
@@ -413,6 +415,8 @@ export default function App() {
     persist('nb_fan_intro', '1');
   };
   const [pendingForfeit, setPendingForfeit] = useState(false);
+  /** 서버 판정을 기다리는 추측 — 왕복하는 동안 타자석에 '판정 중' 카드를 띄워 빈 화면을 없앤다. */
+  const [rankPending, setRankPending] = useState<string | null>(null);
   const rankedIdRef = useRef<string | null>(null);
   const rankBusyRef = useRef(false);
   /** 랭킹 요청 세대 — 새 판 시작·연습 전환 때 올려서, 그 전에 보낸 요청의 늦은 응답은 버린다. */
@@ -438,6 +442,7 @@ export default function App() {
     const gen = ++rankGenRef.current;
     rankedIdRef.current = null;
     rankBusyRef.current = true;
+    setRankPending(null);
     setRankResult(null);
     clearReveal();
     setPadReset((n) => n + 1);
@@ -468,6 +473,7 @@ export default function App() {
     rankGenRef.current++;
     rankBusyRef.current = false;
     rankedIdRef.current = null;
+    setRankPending(null);
     setRankResult(null);
     setRankedOff(true);
   };
@@ -476,12 +482,14 @@ export default function App() {
     const id = rankedIdRef.current;
     if (!id || rankBusyRef.current) return;
     rankBusyRef.current = true;
+    setRankPending(guess);
     const gen = rankGenRef.current;
     const r = await guessRanked(id, guess);
     // 기다리는 사이 새 판·연습 전환이 있었으면 이 판정은 지금 화면과 무관 → 버림.
     if (gen !== rankGenRef.current || rankedIdRef.current !== id) return;
     rankBusyRef.current = false;
     if (!r.ok || !r.judgement || !r.status) {
+      setRankPending(null);
       showNet(r.error ?? '판정에 실패했어요');
       if (r.expired) startRankedGame({});
       return;
@@ -719,7 +727,11 @@ export default function App() {
           onMemoClear={clearMemo}
           boardClass="batter-box"
           overlay={
-            soloReveal ? (
+            rankPending ? (
+              <div className="solo-reveal waiting" aria-live="polite">
+                <PendingCard guess={rankPending} />
+              </div>
+            ) : soloReveal ? (
               <div className="solo-reveal" aria-live="polite">
                 <RevealCard
                   guess={soloReveal.guess}

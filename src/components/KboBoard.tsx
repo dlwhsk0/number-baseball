@@ -1,19 +1,39 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchLeaderboard } from '../net/ranked';
 import { getPlayerId } from '../net/fan';
-import { teamById } from '../game/teams';
 import type { Leaderboard as Board } from '../net/protocol';
 import { TeamChip } from './TeamChip';
+import { tieRanks } from '../game/ranking';
 
-type Tab = 'team' | 'player' | 'versus';
+// 개인 순위(누적 합계)는 판 수 싸움이라 심심해서 잠시 숨김 — 서버는 계속 players를 내려준다.
+type Tab = 'solo' | 'versus';
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'team', label: '구단' },
-  { id: 'player', label: '개인' },
-  { id: 'versus', label: '구단 대결' },
+  { id: 'solo', label: '솔로' },
+  { id: 'versus', label: '대결' },
 ];
 
 const fmt = (n: number) => n.toLocaleString('ko-KR');
 const pct = (p: number) => p.toFixed(3).replace(/^0/, '');
+/**
+ * 두 표([솔로]·[대결]) 공용 칼럼 폭 — 순위·구단 고정 + 숫자 5칸 균등(table-layout: fixed).
+ * 표마다 내용에 맞춰 폭이 잡히면 탭을 오갈 때 칼럼이 들썩여 깜빡이는 것처럼 보인다.
+ */
+function Cols() {
+  return (
+    <colgroup>
+      <col className="col-rank" />
+      <col className="col-team" />
+      <col />
+      <col />
+      <col />
+      <col />
+      <col />
+    </colgroup>
+  );
+}
+
+/** 가을야구 — KBO는 5위까지 포스트시즌(공동 5위 포함). */
+const POSTSEASON = 5;
 
 interface Props {
   /** 내 응원 구단(강조 표시). */
@@ -22,9 +42,9 @@ interface Props {
   onPickTeam: () => void;
 }
 
-/** KBO 탭 — 팬 순위(구단 솔로 누적 · 개인 누적 · 구단 대결). 탭에 들어올 때마다 새로 불러온다. */
+/** KBO 탭 — 구단 순위(솔로 랭킹전 누적 · 온라인 구단 대결). 탭에 들어올 때마다 새로 불러온다. */
 export function KboBoard({ myTeam, onPickTeam }: Props) {
-  const [tab, setTab] = useState<Tab>('team');
+  const [tab, setTab] = useState<Tab>('solo');
   const [data, setData] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,8 +60,10 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
     };
   }, []);
 
-  const maxTeamPts = Math.max(1, ...(data?.team.map((t) => t.points) ?? [1]));
   // 내 구단의 현재 순위(솔로 누적·구단 대결) — 맨 위 카드에 요약.
+  // 동점이면 같은 순위(1, 1, 3…) — 구단은 점수, 구단 대결은 승률 기준.
+  const teamRanks = data ? tieRanks(data.team, (t) => t.points) : [];
+  const vsRanks = data ? tieRanks(data.versus, (v) => v.pct) : [];
   const soloIdx = data?.team.findIndex((t) => t.team === myTeam) ?? -1;
   // 아직 판이 없는 구단은 순위를 매기지 않는다(0점 동점 정렬 순서일 뿐).
   const mySolo = soloIdx >= 0 && data && data.team[soloIdx].games > 0 ? data.team[soloIdx] : undefined;
@@ -60,21 +82,16 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
               </span>
               <span className="kbo-me-ranks">
                 <span className="kbo-me-rank">
-                  <span className="kbo-me-label">구단 순위</span>
-                  <b>{mySolo ? `${soloIdx + 1}위` : '-'}</b>
+                  <span className="kbo-me-label">솔로 순위</span>
+                  <b>{mySolo ? `${teamRanks[soloIdx]}위` : '-'}</b>
                   <span className="kbo-me-detail">{mySolo ? `${fmt(mySolo.points)}점` : '기록 없음'}</span>
                 </span>
                 <span className="kbo-me-rank">
-                  <span className="kbo-me-label">구단 대결</span>
-                  <b>{myVs && myVs.w + myVs.l + myVs.d > 0 ? `${vsIdx + 1}위` : '-'}</b>
+                  <span className="kbo-me-label">대결 순위</span>
+                  <b>{myVs && myVs.w + myVs.l + myVs.d > 0 ? `${vsRanks[vsIdx]}위` : '-'}</b>
                   <span className="kbo-me-detail">
                     {myVs && myVs.w + myVs.l + myVs.d > 0 ? `${myVs.w}승 ${myVs.l}패 ${myVs.d}무` : '기록 없음'}
                   </span>
-                </span>
-                <span className="kbo-me-rank">
-                  <span className="kbo-me-label">내 순위</span>
-                  <b>{data?.me ? `${data.me.rank}위` : '-'}</b>
-                  <span className="kbo-me-detail">{data?.me ? `${fmt(data.me.points)}점` : '기록 없음'}</span>
                 </span>
               </span>
             </>
@@ -103,67 +120,49 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
             <p className="board-empty">{error}</p>
           ) : !data ? (
             <p className="board-empty">불러오는 중…</p>
-          ) : tab === 'team' ? (
+          ) : tab === 'solo' ? (
             <>
               <p className="board-caption">솔로 랭킹전 누적 점수 · 적게 시도할수록 높은 점수</p>
-              <ol className="board-list">
-                {data.team.map((t, i) => (
-                  <li
-                    key={t.team}
-                    className={`board-row${t.team === myTeam ? ' me' : ''}`}
-                    style={{ '--team': teamById(t.team)?.color } as CSSProperties}
-                  >
-                    <span className="board-rank">{i + 1}</span>
-                    <span className="board-name">
-                      <TeamChip team={t.team} />
-                      {t.points > 0 && (
-                        <span className="board-bar" style={{ width: `${(t.points / maxTeamPts) * 100}%` }} />
-                      )}
-                    </span>
-                    <span className="board-num">{fmt(t.points)}</span>
-                    <span className="board-sub">
-                      {t.fans}명 · {t.games}판
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </>
-          ) : tab === 'player' ? (
-            <>
-              <p className="board-caption">개인 누적 점수 TOP 50</p>
-              {data.players.length === 0 ? (
-                <p className="board-empty">아직 기록이 없어요. 첫 1위의 주인공이 되어보세요!</p>
-              ) : (
-                <ol className="board-list">
-                  {data.players.map((p) => (
-                    <li key={p.rank} className={`board-row${p.me ? ' me' : ''}`}>
-                      <span className="board-rank">{p.rank}</span>
-                      <span className="board-name">
-                        <TeamChip team={p.team} />
-                        <span className="board-nick">{p.nick}</span>
-                      </span>
-                      <span className="board-num">{fmt(p.points)}</span>
-                      <span className="board-sub">{p.games}판</span>
-                    </li>
+              {/* KBO 팀 순위표처럼 숫자로 — 막대는 구단 테마 색과 겹쳐 오히려 안 읽혔다. */}
+              <table className="board-table">
+                <Cols />
+                <thead>
+                  <tr>
+                    <th>순위</th>
+                    <th>구단</th>
+                    <th>점수</th>
+                    <th>판</th>
+                    <th>성공</th>
+                    <th>평균</th>
+                    <th>팬</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.team.map((t, i) => (
+                    <tr key={t.team} className={t.team === myTeam ? 'me' : ''}>
+                      {/* 판이 없는 구단은 0점 동점 정렬일 뿐이라 순위를 매기지 않는다. */}
+                      <td className={t.games > 0 && teamRanks[i] <= POSTSEASON ? 'ps' : undefined}>
+                        {t.games > 0 ? teamRanks[i] : '-'}
+                      </td>
+                      <td>
+                        <TeamChip team={t.team} />
+                      </td>
+                      <td className="board-strong">{fmt(t.points)}</td>
+                      <td>{t.games}</td>
+                      <td>{t.wins}</td>
+                      <td>{t.avgAttempts != null ? t.avgAttempts.toFixed(1) : '-'}</td>
+                      <td>{t.fans}</td>
+                    </tr>
                   ))}
-                </ol>
-              )}
-              {data.me && !data.players.some((p) => p.me) && (
-                <div className="board-row me board-mine">
-                  <span className="board-rank">{data.me.rank}</span>
-                  <span className="board-name">
-                    <TeamChip team={data.me.team} />
-                    <span className="board-nick">{data.me.nick} (나)</span>
-                  </span>
-                  <span className="board-num">{fmt(data.me.points)}</span>
-                  <span className="board-sub">{data.me.games}판</span>
-                </div>
-              )}
+                </tbody>
+              </table>
+              <p className="board-foot">성공 = 맞힌 판 · 평균 = 맞힌 판의 평균 시도</p>
             </>
           ) : (
             <>
               <p className="board-caption">온라인 대전 구단 간 승패 · 다른 구단 팬을 이기면 1승</p>
               <table className="board-table">
+                <Cols />
                 <thead>
                   <tr>
                     <th>순위</th>
@@ -178,7 +177,9 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
                 <tbody>
                   {data.versus.map((v, i) => (
                     <tr key={v.team} className={v.team === myTeam ? 'me' : ''}>
-                      <td>{i + 1}</td>
+                      <td className={v.w + v.l + v.d > 0 && vsRanks[i] <= POSTSEASON ? 'ps' : undefined}>
+                        {v.w + v.l + v.d > 0 ? vsRanks[i] : '-'}
+                      </td>
                       <td>
                         <TeamChip team={v.team} />
                       </td>
@@ -191,6 +192,7 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
                   ))}
                 </tbody>
               </table>
+              <p className="board-foot">승률 = 승 ÷ (승+패) · 차 = 1위와의 게임차</p>
             </>
           )}
         </div>

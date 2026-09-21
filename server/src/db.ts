@@ -4,7 +4,7 @@ import pg from 'pg';
 import { logger } from './logger.js';
 import { rankWriteErrors } from './metrics.js';
 import { TEAMS } from './teams.js';
-import { winPct, gamesBehind, type MatchRow } from './ranking.js';
+import { winPct, gamesBehind, tieRanks, type MatchRow } from './ranking.js';
 import type { TeamSoloRow, PlayerRow, VersusRow, Leaderboard } from './types.js';
 
 let pool: pg.Pool | null = null;
@@ -88,6 +88,27 @@ async function upsertPlayer(c: pg.PoolClient | pg.Pool, id: string, nick: string
      ON CONFLICT (id) DO UPDATE SET nick = EXCLUDED.nick, team = EXCLUDED.team, updated_at = now()`,
     [id, nick, team],
   );
+}
+
+/**
+ * 닉네임·구단만 갱신(랭킹전 시작 때). 기록은 판이 끝나야 남기 때문에, 이게 없으면
+ * 닉네임을 바꿔도 순위표에는 '다음 판을 끝낼 때까지' 옛 이름이 뜬다.
+ * 실제로 바뀐 게 있을 때만 캐시를 버린다(시작마다 무효화하면 30초 캐시가 무의미).
+ */
+export async function touchPlayer(playerId: string, nick: string, team: string): Promise<void> {
+  if (!pool) return;
+  try {
+    const r = await pool.query(
+      `INSERT INTO players (id, nick, team) VALUES ($1, $2, $3)
+       ON CONFLICT (id) DO UPDATE SET nick = EXCLUDED.nick, team = EXCLUDED.team, updated_at = now()
+       WHERE players.nick IS DISTINCT FROM EXCLUDED.nick OR players.team IS DISTINCT FROM EXCLUDED.team`,
+      [playerId, nick, team],
+    );
+    if (r.rowCount) invalidate();
+  } catch (err) {
+    rankWriteErrors.inc({ kind: 'player' });
+    logger.error({ err }, 'player 갱신 실패');
+  }
 }
 
 export interface SoloRecord {
@@ -201,8 +222,10 @@ export async function topPlayers(): Promise<PlayerRow[]> {
        GROUP BY s.player_id, p.nick, p.team
        ORDER BY points DESC, games ASC LIMIT 50`,
     );
+    // 동점이면 같은 순위(1, 1, 3…) — myRank(나보다 점수 높은 사람 수 + 1)와 같은 기준.
+    const ranks = tieRanks(r.rows, (row) => Number(row.points));
     return r.rows.map((row, i) => ({
-      rank: i + 1,
+      rank: ranks[i],
       nick: row.nick,
       team: row.team,
       points: Number(row.points),

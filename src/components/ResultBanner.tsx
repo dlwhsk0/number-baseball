@@ -74,11 +74,6 @@ export function ResultBanner({
                 <TeamChip team={ranked.team} /> 누적 {ranked.teamPoints.toLocaleString('ko-KR')}점 ·{' '}
                 {ranked.teamRank}위
               </span>
-              {ranked.total != null && (
-                <span className="ranked-line ranked-mine">
-                  내 누적 {ranked.total.toLocaleString('ko-KR')}점 · {ranked.rank}위
-                </span>
-              )}
             </>
           ) : (
             <span className="ranked-line ranked-mine">기록을 저장하지 못했어요</span>

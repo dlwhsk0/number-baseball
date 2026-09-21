@@ -524,6 +524,56 @@
 .solo-reveal .reveal-card {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
 }
+/* 서버 판정 대기(랭킹전) — 결과 카드와 같은 자리에 뜨지만 사라지지 않는다(응답 오면 교체). */
+.solo-reveal.waiting {
+  animation: none;
+}
+.reveal-card.pending {
+  border-color: color-mix(in srgb, var(--led) 30%, var(--border));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.reveal-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.pending-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.pending-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
+  animation: pending-blink 1s ease-in-out infinite;
+}
+.pending-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.pending-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes pending-blink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pending-dots i {
+    animation: none;
+    opacity: 0.6;
+  }
+}
 @keyframes solo-reveal-out {
   0%,
   72% {
@@ -3589,7 +3639,8 @@
   max-width: 76px;
   height: 56px;
   object-fit: contain;
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+  --ring-w: 1.5px;
+  --logo-shadow: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
 }
 .sp-intro-nologo {
   display: grid;
@@ -3657,7 +3708,8 @@
   height: clamp(52px, 15vw, 74px);
   object-fit: contain;
   margin-bottom: 2px;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.55))
+  --ring-w: 2px;
+  --logo-shadow: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.55))
     drop-shadow(0 0 14px color-mix(in srgb, var(--team-c) 45%, transparent));
   animation: vs-logo-pop 0.5s 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
 }
@@ -4443,7 +4495,21 @@
   width: 2em;
   height: 2em;
   object-fit: contain;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+/* 엠블럼 외곽선 — 네이비·블랙 계열 로고(두산·롯데·KT·삼성…)가 어두운 배경·구단 테마에서
+   묻히지 않게 CSS로 얇은 테두리를 두른다(원본 PNG는 건드리지 않음).
+   0 blur가 아니라 작은 blur를 세 번 겹쳐 모서리까지 고르게 감싼다.
+   개별 로고는 --ring-w(두께)·--logo-shadow(그림자)만 바꾸면 된다. */
+.team-logo,
+.team-pick-logo,
+.vs-logo,
+.sp-intro-logo,
+.share-logo-thumb {
+  /* 기본 두께는 var() 폴백으로 — 여기서 --ring-w를 대입하면 앞에 선언된 개별 로고 값(1.5px·2px)을 덮는다. */
+  filter: drop-shadow(0 0 var(--ring-w, 1px) var(--logo-ring))
+    drop-shadow(0 0 var(--ring-w, 1px) var(--logo-ring))
+    drop-shadow(0 0 var(--ring-w, 1px) var(--logo-ring))
+    var(--logo-shadow, drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45)));
 }
 .team-chip-name {
   font-weight: 800;
@@ -4527,7 +4593,7 @@
   width: 36px;
   height: 36px;
   object-fit: contain;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  --ring-w: 1.5px;
 }
 .team-pick-name {
   min-width: 0;
@@ -4648,7 +4714,7 @@
 }
 .kbo-me-ranks {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
 }
 .kbo-me-rank {
@@ -4682,6 +4748,8 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* 탭마다 넘침 여부가 달라 스크롤바가 생겼다 사라지면 표 폭이 흔들린다 → 자리를 늘 비워둔다. */
+  scrollbar-gutter: stable;
   margin: 0 -6px;
   padding: 0 6px 4px;
 }
@@ -4728,7 +4796,9 @@
   color: var(--muted);
   text-align: center;
 }
-.board-list > .board-row:nth-child(-n + 3) .board-rank {
+/* 가을야구 — KBO는 5위까지 포스트시즌(공동 5위 포함). 순위 칸에 .ps(동순위 반영해 컴포넌트가 붙임). */
+.board-rank.ps,
+.board-table td.ps {
   color: var(--strike);
 }
 .board-name {
@@ -4750,15 +4820,6 @@
   font-weight: 700;
   font-size: 0.88rem;
 }
-.board-bar {
-  display: block;
-  height: 4px;
-  min-width: 2px;
-  border-radius: 2px;
-  background: var(--team);
-  box-shadow: 0 0 6px var(--team);
-  transition: width 0.5s ease;
-}
 .board-num {
   font-family: var(--font-digit);
   font-weight: 800;
@@ -4773,10 +4834,17 @@
 }
 .board-table {
   width: 100%;
+  table-layout: fixed; /* 칼럼 폭은 <Cols>가 정한다 — 두 탭이 같은 격자 */
   border-collapse: separate;
   border-spacing: 0 4px;
   font-family: var(--font-digit);
   font-size: 0.82rem;
+}
+.board-table .col-rank {
+  width: 11%;
+}
+.board-table .col-team {
+  width: 17%;
 }
 .board-table th {
   font-family: inherit;
@@ -4787,7 +4855,8 @@
   text-align: center;
 }
 .board-table td {
-  padding: 7px 4px;
+  padding: 7px 2px; /* 좁은 폰에서도 '12,345' 같은 누적 점수가 칸에 들어가게 */
+  font-variant-numeric: tabular-nums;
   text-align: center;
   background: var(--cell);
   border-top: 1px solid var(--border);
@@ -4802,6 +4871,16 @@
 .board-table td:last-child {
   border-right: 1px solid var(--border);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+.board-table td.board-strong {
+  font-weight: 800;
+  color: var(--led);
+}
+.board-foot {
+  margin: 6px 0 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: center;
 }
 .board-table tr.me td {
   border-color: var(--accent);

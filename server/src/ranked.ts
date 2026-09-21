@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { generateSecret, isValidGuess, judge, isWin } from './logic.js';
 import { RANKED_MAX_ATTEMPTS, soloPoints } from './ranking.js';
 import { isTeamId } from './teams.js';
-import { recordSolo, soloCountLastDay, teamSolo, myRank, dbEnabled } from './db.js';
+import { recordSolo, soloCountLastDay, teamSolo, myRank, dbEnabled, touchPlayer } from './db.js';
 import { rankedGames } from './metrics.js';
 import { logger } from './logger.js';
 import type { GuessRecord, RankedStartAck, RankedGuessAck, RankedResult } from './types.js';
@@ -180,6 +180,7 @@ async function startLocked(p: {
     if (!p.forfeit && cur.digits === digits) {
       cur.nick = p.nick;
       cur.lastAt = Date.now();
+      void touchPlayer(playerId, p.nick, p.team);
       return {
         ok: true,
         gameId: cur.id,
@@ -210,6 +211,9 @@ async function startLocked(p: {
   };
   byPlayer.set(playerId, g);
   byId.set(g.id, g);
+  // 닉네임·구단 갱신 — 바꾼 이름이 판을 끝내기 전에 순위표에 뜨게. 시작이 성공한 경우에만
+  // (한도에 걸려 거절된 요청이 프로필을 바꾸거나 순위 캐시를 비우지 않게). 판정과 무관해 기다리지 않는다.
+  void touchPlayer(playerId, p.nick, p.team);
   // IP 자체는 안 남기고, 프록시 뒤에서 실제 공인 IP가 보이는지만(IP 상한이 동작하는지 확인용).
   logger.info({ digits, ipPublic: !!p.ip && isPublicIp(p.ip) }, 'ranked start');
   return { ok: true, gameId: g.id, digits, maxAttempts: RANKED_MAX_ATTEMPTS, guesses: [] };
