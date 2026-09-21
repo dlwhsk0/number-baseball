@@ -61,3 +61,15 @@ export function winPct(w: number, l: number): number {
 export function gamesBehind(leader: { w: number; l: number }, t: { w: number; l: number }): number {
   return (leader.w - t.w + (t.l - leader.l)) / 2;
 }
+
+/**
+ * 동률 순위(1, 1, 3…) — KBO 순위표처럼 기준값이 같으면 같은 순위, 다음 순위는 그만큼 건너뛴다.
+ * rows는 기준값 내림차순으로 이미 정렬돼 있어야 한다.
+ */
+export function tieRanks<T>(rows: readonly T[], key: (row: T) => number): number[] {
+  const ranks: number[] = [];
+  rows.forEach((row, i) => {
+    ranks.push(i > 0 && key(rows[i - 1]) === key(row) ? ranks[i - 1] : i + 1);
+  });
+  return ranks;
+}

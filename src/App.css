@@ -4817,7 +4817,9 @@
   color: var(--muted);
   text-align: center;
 }
-.board-list > .board-row:nth-child(-n + 3) .board-rank {
+/* 가을야구 — KBO는 5위까지 포스트시즌(공동 5위 포함). 순위 칸에 .ps(동순위 반영해 컴포넌트가 붙임). */
+.board-rank.ps,
+.board-table td.ps {
   color: var(--strike);
 }
 .board-name {

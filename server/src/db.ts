@@ -4,7 +4,7 @@ import pg from 'pg';
 import { logger } from './logger.js';
 import { rankWriteErrors } from './metrics.js';
 import { TEAMS } from './teams.js';
-import { winPct, gamesBehind, type MatchRow } from './ranking.js';
+import { winPct, gamesBehind, tieRanks, type MatchRow } from './ranking.js';
 import type { TeamSoloRow, PlayerRow, VersusRow, Leaderboard } from './types.js';
 
 let pool: pg.Pool | null = null;
@@ -222,8 +222,10 @@ export async function topPlayers(): Promise<PlayerRow[]> {
        GROUP BY s.player_id, p.nick, p.team
        ORDER BY points DESC, games ASC LIMIT 50`,
     );
+    // 동점이면 같은 순위(1, 1, 3…) — myRank(나보다 점수 높은 사람 수 + 1)와 같은 기준.
+    const ranks = tieRanks(r.rows, (row) => Number(row.points));
     return r.rows.map((row, i) => ({
-      rank: i + 1,
+      rank: ranks[i],
       nick: row.nick,
       team: row.team,
       points: Number(row.points),

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { soloPoints, pairMatches, winPct, gamesBehind } from './ranking';
+import { soloPoints, pairMatches, winPct, gamesBehind, tieRanks } from './ranking';
 
 describe('soloPoints — 적게 시도할수록 높은 점수', () => {
   it('1회=15점 … 15회=1점', () => {
@@ -45,5 +45,21 @@ describe('승률·게임차', () => {
   });
   it('게임차 = ((1위승-승)+(패-1위패))/2', () => {
     expect(gamesBehind({ w: 10, l: 5 }, { w: 8, l: 6 })).toBe(1.5);
+  });
+});
+
+describe('tieRanks — 동순위', () => {
+  const id = (n: number) => n;
+  it('동점이면 같은 순위, 다음은 건너뛴다(1,1,3)', () => {
+    expect(tieRanks([30, 30, 20, 10, 10, 10, 5], id)).toEqual([1, 1, 3, 4, 4, 4, 7]);
+  });
+  it('동률 없으면 1..n', () => {
+    expect(tieRanks([3, 2, 1], id)).toEqual([1, 2, 3]);
+  });
+  it('승률은 기록이 달라도 같은 값이면 공동(1/2 = 2/4)', () => {
+    expect(tieRanks([winPct(2, 2), winPct(1, 1)], id)).toEqual([1, 1]);
+  });
+  it('빈 목록', () => {
+    expect(tieRanks([], id)).toEqual([]);
   });
 });
