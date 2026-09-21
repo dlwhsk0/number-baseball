@@ -4798,7 +4798,8 @@
 }
 /* 가을야구 — KBO는 5위까지 포스트시즌(공동 5위 포함). 순위 칸에 .ps(동순위 반영해 컴포넌트가 붙임). */
 .board-rank.ps,
-.board-table td.ps {
+/* tbody까지 — '.board-table td:first-child'(회색)와 우선순위가 같으면 뒤에 선언된 회색이 이긴다. */
+.board-table tbody td.ps {
   color: var(--strike);
 }
 .board-name {
