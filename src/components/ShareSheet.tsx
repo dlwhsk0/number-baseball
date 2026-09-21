@@ -39,6 +39,7 @@ type Files = Record<CardFormat, { file: File; url: string }>;
 /**
  * 솔로 기록 공유 시트 — 아이폰 공유 시트처럼 아이콘 4개:
  *  인스타(스토리 9:16 이미지 + 링크 복사) · X(문구 채운 트윗 작성창) · 이미지(게시물 4:5 저장) · 문구(복사).
+ *  인스타·X·이미지는 먼저 이미지를 무조건 다운로드한 뒤 각 공유 방법으로 넘어간다.
  */
 export function ShareSheet({ record, team, onClose }: Props) {
   const [files, setFiles] = useState<Files | null>(null);
@@ -114,33 +115,32 @@ export function ShareSheet({ record, team, onClose }: Props) {
     a.click();
   };
 
-  /** 파일 공유 시트(모바일) — 안 되면 다운로드로. 사용자가 취소하면 false. */
-  const shareFile = async (f: CardFormat): Promise<boolean> => {
-    if (!files) return false;
+  /** 파일 공유 시트(모바일) — 이미지는 이미 받아 뒀으니 지원 안 되거나 실패하면 그냥 넘어간다. */
+  const shareFile = async (f: CardFormat): Promise<void> => {
+    if (!files) return;
     const file = files[f].file;
-    if (!canShareFile(file)) {
-      download(f);
-      return true;
-    }
+    if (!canShareFile(file)) return;
     try {
       await navigator.share({ files: [file] });
-      return true;
-    } catch (e) {
-      if ((e as Error)?.name === 'AbortError') return false;
-      download(f);
-      return true;
+    } catch {
+      /* 취소·실패 — 다운로드는 이미 됐다 */
     }
   };
+
+  // 인스타·X·이미지는 누르면 무조건 이미지를 먼저 내려받고, 이어서 각자의 공유 방법으로 넘어간다.
 
   // 인스타: 스토리용 이미지. 링크 스티커는 웹에서 자동으로 못 붙이므로 링크를 같은 탭 안에서 먼저 복사.
   const onInsta = async () => {
     navigator.clipboard?.writeText(SHARE_URL).catch(() => {});
-    const done = await shareFile('story');
-    if (done) flash('링크 복사됨 — 스토리 🔗 스티커에 붙여넣기');
+    download('story');
+    flash('이미지 저장 · 링크 복사됨 — 스토리 🔗 스티커에 붙여넣기');
+    await shareFile('story');
   };
 
-  // X: 꼬들처럼 문구가 채워진 작성 창을 연다.
+  // X: 게시물 이미지를 받아 두고, 꼬들처럼 문구가 채워진 작성 창을 연다(이미지는 직접 첨부).
   const onX = () => {
+    download('post');
+    flash('이미지를 저장했어요 — 트윗에 첨부해 주세요');
     window.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
       '_blank',
@@ -148,8 +148,10 @@ export function ShareSheet({ record, team, onClose }: Props) {
     );
   };
 
-  // 이미지: 게시물(4:5) 이미지 저장 — 모바일은 공유 시트의 "이미지 저장".
+  // 이미지: 게시물(4:5) 이미지 저장 + 모바일은 공유 시트까지.
   const onImage = async () => {
+    download('post');
+    flash('이미지를 저장했어요');
     await shareFile('post');
   };
 
@@ -164,7 +166,7 @@ export function ShareSheet({ record, team, onClose }: Props) {
 
   const targets = [
     { key: 'insta', label: '인스타', icon: <InstaIcon />, onClick: onInsta, needsFile: true },
-    { key: 'x', label: 'X', icon: <XIcon />, onClick: onX, needsFile: false },
+    { key: 'x', label: 'X', icon: <XIcon />, onClick: onX, needsFile: true },
     { key: 'image', label: '이미지', icon: <ImageIcon />, onClick: onImage, needsFile: true },
     { key: 'text', label: '문구', icon: <TextIcon />, onClick: onText, needsFile: false },
   ];
