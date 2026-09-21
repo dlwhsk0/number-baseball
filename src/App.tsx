@@ -38,7 +38,7 @@ type Theme = 'dark' | 'light' | 'team';
 const OLD_HOST = 'number-baseball-chi.vercel.app';
 const NEW_ORIGIN = 'https://homerun-bb.vercel.app';
 type Launch =
-  | { conn: 'online'; gameType: GameType; action: 'create' | 'join'; code?: string }
+  | { conn: 'online'; gameType: GameType; action: 'create' | 'join' | 'random'; code?: string }
   | { conn: 'local'; gameType: GameType };
 
 // 자릿수(3/4)와 힌트(개인 기능)는 독립. 예전 'level' 저장값이 있으면 이관.
@@ -835,9 +835,29 @@ export default function App() {
                 : '서로 상대가 맞힐 숫자를 정하고, 번갈아 맞혀요. 먼저 맞히면 승리! (1:1)'}
             </p>
 
+            {/* 랜덤 매치 — 주고받기(1:1)만. 같은 자릿수의 모르는 상대와 자동 매칭. */}
+            {gameType === 'duel' && (
+              <button
+                type="button"
+                className={`versus-primary${online ? '' : ' disabled'}`}
+                aria-disabled={!online}
+                onClick={() => {
+                  if (!online) {
+                    showNet('온라인은 네트워크 연결이 필요해요');
+                    return;
+                  }
+                  persistNick();
+                  setLaunch({ conn: 'online', gameType, action: 'random' });
+                }}
+              >
+                🎲 랜덤 매치
+              </button>
+            )}
             <button
               type="button"
-              className={`versus-primary${online ? '' : ' disabled'}`}
+              className={`${gameType === 'duel' ? 'versus-secondary' : 'versus-primary'}${
+                online ? '' : ' disabled'
+              }`}
               aria-disabled={!online}
               onClick={() => {
                 if (!online) {
@@ -900,7 +920,7 @@ export default function App() {
         </div>
       ) : launch.conn === 'online' && launch.gameType === 'speed' ? (
         <OnlineSpeed
-          entry={{ action: launch.action, nick: mNick, digits: mDigits, code: launch.code }}
+          entry={{ action: launch.action === 'join' ? 'join' : 'create', nick: mNick, digits: mDigits, code: launch.code }}
           onExit={() => setLaunch(null)}
           onActiveChange={setOnlineActive}
         />

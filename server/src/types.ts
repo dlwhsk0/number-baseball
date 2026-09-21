@@ -66,6 +66,21 @@ export interface OkAck {
   /** guess 성공 시 서버 판정(추측한 본인에게만). */
   judgement?: Judgement;
 }
+/** 랜덤 매치 대기열 등록 결과. 매칭되면 별도 `matched` 이벤트가 온다. */
+export interface QueueAck {
+  ok: boolean;
+  error?: string;
+}
+/** 랜덤 매치 성사 — 서버가 방을 만들어 둘을 넣었다(이후 흐름은 코드 방과 같음). */
+export interface MatchedInfo {
+  code: string;
+  /** 0=선공(먼저 기다린 쪽), 1=후공. */
+  index: 0 | 1;
+  token: string;
+  digits: number;
+  opponentNick: string;
+  opponentTeam: string | null;
+}
 /** 코드로 방의 종류만 미리 조회(입장 전, 부수효과 없음). */
 export interface PeekAck {
   ok: boolean;
@@ -218,6 +233,10 @@ export interface ClientToServerEvents {
   rankedGuess: (p: { gameId: string; guess: string }, ack: (r: RankedGuessAck) => void) => void;
   /** 순위표 조회(구단 솔로·개인·구단 대결). */
   leaderboard: (p: { playerId?: string }, ack: (r: LeaderboardAck) => void) => void;
+  /** 턴제 랜덤 매치 대기열 등록(같은 자릿수끼리). 취소는 cancelQueue(또는 leave). */
+  queue: (p: { nick: string; digits: number } & FanIdentity, ack: (r: QueueAck) => void) => void;
+  /** 대기열에서만 빠진다 — 이미 성사된 방은 건드리지 않음(시간 초과와 성사가 겹칠 때 안전). */
+  cancelQueue: () => void;
   /** 입장 전 방 종류만 조회(스피드/턴제 자동 판별용). */
   peek: (p: { code: string }, ack: (r: PeekAck) => void) => void;
   setSecret: (p: { secret: string }, ack: (r: OkAck) => void) => void;
@@ -241,6 +260,8 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   // --- 턴제(duel) ---
   opponentJoined: (p: { nick: string; team: string | null }) => void;
+  /** 랜덤 매치 성사(직후 phase 이벤트로 비밀 정하기 시작). */
+  matched: (p: MatchedInfo) => void;
   phase: (p: { phase: 'secret'; digits: number }) => void;
   secretProgress: (p: { ready: boolean[] }) => void;
   start: (p: { turn: 0 | 1; digits: number }) => void;
@@ -286,5 +307,7 @@ export interface ServerToClientEvents {
 
 export interface SocketData {
   code?: string;
+  /** 랜덤 매치 대기 중인 자릿수. */
+  queued?: number;
   index?: number;
 }
