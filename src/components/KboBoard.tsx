@@ -14,6 +14,24 @@ const TABS: { id: Tab; label: string }[] = [
 
 const fmt = (n: number) => n.toLocaleString('ko-KR');
 const pct = (p: number) => p.toFixed(3).replace(/^0/, '');
+/**
+ * 두 표([솔로]·[대결]) 공용 칼럼 폭 — 순위·구단 고정 + 숫자 5칸 균등(table-layout: fixed).
+ * 표마다 내용에 맞춰 폭이 잡히면 탭을 오갈 때 칼럼이 들썩여 깜빡이는 것처럼 보인다.
+ */
+function Cols() {
+  return (
+    <colgroup>
+      <col className="col-rank" />
+      <col className="col-team" />
+      <col />
+      <col />
+      <col />
+      <col />
+      <col />
+    </colgroup>
+  );
+}
+
 /** 가을야구 — KBO는 5위까지 포스트시즌(공동 5위 포함). */
 const POSTSEASON = 5;
 
@@ -107,6 +125,7 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
               <p className="board-caption">솔로 랭킹전 누적 점수 · 적게 시도할수록 높은 점수</p>
               {/* KBO 팀 순위표처럼 숫자로 — 막대는 구단 테마 색과 겹쳐 오히려 안 읽혔다. */}
               <table className="board-table">
+                <Cols />
                 <thead>
                   <tr>
                     <th>순위</th>
@@ -143,6 +162,7 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
             <>
               <p className="board-caption">온라인 대전 구단 간 승패 · 다른 구단 팬을 이기면 1승</p>
               <table className="board-table">
+                <Cols />
                 <thead>
                   <tr>
                     <th>순위</th>
@@ -172,6 +192,7 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
                   ))}
                 </tbody>
               </table>
+              <p className="board-foot">승률 = 승 ÷ (승+패) · 차 = 1위와의 게임차</p>
             </>
           )}
         </div>

@@ -4748,6 +4748,8 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* 탭마다 넘침 여부가 달라 스크롤바가 생겼다 사라지면 표 폭이 흔들린다 → 자리를 늘 비워둔다. */
+  scrollbar-gutter: stable;
   margin: 0 -6px;
   padding: 0 6px 4px;
 }
@@ -4832,10 +4834,17 @@
 }
 .board-table {
   width: 100%;
+  table-layout: fixed; /* 칼럼 폭은 <Cols>가 정한다 — 두 탭이 같은 격자 */
   border-collapse: separate;
   border-spacing: 0 4px;
   font-family: var(--font-digit);
   font-size: 0.82rem;
+}
+.board-table .col-rank {
+  width: 11%;
+}
+.board-table .col-team {
+  width: 17%;
 }
 .board-table th {
   font-family: inherit;
@@ -4846,7 +4855,8 @@
   text-align: center;
 }
 .board-table td {
-  padding: 7px 4px;
+  padding: 7px 2px; /* 좁은 폰에서도 '12,345' 같은 누적 점수가 칸에 들어가게 */
+  font-variant-numeric: tabular-nums;
   text-align: center;
   background: var(--cell);
   border-top: 1px solid var(--border);
