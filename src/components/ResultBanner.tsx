@@ -1,4 +1,5 @@
 import type { GameStatus, GuessRecord } from '../game/useGame';
+import { PLACEMENT_GAMES } from '../game/ranking';
 import { History } from './History';
 import { Seg7 } from './Seg7';
 import { TeamChip } from './TeamChip';
@@ -74,6 +75,14 @@ export function ResultBanner({
                 <TeamChip team={ranked.team} /> 누적 {ranked.teamPoints.toLocaleString('ko-KR')}점 ·{' '}
                 {ranked.teamRank}위
               </span>
+              {/* 개인 — 배치고사 중이면 진행도, 끝났으면 평균·순위(평균 점수 기준). */}
+              {ranked.games != null && ranked.avg != null && (
+                <span className="ranked-line ranked-mine">
+                  {ranked.rank != null
+                    ? `내 평균 ${ranked.avg.toFixed(2)}점 · ${ranked.rank}위`
+                    : `배치고사 ${Math.min(ranked.games, PLACEMENT_GAMES)}/${PLACEMENT_GAMES}판`}
+                </span>
+              )}
             </>
           ) : (
             <span className="ranked-line ranked-mine">기록을 저장하지 못했어요</span>

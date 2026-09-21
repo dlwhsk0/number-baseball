@@ -128,11 +128,17 @@ export interface TeamSoloRow {
 }
 /** 개인 솔로 누적 순위 한 줄. */
 export interface PlayerRow {
-  rank: number;
+  /** 평균 점수 순위(동순위). 배치고사 중(games < PLACEMENT_GAMES)이면 null. */
+  rank: number | null;
   nick: string;
   team: string;
+  /** 누적 점수. */
   points: number;
   games: number;
+  /** 한 판 평균 점수(소수 둘째 자리, 실패 0점 포함) — 개인 순위 기준. */
+  avg: number;
+  /** 바로 위 순위의 평균(내 행에만 — 1위·배치 중이면 null). '다음 순위까지 +x점'. */
+  aboveAvg?: number | null;
   /** 요청한 본인인지. */
   me: boolean;
   /** 서버 내부용(클라로는 안 보냄). */
@@ -174,9 +180,13 @@ export interface RankedResult {
   points: number;
   /** DB 기록 성공 여부(실패해도 게임 결과는 유효). */
   recorded: boolean;
-  /** 내 개인 누적 점수·순위. */
+  /** 내 누적 점수(옛 클라 호환용). */
   total: number | null;
+  /** 내 개인 순위(평균 기준, 배치고사 중이면 null). */
   rank: number | null;
+  /** 내 한 판 평균 점수·판 수(배치 진행도). */
+  avg?: number | null;
+  games?: number | null;
   team: string;
   teamPoints: number;
   teamRank: number;

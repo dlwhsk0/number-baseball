@@ -4,7 +4,7 @@ import pg from 'pg';
 import { logger } from './logger.js';
 import { rankWriteErrors } from './metrics.js';
 import { TEAMS } from './teams.js';
-import { winPct, gamesBehind, tieRanks, type MatchRow } from './ranking.js';
+import { winPct, gamesBehind, tieRanks, PLACEMENT_GAMES, type MatchRow } from './ranking.js';
 import type { TeamSoloRow, PlayerRow, VersusRow, Leaderboard } from './types.js';
 
 let pool: pg.Pool | null = null;
@@ -216,44 +216,72 @@ export async function teamSolo(): Promise<TeamSoloRow[]> {
 
 export async function topPlayers(): Promise<PlayerRow[]> {
   return cached('player', async () => {
-    const r = await pool!.query<{ id: string; nick: string; team: string; points: string; games: string }>(
-      `SELECT s.player_id AS id, p.nick, p.team, SUM(s.points) AS points, COUNT(*) AS games
+    // 개인 순위 = 한 판 평균 점수(배치 PLACEMENT_GAMES판 이상만). 평균은 소수 둘째 자리로 반올림해
+    // 비교한다 — myRank와 같은 값으로 순위를 매겨야 목록과 '내 순위'가 어긋나지 않는다.
+    const r = await pool!.query<{
+      id: string;
+      nick: string;
+      team: string;
+      points: string;
+      games: string;
+      avg: string;
+    }>(
+      `SELECT s.player_id AS id, p.nick, p.team, SUM(s.points) AS points, COUNT(*) AS games,
+              ROUND(AVG(s.points)::numeric, 2) AS avg
        FROM solo_games s JOIN players p ON p.id = s.player_id
        GROUP BY s.player_id, p.nick, p.team
-       ORDER BY points DESC, games ASC LIMIT 50`,
+       HAVING COUNT(*) >= $1
+       ORDER BY avg DESC, games DESC LIMIT 50`,
+      [PLACEMENT_GAMES],
     );
-    // 동점이면 같은 순위(1, 1, 3…) — myRank(나보다 점수 높은 사람 수 + 1)와 같은 기준.
-    const ranks = tieRanks(r.rows, (row) => Number(row.points));
+    // 평균이 같으면 같은 순위(1, 1, 3…).
+    const ranks = tieRanks(r.rows, (row) => Number(row.avg));
     return r.rows.map((row, i) => ({
       rank: ranks[i],
       nick: row.nick,
       team: row.team,
       points: Number(row.points),
       games: Number(row.games),
+      avg: Number(row.avg),
       me: false,
       playerId: row.id,
     }));
   });
 }
 
-/** 내 개인 누적 점수·순위(없으면 null). 캐시 안 함(방금 판 결과가 바로 보이게). */
+/** 내 개인 기록·순위(판이 없으면 null). 캐시 안 함(방금 판 결과가 바로 보이게). 배치고사 중이면 rank=null. */
 export async function myRank(playerId: string): Promise<PlayerRow | null> {
   if (!pool) return null;
-  const r = await pool.query<{ nick: string; team: string; points: string; games: string; rank: string }>(
-    `WITH t AS (SELECT player_id, SUM(points) AS pts, COUNT(*) AS games FROM solo_games GROUP BY player_id)
-     SELECT p.nick, p.team, t.pts AS points, t.games,
-            (SELECT COUNT(*) + 1 FROM t t2 WHERE t2.pts > t.pts) AS rank
+  const r = await pool.query<{
+    nick: string;
+    team: string;
+    points: string;
+    games: string;
+    avg: string;
+    rank: string;
+    above_avg: string | null;
+  }>(
+    `WITH t AS (SELECT player_id, SUM(points) AS pts, COUNT(*) AS games,
+                       ROUND(AVG(points)::numeric, 2) AS avg
+                FROM solo_games GROUP BY player_id),
+          q AS (SELECT avg FROM t WHERE games >= $2)
+     SELECT p.nick, p.team, t.pts AS points, t.games, t.avg,
+            (SELECT COUNT(*) + 1 FROM q WHERE q.avg > t.avg) AS rank,
+            (SELECT MIN(q.avg) FROM q WHERE q.avg > t.avg) AS above_avg
      FROM t JOIN players p ON p.id = t.player_id WHERE t.player_id = $1`,
-    [playerId],
+    [playerId, PLACEMENT_GAMES],
   );
   const row = r.rows[0];
   if (!row) return null;
+  const placed = Number(row.games) >= PLACEMENT_GAMES;
   return {
-    rank: Number(row.rank),
+    rank: placed ? Number(row.rank) : null,
     nick: row.nick,
     team: row.team,
     points: Number(row.points),
     games: Number(row.games),
+    avg: Number(row.avg),
+    aboveAvg: placed && row.above_avg != null ? Number(row.above_avg) : null,
     me: true,
   };
 }
