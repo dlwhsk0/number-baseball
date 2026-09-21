@@ -34,13 +34,6 @@
   --out: #ff5a52;
   --bulb-off: #2b3348;
 
-  /* KBO 공식 CI 전용색(koreabaseball.com > ABOUT KBO > KBO 로고 > Color System).
-     KBO 탭(팬 랭킹)의 포인트색 — 구단 테마가 뭐든 이 색으로 통일한다. */
-  --kbo-blue: #002561; /* KBO Blue · PANTONE 3581C · R0 G37 B97 */
-  --kbo-light: #00aeef; /* KBO Light Blue · PANTONE 2194C · R0 G174 B239 */
-  --kbo-red: #ed1c24; /* KBO Red · PANTONE 485C · R237 G28 B36 */
-  --kbo-silver: #bcbec0; /* Sub · PANTONE 877C */
-  --kbo-gold: #b3a177; /* Sub · PANTONE 871C */
   /* 구단 엠블럼 테두리 — 네이비·블랙 계열 로고(두산·롯데·KT…)가 어두운 배경에 묻히지 않게. */
   --logo-ring: rgba(255, 255, 255, 0.92);
 

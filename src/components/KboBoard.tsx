@@ -1,7 +1,6 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { fetchLeaderboard } from '../net/ranked';
 import { getPlayerId } from '../net/fan';
-import { teamById } from '../game/teams';
 import type { Leaderboard as Board } from '../net/protocol';
 import { TeamChip } from './TeamChip';
 
@@ -42,7 +41,6 @@ export function KboBoard({ myTeam, nick, onPickTeam }: Props) {
     };
   }, []);
 
-  const maxTeamPts = Math.max(1, ...(data?.team.map((t) => t.points) ?? [1]));
   // 내 구단의 현재 순위(솔로 누적·구단 대결) — 맨 위 카드에 요약.
   const soloIdx = data?.team.findIndex((t) => t.team === myTeam) ?? -1;
   // 아직 판이 없는 구단은 순위를 매기지 않는다(0점 동점 정렬 순서일 뿐).
@@ -115,33 +113,37 @@ export function KboBoard({ myTeam, nick, onPickTeam }: Props) {
           ) : tab === 'team' ? (
             <>
               <p className="board-caption">솔로 랭킹전 누적 점수 · 적게 시도할수록 높은 점수</p>
-              <ol className="board-list">
-                {data.team.map((t, i) => (
-                  <li
-                    key={t.team}
-                    className={`board-row${t.team === myTeam ? ' me' : ''}`}
-                    // 막대 색은 color(대표색)가 아니라 accent(다크에서 선명한 구단색).
-                    style={{ '--team': teamById(t.team)?.accent } as CSSProperties}
-                  >
-                    <span className="board-rank">{i + 1}</span>
-                    <span className="board-name">
-                      <TeamChip team={t.team} />
-                      {t.points > 0 && (
-                        <span className="board-track">
-                          <span
-                            className="board-bar"
-                            style={{ width: `${(t.points / maxTeamPts) * 100}%` }}
-                          />
-                        </span>
-                      )}
-                    </span>
-                    <span className="board-num">{fmt(t.points)}</span>
-                    <span className="board-sub">
-                      {t.fans}명 · {t.games}판
-                    </span>
-                  </li>
-                ))}
-              </ol>
+              {/* KBO 팀 순위표처럼 숫자로 — 막대는 구단 테마 색과 겹쳐 오히려 안 읽혔다. */}
+              <table className="board-table">
+                <thead>
+                  <tr>
+                    <th>순위</th>
+                    <th>구단</th>
+                    <th>점수</th>
+                    <th>판</th>
+                    <th>성공</th>
+                    <th>평균</th>
+                    <th>팬</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.team.map((t, i) => (
+                    <tr key={t.team} className={t.team === myTeam ? 'me' : ''}>
+                      {/* 판이 없는 구단은 0점 동점 정렬일 뿐이라 순위를 매기지 않는다. */}
+                      <td>{t.games > 0 ? i + 1 : '-'}</td>
+                      <td>
+                        <TeamChip team={t.team} />
+                      </td>
+                      <td className="board-strong">{fmt(t.points)}</td>
+                      <td>{t.games}</td>
+                      <td>{t.wins}</td>
+                      <td>{t.avgAttempts != null ? t.avgAttempts.toFixed(1) : '-'}</td>
+                      <td>{t.fans}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="board-foot">성공 = 맞힌 판 · 평균 = 맞힌 판의 평균 시도</p>
             </>
           ) : tab === 'player' ? (
             <>
