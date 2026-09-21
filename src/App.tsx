@@ -746,7 +746,7 @@ export default function App() {
       )}
         </>
       ) : section === 'kbo' ? (
-        <KboBoard myTeam={team} nick={mNick.trim()} onPickTeam={() => setPicker({})} />
+        <KboBoard myTeam={team} onPickTeam={() => setPicker({})} />
       ) : launch === null ? (
         <div className="versus versus-center">
           <div className="online-menu-card">

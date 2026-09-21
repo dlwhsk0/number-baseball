@@ -71,10 +71,6 @@ export function TeamPicker({ nick, team, message, intro = false, onSave, onClose
             onChange={(e) => setName(e.target.value)}
           />
         </label>
-        {/* 비워두면 placeholder 그대로 '플레이어'로 기록된다 — 순위표에서 남 이름처럼 보이는 걸 막는 안내. */}
-        <p className="fan-nick-hint">
-          {name.trim() ? '개인 순위에 이 이름으로 올라가요.' : "비워두면 '플레이어'로 올라가요."}
-        </p>
 
         <div className="team-grid" role="radiogroup" aria-label="구단">
           {TEAMS.map((t) => (

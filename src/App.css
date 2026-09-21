@@ -4712,32 +4712,9 @@
   font-size: 0.74rem;
   color: var(--muted);
 }
-.fan-nick-hint {
-  margin: -4px 2px 0;
-  text-align: right;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-.kbo-me-nickrow {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 0 2px;
-}
-.kbo-me-nick {
-  font-weight: 800;
-  font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.kbo-me-nick.none {
-  font-weight: 600;
-  color: var(--muted);
-}
 .kbo-me-ranks {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
 }
 .kbo-me-rank {
