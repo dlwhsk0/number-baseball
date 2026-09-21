@@ -47,7 +47,8 @@
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
 - **KBO 팬 랭킹**(구단 대항전): 팬이 응원 구단(KBO 10개 구단, `src/game/teams.ts` ↔ `server/src/teams.ts` 복제)을 달고 경쟁.
   신원은 로그인 없이 **익명 기기 id**(`localStorage.nb_player_id` uuid, 형식 깨지면 재발급) + `nb_team` + 닉네임 `nb_nick`(`src/net/fan.ts`). 구단 선택은 `TeamPicker`(닉네임+10구단 시트).
-  **구단 표시는 이름이 아니라 공식 엠블럼**(`TeamChip` — 투명 배경 로고 그대로, `withName`이면 옆에 구단명). 로고는 `public/teams/<id>.png`(각 구단 공식 홈페이지 CI/BI 자료, 최대 256px — 다크 배경에서 묻히는 KIA는 흰 외곽선 SVG판, 롯데는 원 안을 채운 판).
+  **구단 표시는 이름이 아니라 공식 엠블럼**(`TeamChip` — 투명 배경 로고 그대로, `withName`이면 옆에 구단명).
+  로고는 CSS로 **흰 테두리**를 두른다(`--logo-ring` + `--ring-w`, `drop-shadow` 3겹 — 두산·롯데·KT처럼 짙은 로고가 어두운 배경에 묻히는 문제. 라이트 테마는 옅은 검정 테두리). 로고는 `public/teams/<id>.png`(각 구단 공식 홈페이지 CI/BI 자료, 최대 256px — 다크 배경에서 묻히는 KIA는 흰 외곽선 SVG판, 롯데는 원 안을 채운 판).
   헤더 KBO 탭 라벨은 **KBO 공식 로고**(`public/kbo-logo.png`, koreabaseball.com 로고 페이지의 AI 자료 가로조합을 흰 단색으로) — CSS `mask`로 써서 세그먼트 글자색을 따른다.
   - **솔로 랭킹전**: **응원 구단이 있으면 솔로는 기본이 랭킹전**(토글 없음 — `ranked = team !== null && !rankedOff`). 시작 실패(오프라인·하루 한도)면 그 실행 동안만 연습(`rankedOff`). 켜짐 전환(앱 시작·구단 첫 선택)은 `prevRankedRef` 효과가 처리.
     **첫 방문 온보딩**: 인트로·튜토리얼 뒤 구단이 없으면 1회 `TeamPicker intro`(KBO 로고 + 구단 대항전 소개 3줄 + 구단 선택, '나중에 할게요', `localStorage.nb_fan_intro`). 튜토리얼 마지막 단계에도 대항전 안내.
@@ -60,6 +61,9 @@
   - **멀티 구단 대결**: 온라인 `create`/`join`에 `playerId`·`team` 동봉 → 판이 끝나면 **구단이 다른 참가자 쌍마다** 승/패/무 기록(`pairMatches`).
     주고받기=승자 vs 패자, 스피드=최종 순위 상위가 승(둘 다 미해결=무). 주고받기 **VS 매치업 카드엔 양쪽 구단 엠블럼 + 구단색(`Team.accent`) 테두리·발광**(`VsSide`). 같은 구단·구단 없음·같은 기기·추측 0회·중도 이탈은 제외. 로컬(패스앤플레이)은 기록 안 함. 로비·순위·VS 연출에 구단 칩.
   - **KBO 탭**(헤더 세그먼트 `section='kbo'`, `src/components/KboBoard.tsx` — 모달 아님, 인라인 화면·안쪽만 스크롤): 상단 **내 응원 구단 카드**(탭하면 구단 변경 — 설정 시트엔 구단 항목 없음, KBO 탭이 구단 변경의 기본 위치) — 구단 순위(솔로 누적, 판 없으면 -)·구단 대결 순위(승패무)·내 개인 순위 요약 + [구단](솔로 누적 합계) · [개인](누적 TOP50 + 내 순위) · [구단 대결](KBO식 승·패·무·승률·게임차).
+    **포인트색은 KBO 공식 CI로 통일**(`.kbo-view`에서 `--accent`를 덮어씀 — 구단 테마의 구단색과 순위 막대가 뒤섞여 안 보이던 문제).
+    토큰 `--kbo-blue #002561`·`--kbo-light #00aeef`·`--kbo-red #ed1c24`·`--kbo-silver`·`--kbo-gold`(koreabaseball.com > ABOUT KBO > KBO 로고 > Color System). 구단 순위 막대는 트랙(`.board-track`) 위에 `Team.accent`로.
+    닉네임은 KBO 탭 내 카드에 노출(비어 있으면 서버가 '플레이어'로 기록 — `TeamPicker`에서 변경, 랭킹전 시작 때 `touchPlayer`로 즉시 반영).
     이벤트 `leaderboard`, 서버 30초 캐시(기록 시 무효화 — 세대 번호로 조회 중 기록된 옛 결과는 캐시 안 함). 솔로 랭킹전 결과의 [순위 보기]는 KBO 탭으로 이동.
     구단 대결 기록은 한 판의 쌍들을 한 트랜잭션으로.
   - **저장소 = Postgres**(`server/src/db.ts`, env `DATABASE_URL`, 시작 시 `CREATE TABLE IF NOT EXISTS` — `players`/`solo_games`/`match_results`). **없으면 랭킹만 비활성**(대전 정상). Dokploy 설정은 `docs/dokploy-deploy.md` §5-B.

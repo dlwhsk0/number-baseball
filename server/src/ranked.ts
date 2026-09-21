@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { generateSecret, isValidGuess, judge, isWin } from './logic.js';
 import { RANKED_MAX_ATTEMPTS, soloPoints } from './ranking.js';
 import { isTeamId } from './teams.js';
-import { recordSolo, soloCountLastDay, teamSolo, myRank, dbEnabled } from './db.js';
+import { recordSolo, soloCountLastDay, teamSolo, myRank, dbEnabled, touchPlayer } from './db.js';
 import { rankedGames } from './metrics.js';
 import { logger } from './logger.js';
 import type { GuessRecord, RankedStartAck, RankedGuessAck, RankedResult } from './types.js';
@@ -172,6 +172,9 @@ async function startLocked(p: {
   if (!isTeamId(p.team)) return { ok: false, error: '응원 구단을 골라주세요.' };
   const playerId = p.playerId;
   const digits = p.digits === 4 ? 4 : 3;
+  // 닉네임·구단은 판을 시작할 때마다 갱신 — 바꾼 이름이 다음 판을 기다리지 않고 순위표에 뜨게.
+  // 판정과 무관하니 기다리지 않는다(시작 지연 X).
+  void touchPlayer(playerId, p.nick, p.team);
 
   const cur = byPlayer.get(playerId);
   if (cur) {

@@ -18,12 +18,14 @@ const pct = (p: number) => p.toFixed(3).replace(/^0/, '');
 interface Props {
   /** 내 응원 구단(강조 표시). */
   myTeam: string | null;
+  /** 내 닉네임(순위표에 쓰이는 이름 — 비어 있으면 서버가 '플레이어'로 기록한다). */
+  nick: string;
   /** 응원 구단 고르기/바꾸기 시트 열기. */
   onPickTeam: () => void;
 }
 
 /** KBO 탭 — 팬 순위(구단 솔로 누적 · 개인 누적 · 구단 대결). 탭에 들어올 때마다 새로 불러온다. */
-export function KboBoard({ myTeam, onPickTeam }: Props) {
+export function KboBoard({ myTeam, nick, onPickTeam }: Props) {
   const [tab, setTab] = useState<Tab>('team');
   const [data, setData] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,13 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
               <span className="kbo-me-main">
                 <TeamChip team={myTeam} withName />
                 <span className="kbo-me-edit">변경</span>
+              </span>
+              {/* 순위표에 뜨는 이름 — 안 정하면 '플레이어'로 나간다는 걸 여기서 바로 보여준다. */}
+              <span className="kbo-me-nickrow">
+                <span className="kbo-me-label">닉네임</span>
+                <span className={`kbo-me-nick${nick ? '' : ' none'}`}>
+                  {nick || '플레이어 · 탭해서 설정'}
+                </span>
               </span>
               <span className="kbo-me-ranks">
                 <span className="kbo-me-rank">
@@ -111,13 +120,19 @@ export function KboBoard({ myTeam, onPickTeam }: Props) {
                   <li
                     key={t.team}
                     className={`board-row${t.team === myTeam ? ' me' : ''}`}
-                    style={{ '--team': teamById(t.team)?.color } as CSSProperties}
+                    // 막대 색은 color(대표색)가 아니라 accent(다크에서 선명한 구단색).
+                    style={{ '--team': teamById(t.team)?.accent } as CSSProperties}
                   >
                     <span className="board-rank">{i + 1}</span>
                     <span className="board-name">
                       <TeamChip team={t.team} />
                       {t.points > 0 && (
-                        <span className="board-bar" style={{ width: `${(t.points / maxTeamPts) * 100}%` }} />
+                        <span className="board-track">
+                          <span
+                            className="board-bar"
+                            style={{ width: `${(t.points / maxTeamPts) * 100}%` }}
+                          />
+                        </span>
                       )}
                     </span>
                     <span className="board-num">{fmt(t.points)}</span>

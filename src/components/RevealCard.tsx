@@ -75,3 +75,29 @@ export function RevealCard({
     </div>
   );
 }
+
+/**
+ * 서버 판정을 기다리는 동안의 카드(솔로 랭킹전). 정답은 서버만 쥐고 있어 왕복이 필요한데,
+ * 그동안 화면이 비면 "느리다"로 읽힌다 → 결과 카드와 같은 자리·같은 틀로 대기 상태를 보여준다.
+ */
+export function PendingCard({ guess }: { guess: string }) {
+  return (
+    <div className="reveal-card pending">
+      <span className="num-cells">
+        {guess.split('').map((c, i) => (
+          <span key={i} className="cell hcell">
+            <Seg7 char={c} />
+          </span>
+        ))}
+      </span>
+      <p className="reveal-pending">
+        <span className="pending-dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+        심판 판정 중
+      </p>
+    </div>
+  );
+}

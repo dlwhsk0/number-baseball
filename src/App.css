@@ -524,6 +524,56 @@
 .solo-reveal .reveal-card {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
 }
+/* 서버 판정 대기(랭킹전) — 결과 카드와 같은 자리에 뜨지만 사라지지 않는다(응답 오면 교체). */
+.solo-reveal.waiting {
+  animation: none;
+}
+.reveal-card.pending {
+  border-color: color-mix(in srgb, var(--led) 30%, var(--border));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.reveal-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.pending-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.pending-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--glow-accent);
+  animation: pending-blink 1s ease-in-out infinite;
+}
+.pending-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.pending-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes pending-blink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pending-dots i {
+    animation: none;
+    opacity: 0.6;
+  }
+}
 @keyframes solo-reveal-out {
   0%,
   72% {
@@ -3589,7 +3639,8 @@
   max-width: 76px;
   height: 56px;
   object-fit: contain;
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+  --ring-w: 1.5px;
+  --logo-shadow: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
 }
 .sp-intro-nologo {
   display: grid;
@@ -3657,7 +3708,8 @@
   height: clamp(52px, 15vw, 74px);
   object-fit: contain;
   margin-bottom: 2px;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.55))
+  --ring-w: 2px;
+  --logo-shadow: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.55))
     drop-shadow(0 0 14px color-mix(in srgb, var(--team-c) 45%, transparent));
   animation: vs-logo-pop 0.5s 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
 }
@@ -4443,7 +4495,21 @@
   width: 2em;
   height: 2em;
   object-fit: contain;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+/* 엠블럼 외곽선 — 네이비·블랙 계열 로고(두산·롯데·KT·삼성…)가 어두운 배경·구단 테마에서
+   묻히지 않게 CSS로 얇은 테두리를 두른다(원본 PNG는 건드리지 않음).
+   0 blur가 아니라 작은 blur를 세 번 겹쳐 모서리까지 고르게 감싼다.
+   개별 로고는 --ring-w(두께)·--logo-shadow(그림자)만 바꾸면 된다. */
+.team-logo,
+.team-pick-logo,
+.vs-logo,
+.sp-intro-logo,
+.share-logo-thumb {
+  --ring-w: 1px;
+  filter: drop-shadow(0 0 var(--ring-w) var(--logo-ring))
+    drop-shadow(0 0 var(--ring-w) var(--logo-ring))
+    drop-shadow(0 0 var(--ring-w) var(--logo-ring))
+    var(--logo-shadow, drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45)));
 }
 .team-chip-name {
   font-weight: 800;
@@ -4527,7 +4593,7 @@
   width: 36px;
   height: 36px;
   object-fit: contain;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+  --ring-w: 1.5px;
 }
 .team-pick-name {
   min-width: 0;
@@ -4603,6 +4669,17 @@
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+  /* 포인트색은 KBO 공식 CI로 통일 — 구단 테마(--accent)가 구단색이라 순위표에서
+     구단 막대·행 강조와 뒤섞여 안 보이던 문제를 없앤다. */
+  --accent: var(--kbo-light);
+  --accent-glow: rgba(0, 174, 239, 0.7);
+  --on-accent: var(--kbo-blue); /* 라이트블루 위 글자는 KBO 블루로(대비) */
+}
+/* 라이트 테마에선 밝은 하늘색이 흰 보드에 묻힌다 → 짙은 KBO 블루로. */
+:root[data-theme='light'] .kbo-view {
+  --accent: var(--kbo-blue);
+  --accent-glow: rgba(0, 37, 97, 0.35);
+  --on-accent: #ffffff;
 }
 .kbo-card {
   flex: 1 1 auto;
@@ -4644,6 +4721,29 @@
 }
 .kbo-me-edit {
   font-size: 0.74rem;
+  color: var(--muted);
+}
+.fan-nick-hint {
+  margin: -4px 2px 0;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.kbo-me-nickrow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 2px;
+}
+.kbo-me-nick {
+  font-weight: 800;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kbo-me-nick.none {
+  font-weight: 600;
   color: var(--muted);
 }
 .kbo-me-ranks {
@@ -4729,7 +4829,10 @@
   text-align: center;
 }
 .board-list > .board-row:nth-child(-n + 3) .board-rank {
-  color: var(--strike);
+  color: var(--kbo-silver);
+}
+.board-list > .board-row:first-child .board-rank {
+  color: var(--kbo-gold);
 }
 .board-name {
   display: flex;
@@ -4750,13 +4853,24 @@
   font-weight: 700;
   font-size: 0.88rem;
 }
+.board-track {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--led) 12%, transparent);
+  overflow: hidden;
+}
+/* 막대는 구단 대표색이 아니라 --accent(다크에서 선명한 구단 포인트색)로 —
+   두산·롯데·KT처럼 색이 짙은 구단도 어두운 배경에서 보이게. 바깥선으로 한 번 더 분리. */
 .board-bar {
   display: block;
-  height: 4px;
-  min-width: 2px;
-  border-radius: 2px;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 3px;
   background: var(--team);
-  box-shadow: 0 0 6px var(--team);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--team) 60%, transparent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
   transition: width 0.5s ease;
 }
 .board-num {

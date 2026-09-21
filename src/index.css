@@ -34,6 +34,16 @@
   --out: #ff5a52;
   --bulb-off: #2b3348;
 
+  /* KBO 공식 CI 전용색(koreabaseball.com > ABOUT KBO > KBO 로고 > Color System).
+     KBO 탭(팬 랭킹)의 포인트색 — 구단 테마가 뭐든 이 색으로 통일한다. */
+  --kbo-blue: #002561; /* KBO Blue · PANTONE 3581C · R0 G37 B97 */
+  --kbo-light: #00aeef; /* KBO Light Blue · PANTONE 2194C · R0 G174 B239 */
+  --kbo-red: #ed1c24; /* KBO Red · PANTONE 485C · R237 G28 B36 */
+  --kbo-silver: #bcbec0; /* Sub · PANTONE 877C */
+  --kbo-gold: #b3a177; /* Sub · PANTONE 871C */
+  /* 구단 엠블럼 테두리 — 네이비·블랙 계열 로고(두산·롯데·KT…)가 어두운 배경에 묻히지 않게. */
+  --logo-ring: rgba(255, 255, 255, 0.92);
+
   /* 라운드 스케일 — 전광판은 각지게 */
   --r-sm: 6px;
   --r-md: 9px;
@@ -67,6 +77,8 @@
   --ball: #16a34a;
   --out: #dc2626;
   --bulb-off: #d3d9e0;
+  /* 밝은 배경에선 흰 테두리가 로고를 갉아먹는다 → 옅은 어두운 테두리로. */
+  --logo-ring: rgba(20, 30, 50, 0.22);
 }
 /* 다크 전용으로 하드코딩된 짙은 그림자/테두리를 라이트에서 부드럽게 */
 :root[data-theme='light'] .cell {
