@@ -104,14 +104,15 @@ function SecretPeek({ secret }: { secret: string }) {
   const [peeking, setPeeking] = useState(false);
   return (
     <div className="secret-peek">
-      <span className="peek-label">내 숫자</span>
+      {/* 라벨도 블러 위에 겹쳐 둔다 — 턴바 폭을 아끼려고. 누르면 라벨이 걷히고 숫자가 드러난다. */}
       <span
         className={`peek-value${peeking ? ' on' : ''}`}
         onClick={() => setPeeking((v) => !v)}
         onContextMenu={(e) => e.preventDefault()}
+        aria-label="내 숫자 보기"
       >
         <NumCells value={secret} />
-        {!peeking && <span className="peek-hint">눌러서 확인</span>}
+        {!peeking && <span className="peek-hint">내 숫자</span>}
       </span>
     </div>
   );
