@@ -9,6 +9,7 @@ import { GuessPad } from '../components/GuessPad';
 import { History } from '../components/History';
 import { Seg7 } from '../components/Seg7';
 import { RevealCard } from '../components/RevealCard';
+import { usePullExpand } from '../components/usePullExpand';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { Outcome } from '../net/protocol';
 
@@ -668,6 +669,24 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
     />
   );
 
+  // 전광판 당겨서 펼치기 — 손잡이를 끌어내리면 타자석을 밀어내고 양쪽 기록을 전체 화면으로.
+  // (.versus.play의 세로 gap은 10px — 솔로(.app 12px)와 달라 그 값을 넘긴다.)
+  const pull = usePullExpand(10);
+  const { collapse: collapsePull } = pull;
+  // 펼친 채로 키보드를 치면 타자석을 다시 올린다(솔로와 같은 규칙).
+  useEffect(() => {
+    if (!pull.open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (/^[0-9]$/.test(e.key) || ['Backspace', 'Enter', 'Escape'].includes(e.key)) collapsePull();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pull.open, collapsePull]);
+  // 판이 끝나거나 방을 옮기면 접힌 상태로 되돌린다.
+  useEffect(() => {
+    if (phase !== 'playing') collapsePull();
+  }, [phase, collapsePull]);
+
   // ---------- 렌더 ----------
   // 메뉴(닉네임·옵션)는 App이 담당 — 여기선 방 만들기/입장·재접속 진행 중 로딩만.
   if (phase === 'menu' && noMatch) {
@@ -738,6 +757,8 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
 
   if (phase === 'secret' && vsIntro) {
     const myNick = nick.trim() || '나';
+    // 같은 구단끼리면 구단 전적에 안 들어간다(pairMatches가 같은 구단 쌍을 건너뜀) — 여기서 한 번 알려준다.
+    const sameTeam = !!opponentTeam && getTeam() === opponentTeam;
     const dismissVs = () => {
       if (vsTimerRef.current) window.clearTimeout(vsTimerRef.current);
       setVsIntro(false);
@@ -755,6 +776,11 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
           <VsSide side="bottom" tag="상대" nick={opponentNick} team={opponentTeam} />
         </div>
         <p className="vs-sub">{digits}자리 · 서로의 숫자를 맞혀라</p>
+        {sameTeam && (
+          <p className="vs-sameteam">
+            🤝 같은 <b>{teamById(opponentTeam)?.name}</b> 팬끼리네요 — 이 판은 구단 전적에 안 들어가요.
+          </p>
+        )}
         <button type="button" className="versus-primary vs-go" onClick={dismissVs}>
           시작하기 ▶
         </button>
@@ -891,6 +917,7 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
 
         {/* 전광판(상단) — 내/상대 기록을 동시에. 솔로처럼 기록이 위로. 내 쪽을 더 넓게. */}
         <section className="history-section scoreboard duel-board" aria-label="기록">
+          <div className="duel-cols">
           <div className="duel-col mine">
             <div className="duel-col-head">
               <span className="dc-name">
@@ -910,10 +937,26 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
             </div>
             <History guesses={oppHistory} sboText />
           </div>
+          </div>
+          <div
+            className={`pull-handle${pull.open ? ' open' : ''}${pull.dragging ? ' dragging' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-expanded={pull.open}
+            aria-label={pull.open ? '기록 접기(당겨 올리기)' : '기록 펼치기(당겨 내리기)'}
+            {...pull.handleProps}
+          >
+            <span className="pull-grip" />
+          </div>
         </section>
 
-        {/* 타자석(하단, 고정) — 턴바 + 고정 높이 스테이지 + 키패드. 위치 안 흔들림. */}
-        <div className="duel-lower">
+        {/* 타자석(하단, 고정) — 턴바 + 스테이지 + 키패드. 위치 안 흔들림(펼칠 때만 아래로 밀림). */}
+        <div
+          ref={pull.boxRef}
+          className="duel-lower"
+          style={pull.boxStyle}
+          inert={pull.open && !pull.dragging}
+        >
           <div
             className={`turn-bar${
               reveal || startAnnounce ? '' : myTurn ? ' my-turn' : ' opp-turn'

@@ -2359,6 +2359,27 @@
   cursor: pointer;
 }
 
+/* 같은 구단 안내 — 멀티 메뉴 한 줄 + 매치업 연출(VS·스피드 인트로)에 한 번 */
+.fan-note {
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.vs-sameteam {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+.vs-sameteam b {
+  color: var(--text);
+}
+
 /* ===== 앱 설치 안내(튜토리얼 마지막 단계 · 설정 시트) ===== */
 .install-guide {
   display: flex;
@@ -2683,12 +2704,24 @@
   gap: 10px;
   min-height: 0;
 }
-/* 전광판 안을 좌(내)·우(상대)로 분할, 내 쪽을 더 넓게.
-   (.history-section.scoreboard(0,2,0)의 flex-direction:column·padding을 이기려면 같은 특정도 필요) */
+/* 전광판 자체는 세로(기록 두 칸 + 아래 손잡이), 그 안을 좌(내)·우(상대)로 분할하고 내 쪽을 더 넓게. */
 .scoreboard.duel-board {
+  padding: 16px 10px 10px;
+}
+.duel-cols {
+  display: flex;
   flex-direction: row;
   gap: 10px;
-  padding: 16px 10px 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* 손잡이가 전광판 하단 테두리에 붙게(솔로 .pull-handle의 -14px는 솔로 padding 기준) */
+.scoreboard.duel-board .pull-handle {
+  margin: auto -10px -8px;
+}
+/* 펼칠 때 아래로 밀리는 쪽 */
+.duel-lower {
+  will-change: margin-bottom;
 }
 .duel-col {
   display: flex;
@@ -4197,10 +4230,19 @@
 }
 
 /* 스피드 경기 중 — 왼쪽 순위(세로·좁게·실시간 이동) / 오른쪽 내 기록 */
+/* 전광판은 세로(순위·기록 + 아래 손잡이), 그 안을 순위 레일 | 기록으로 나눈다. */
 .scoreboard.sp-race-board {
+  padding: 12px 9px 9px;
+}
+.sp-race-cols {
+  display: flex;
   flex-direction: row;
   gap: 8px;
-  padding: 12px 9px 9px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.scoreboard.sp-race-board .pull-handle {
+  margin: auto -9px -7px;
 }
 /* 순위는 얇은 레일, 기록은 넓게(한 줄 기록이 펴지게) */
 .sp-rank-col {

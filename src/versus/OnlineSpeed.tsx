@@ -8,6 +8,7 @@ import type { SpeedStanding, SpeedHistoryEntry } from '../net/protocol';
 import { fanIdentity, getTeam } from '../net/fan';
 import { TeamChip } from '../components/TeamChip';
 import { teamById } from '../game/teams';
+import { usePullExpand } from '../components/usePullExpand';
 
 export interface OnlineEntry {
   action: 'create' | 'join';
@@ -109,6 +110,10 @@ function SpeedIntro({
   digits: number;
 }) {
   const count = Math.ceil(left / 1000);
+  // 구단 전적은 '구단이 서로 다른 쌍'만 남는다 — 서로 다른 구단이 둘 이상 없으면 이 판은 기록이 없다.
+  const teams = new Set(players.map((p) => p.team).filter(Boolean));
+  const noRecord = teams.size < 2;
+  const oneTeam = teams.size === 1 ? teamById([...teams][0] as string) : null;
   return (
     <div className="versus versus-center sp-intro">
       <p className="vs-ready">⚡ 스피드 레이스</p>
@@ -141,6 +146,17 @@ function SpeedIntro({
         {count > 0 ? count : 'GO!'}
       </div>
       <p className="vs-sub">{digits}자리 · 같은 숫자를 누가 먼저 맞힐까</p>
+      {noRecord && (
+        <p className="vs-sameteam">
+          {oneTeam ? (
+            <>
+              🤝 모두 같은 <b>{oneTeam.name}</b> 팬이네요 — 이 판은 구단 전적에 안 들어가요.
+            </>
+          ) : (
+            <>🤝 서로 다른 구단이 없어서 이 판은 구단 전적에 안 들어가요.</>
+          )}
+        </p>
+      )}
     </div>
   );
 }
@@ -188,6 +204,21 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
   };
 
   const raceDigitsRef = useRef(3);
+
+  // 전광판 당겨서 펼치기 — 손잡이를 끌어내리면 입력부를 밀어내고 순위·기록을 전체 화면으로.
+  const pull = usePullExpand(10);
+  const { collapse: collapsePull } = pull;
+  useEffect(() => {
+    if (!pull.open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (/^[0-9]$/.test(e.key) || ['Backspace', 'Enter', 'Escape'].includes(e.key)) collapsePull();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pull.open, collapsePull]);
+  useEffect(() => {
+    if (phase !== 'race') collapsePull();
+  }, [phase, collapsePull]);
 
   const active = phase === 'lobby' || phase === 'race';
   const onActiveRef = useRef(onActiveChange);
@@ -526,6 +557,7 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
 
         {/* 전광판 — 왼쪽 순위(세로·좁게·실시간 이동) / 오른쪽 내 기록 */}
         <section className="history-section scoreboard sp-race-board" aria-label="순위·기록">
+          <div className="sp-race-cols">
           <div className="sp-rank-col">
             <div className="sp-col-head">
               <span>순위</span>
@@ -566,10 +598,26 @@ export function OnlineSpeed({ entry, onExit, onActiveChange }: Props) {
             </div>
             <History guesses={myHistory} sboText />
           </div>
+          </div>
+          <div
+            className={`pull-handle${pull.open ? ' open' : ''}${pull.dragging ? ' dragging' : ''}`}
+            role="button"
+            tabIndex={0}
+            aria-expanded={pull.open}
+            aria-label={pull.open ? '기록 접기(당겨 올리기)' : '기록 펼치기(당겨 내리기)'}
+            {...pull.handleProps}
+          >
+            <span className="pull-grip" />
+          </div>
         </section>
 
-        {/* 하단 고정 — 입력/키패드(다 풀면 대기 메시지). 위치 안 흔들림. */}
-        <div className="duel-lower">
+        {/* 하단 고정 — 입력/키패드(다 풀면 대기 메시지). 위치 안 흔들림(펼칠 때만 아래로 밀림). */}
+        <div
+          ref={pull.boxRef}
+          className="duel-lower"
+          style={pull.boxStyle}
+          inert={pull.open && !pull.dragging}
+        >
           {iSolved ? (
             <div className="versus versus-center sp-waiting">
               <p className="sp-done">맞혔어요! 🎉</p>

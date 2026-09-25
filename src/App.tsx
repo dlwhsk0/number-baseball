@@ -799,6 +799,11 @@ export default function App() {
                 <span className="fan-team-edit">변경</span>
               </button>
             </div>
+            {team && (
+              <p className="fan-note">
+                🤝 같은 구단 팬끼리 붙으면 그 판은 구단 전적에 안 들어가요.
+              </p>
+            )}
             <div className="versus-field">
               <span className="versus-label">자릿수</span>
               <div className="seg" role="group" aria-label="자릿수">
