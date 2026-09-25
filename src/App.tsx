@@ -25,6 +25,8 @@ import { KboBoard } from './components/KboBoard';
 import { ShareSheet } from './components/ShareSheet';
 import { usePullExpand } from './components/usePullExpand';
 import { DevCard } from './components/DevCard';
+import { InstallGuide } from './components/InstallGuide';
+import { isStandalone } from './pwa/install';
 import './App.css';
 
 type Section = 'solo' | 'multi' | 'kbo';
@@ -196,6 +198,9 @@ export default function App() {
     prevGuessCountRef.current = n;
   }, [state.guesses, state.status]);
   const [showRules, setShowRules] = useState(false);
+  // 설치 안내(설정 시트 → 모달). 설치된 앱으로 실행 중이면 항목 자체를 숨긴다.
+  const [showInstall, setShowInstall] = useState(false);
+  const [canInstall] = useState(() => !isStandalone());
   // 첫 방문이면 인트로 뒤에 튜토리얼을 자동으로 띄운다. 한 번 보면(닫으면) localStorage에 기록.
   const [seenRules, setSeenRules] = useState(() => {
     try {
@@ -1159,6 +1164,19 @@ export default function App() {
             </button>
               </>
             )}
+            {/* 브라우저로 열었을 때만 — 설치된 앱에선 안내할 게 없다. */}
+            {canInstall && (
+              <div className="settings-row">
+                <span className="settings-label">앱 설치</span>
+                <button
+                  type="button"
+                  className="settings-install"
+                  onClick={() => setShowInstall(true)}
+                >
+                  전체화면으로 설치
+                </button>
+              </div>
+            )}
             <button
               type="button"
               className="settings-close"
@@ -1167,6 +1185,28 @@ export default function App() {
               닫기
             </button>
 
+          </div>
+        </div>
+      )}
+
+      {showInstall && (
+        <div className="modal-backdrop" onClick={() => setShowInstall(false)}>
+          <div
+            className="settings-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="앱 설치"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="settings-title">전체화면으로 설치</h3>
+            <InstallGuide />
+            <button
+              type="button"
+              className="settings-close"
+              onClick={() => setShowInstall(false)}
+            >
+              닫기
+            </button>
           </div>
         </div>
       )}
