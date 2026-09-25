@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { toggleMemoMark, type MemoMark } from '../game/useGame';
 import { Keypad } from './Keypad';
 import { Seg7 } from './Seg7';
+import { InstallGuide } from './InstallGuide';
+import { isStandalone } from '../pwa/install';
 
 interface Props {
   onClose: () => void;
@@ -13,7 +15,11 @@ interface Props {
  */
 export function RulesModal({ onClose }: Props) {
   const [step, setStep] = useState(0);
-  const steps = [Intro, Judge, MemoKeypadDemo, SlotMemoDemo, Wrap];
+  // 설치 안내는 브라우저에서 열었을 때만. 마운트 시 한 번 고정 — 도중에 단계 수가 바뀌면 인덱스가 튄다.
+  const [showInstall] = useState(() => !isStandalone());
+  const steps = showInstall
+    ? [Intro, Judge, MemoKeypadDemo, SlotMemoDemo, Wrap, InstallStep]
+    : [Intro, Judge, MemoKeypadDemo, SlotMemoDemo, Wrap];
   const last = steps.length - 1;
   const Body = steps[step];
 
@@ -386,6 +392,16 @@ function Wrap() {
         </li>
         <li>온라인(방 코드로 초대) · 오프라인(한 기기를 주고받기) 둘 다 돼요.</li>
       </ul>
+    </div>
+  );
+}
+
+// ── 6. 전체화면으로 즐기기 (브라우저에서 열었을 때만) ───────
+function InstallStep() {
+  return (
+    <div className="tut-step">
+      <h2 className="modal-title">전체화면으로 즐기기 📱</h2>
+      <InstallGuide />
     </div>
   );
 }

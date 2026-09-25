@@ -208,10 +208,10 @@ function today(): string {
 export type CardFormat = 'story' | 'post';
 export const CARD_FORMATS: Record<
   CardFormat,
-  { h: number; safeTop: number; safeBottom: number; label: string; file: string }
+  { h: number; safeTop: number; safeBottom: number; label: string }
 > = {
-  story: { h: 1920, safeTop: 200, safeBottom: 250, label: '스토리 9:16', file: 'homerun-story.png' },
-  post: { h: 1350, safeTop: 0, safeBottom: 0, label: '게시물 4:5', file: 'homerun-post.png' },
+  story: { h: 1920, safeTop: 200, safeBottom: 250, label: '스토리 9:16' },
+  post: { h: 1350, safeTop: 0, safeBottom: 0, label: '게시물 4:5' },
 };
 
 const HEADER_H = 560; // 마퀴 + 타이틀 + 헤드라인 + 정답

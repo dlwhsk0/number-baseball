@@ -34,7 +34,13 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-type Files = Record<CardFormat, { file: File; url: string }>;
+type Files = Record<CardFormat, { blob: Blob; url: string }>;
+
+/** 저장 파일명 `homerun-YYYYMMDD-HHmmss.png` — 고정 이름이면 두 번째 저장부터 이름 충돌 창이 떠 공유 흐름을 막는다. */
+function cardFileName(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `homerun-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.png`;
+}
 
 /**
  * 솔로 기록 공유 시트 — 아이폰 공유 시트처럼 아이콘 4개:
@@ -62,7 +68,7 @@ export function ShareSheet({ record, team, onClose }: Props) {
             const blob = await canvasToBlob(drawRecordCard(record, f, { logo }));
             const url = URL.createObjectURL(blob);
             urls.push(url);
-            return [f, { file: new File([blob], CARD_FORMATS[f].file, { type: 'image/png' }), url }] as const;
+            return [f, { blob, url }] as const;
           }),
         ),
       )
@@ -107,18 +113,18 @@ export function ShareSheet({ record, team, onClose }: Props) {
   const canShareFile = (f: File) =>
     typeof navigator.canShare === 'function' && navigator.canShare({ files: [f] });
 
-  const download = (f: CardFormat) => {
+  const download = (f: CardFormat, name: string) => {
     if (!files) return;
     const a = document.createElement('a');
     a.href = files[f].url;
-    a.download = CARD_FORMATS[f].file;
+    a.download = name;
     a.click();
   };
 
   /** 파일 공유 시트(모바일) — 이미지는 이미 받아 뒀으니 지원 안 되거나 실패하면 그냥 넘어간다. */
-  const shareFile = async (f: CardFormat): Promise<void> => {
+  const shareFile = async (f: CardFormat, name: string): Promise<void> => {
     if (!files) return;
-    const file = files[f].file;
+    const file = new File([files[f].blob], name, { type: 'image/png' });
     if (!canShareFile(file)) return;
     try {
       await navigator.share({ files: [file] });
@@ -132,14 +138,15 @@ export function ShareSheet({ record, team, onClose }: Props) {
   // 인스타: 스토리용 이미지. 링크 스티커는 웹에서 자동으로 못 붙이므로 링크를 같은 탭 안에서 먼저 복사.
   const onInsta = async () => {
     navigator.clipboard?.writeText(SHARE_URL).catch(() => {});
-    download('story');
+    const name = cardFileName();
+    download('story', name);
     flash('이미지 저장 · 링크 복사됨 — 스토리 🔗 스티커에 붙여넣기');
-    await shareFile('story');
+    await shareFile('story', name);
   };
 
   // X: 게시물 이미지를 받아 두고, 꼬들처럼 문구가 채워진 작성 창을 연다(이미지는 직접 첨부).
   const onX = () => {
-    download('post');
+    download('post', cardFileName());
     flash('이미지를 저장했어요 — 트윗에 첨부해 주세요');
     window.open(
       `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
@@ -150,9 +157,10 @@ export function ShareSheet({ record, team, onClose }: Props) {
 
   // 이미지: 게시물(4:5) 이미지 저장 + 모바일은 공유 시트까지.
   const onImage = async () => {
-    download('post');
+    const name = cardFileName();
+    download('post', name);
     flash('이미지를 저장했어요');
-    await shareFile('post');
+    await shareFile('post', name);
   };
 
   const onText = async () => {

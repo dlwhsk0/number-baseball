@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
-/** .app의 세로 gap(px) — 타자석이 완전히 내려가면 이만큼도 같이 비운다. */
-const APP_GAP = 12;
+/** 화면 세로 gap 기본값(px, 솔로 .app 기준) — 타자석이 완전히 내려가면 이만큼도 같이 비운다. */
+const DEFAULT_GAP = 12;
 /** 끝을 넘겨 당길 때 고무줄 저항 — 최대 이만큼(px)까지만 따라온다. */
 const RUBBER_MAX = 70;
 /** 놓았을 때 반대쪽으로 넘어가는 기준: 전체 거리의 비율 또는 손 떼는 속도(px/ms). */
@@ -23,24 +23,28 @@ interface Drag {
 
 /**
  * 전광판 아래 손잡이를 끌어내려 타자석(입력)을 밀어내고 전광판을 전체 화면으로 — 다시 올리면 복귀.
+ * 솔로(.app gap 12)와 온라인 주고받기(.versus.play gap 10)가 함께 쓴다 — gap만 다르게 넘긴다.
  * 타자석 래퍼(boxRef)에 음수 margin-bottom(offset)을 줘서 flex 레이아웃상 전광판이 그만큼 늘어난다.
  * 손을 따라 1:1로 움직이고, 끝을 넘기면 고무줄 저항, 놓으면 탄성 있게 스냅(CSS 트랜지션 오버슈트).
  * 타자석은 언마운트하지 않는다(입력·후보 메모 유지).
  */
-export function usePullExpand() {
+export function usePullExpand(gap: number = DEFAULT_GAP) {
   const boxRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
   const [offset, setOffset] = useState(0);
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
 
-  const fullDistance = () => (boxRef.current?.offsetHeight ?? 0) + APP_GAP;
+  const fullDistance = () => (boxRef.current?.offsetHeight ?? 0) + gap;
 
-  const settle = useCallback((toOpen: boolean) => {
-    setDragging(false);
-    setOpen(toOpen);
-    setOffset(toOpen ? fullDistance() : 0);
-  }, []);
+  const settle = useCallback(
+    (toOpen: boolean) => {
+      setDragging(false);
+      setOpen(toOpen);
+      setOffset(toOpen ? (boxRef.current?.offsetHeight ?? 0) + gap : 0);
+    },
+    [gap],
+  );
 
   const onPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
     if (e.button !== 0) return;
@@ -102,7 +106,7 @@ export function usePullExpand() {
     settle(open);
   };
 
-  const full = boxRef.current?.offsetHeight ? boxRef.current.offsetHeight + APP_GAP : 1;
+  const full = boxRef.current?.offsetHeight ? boxRef.current.offsetHeight + gap : 1;
   const progress = Math.max(0, Math.min(1, offset / full));
 
   return {

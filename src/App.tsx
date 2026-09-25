@@ -24,6 +24,9 @@ import { TeamPicker } from './components/TeamPicker';
 import { KboBoard } from './components/KboBoard';
 import { ShareSheet } from './components/ShareSheet';
 import { usePullExpand } from './components/usePullExpand';
+import { DevCard } from './components/DevCard';
+import { InstallGuide } from './components/InstallGuide';
+import { isStandalone } from './pwa/install';
 import './App.css';
 
 type Section = 'solo' | 'multi' | 'kbo';
@@ -195,6 +198,9 @@ export default function App() {
     prevGuessCountRef.current = n;
   }, [state.guesses, state.status]);
   const [showRules, setShowRules] = useState(false);
+  // 설치 안내(설정 시트 → 모달). 설치된 앱으로 실행 중이면 항목 자체를 숨긴다.
+  const [showInstall, setShowInstall] = useState(false);
+  const [canInstall] = useState(() => !isStandalone());
   // 첫 방문이면 인트로 뒤에 튜토리얼을 자동으로 띄운다. 한 번 보면(닫으면) localStorage에 기록.
   const [seenRules, setSeenRules] = useState(() => {
     try {
@@ -444,7 +450,11 @@ export default function App() {
     setMNick(nick);
     persist('nb_nick', nick);
     saveTeam(t);
-    if (!team) showNet(`⚾ ${teamById(t)?.short} 응원 시작! 랭킹전 ON`);
+    // 구단을 처음 고른 순간엔 화면도 그 구단 색으로 물들인다(이후엔 설정에서 자유롭게 변경).
+    if (!team) {
+      showNet(`⚾ ${teamById(t)?.short} 응원 시작! 랭킹전 ON`);
+      setTheme('team');
+    }
     setTeamState(t);
     setRankedOff(false);
     const after = picker?.after;
@@ -518,19 +528,17 @@ export default function App() {
     if (r.status !== 'playing') rankedIdRef.current = null;
   };
 
-  // 화면에 적용할 테마 — 솔로 랭킹전 중엔 응원 구단 테마가 사용자 테마를 잠시 덮는다(저장값은 안 바꿈).
-  // 사용자가 '응원 구단' 테마를 골랐으면 어느 탭이든 그 구단 테마.
-  const rankedTeam =
-    (section === 'solo' && ranked) || theme === 'team' ? teamById(team) : undefined;
-  const effectiveTheme: string = rankedTeam ? rankedTeam.theme : theme === 'team' ? 'dark' : theme;
+  // 화면에 적용할 테마 — 오로지 설정값을 따른다. '응원 구단'을 골랐을 때만 구단 테마(탭·랭킹전 무관).
+  const themeTeam = theme === 'team' ? teamById(team) : undefined;
+  const effectiveTheme: string = themeTeam ? themeTeam.theme : theme === 'team' ? 'dark' : theme;
   useEffect(() => {
     const root = document.documentElement;
     if (effectiveTheme === 'dark') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', effectiveTheme);
-    // 전광판 워터마크용 구단 로고(랭킹전 중에만).
-    if (rankedTeam) {
-      root.setAttribute('data-team', rankedTeam.id);
-      root.style.setProperty('--team-logo', `url('${rankedTeam.logo}')`);
+    // 전광판 워터마크용 구단 로고(구단 테마일 때만).
+    if (themeTeam) {
+      root.setAttribute('data-team', themeTeam.id);
+      root.style.setProperty('--team-logo', `url('${themeTeam.logo}')`);
     } else {
       root.removeAttribute('data-team');
       root.style.removeProperty('--team-logo');
@@ -538,7 +546,7 @@ export default function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
     if (meta && bg) meta.setAttribute('content', bg);
-  }, [effectiveTheme, rankedTeam]);
+  }, [effectiveTheme, themeTeam]);
 
   // 랭킹전 켜짐/꺼짐 전환 — 켜지면(앱 시작·구단 첫 선택) 서버의 진행 중인 판을 이어받거나 새 판,
   // 꺼지면(시작 실패) 연습 판으로. 같은 값이면 아무것도 안 함(StrictMode 재실행에도 1회).
@@ -791,6 +799,11 @@ export default function App() {
                 <span className="fan-team-edit">변경</span>
               </button>
             </div>
+            {team && (
+              <p className="fan-note">
+                🤝 같은 구단 팬끼리 붙으면 그 판은 구단 전적에 안 들어가요.
+              </p>
+            )}
             <div className="versus-field">
               <span className="versus-label">자릿수</span>
               <div className="seg" role="group" aria-label="자릿수">
@@ -936,19 +949,6 @@ export default function App() {
         <DuelVersus onExit={() => setLaunch(null)} />
       )}
 
-      <footer className="app-footer">
-        <button
-          type="button"
-          className="footer-link"
-          onClick={tapGithub}
-          aria-label="야구공"
-        >
-          <span className="footer-ball" aria-hidden="true">
-            ⚾
-          </span>
-        </button>
-      </footer>
-
       {eggMsg && <div className="egg-toast">{eggMsg}</div>}
       {netMsg && <div className="egg-toast">{netMsg}</div>}
       {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
@@ -974,31 +974,7 @@ export default function App() {
         </div>
       )}
 
-      {devUnlocked && (
-        <div className="dev-modal-backdrop" onClick={() => setDevUnlocked(false)}>
-          <div
-            className="dev-modal"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="dev-emblem">⚾</div>
-            <h3 className="dev-title">저를 찾아내셨군요!</h3>
-            <a
-              className="dev-link"
-              href="https://github.com/dlwhsk0"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <GitHubIcon />
-              <span>dlwhsk0</span>
-            </a>
-            <button type="button" className="dev-close" onClick={() => setDevUnlocked(false)}>
-              닫기
-            </button>
-          </div>
-        </div>
-      )}
+      {devUnlocked && <DevCard onClose={() => setDevUnlocked(false)} />}
 
       {showRules && <RulesModal onClose={closeRules} />}
 
@@ -1011,7 +987,7 @@ export default function App() {
             maxAttempts: state.maxAttempts,
             guesses: state.guesses,
           }}
-          team={rankedTeam}
+          team={themeTeam}
           onClose={() => setSharing(false)}
         />
       )}
@@ -1025,6 +1001,15 @@ export default function App() {
             aria-label="설정"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* 이스터에그 2 — 흐릿한 야구공. 여러 번 누르면 개발자 모드. */}
+            <button
+              type="button"
+              className="settings-ball"
+              onClick={tapGithub}
+              aria-label="야구공"
+            >
+              <span aria-hidden="true">⚾</span>
+            </button>
             <h3 className="settings-title">설정</h3>
 
             <div className="settings-row">
@@ -1057,11 +1042,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-            {rankedTeam && theme !== 'team' && (
-              <p className="settings-desc">
-                랭킹전 중엔 {rankedTeam.name} 테마가 적용돼요. 랭킹전을 끄면 고른 테마로 돌아가요.
-              </p>
-            )}
 
             {/* 아래는 솔로 게임 설정 — 멀티·KBO 탭에선 테마만 보인다. */}
             {section === 'solo' && (
@@ -1189,6 +1169,19 @@ export default function App() {
             </button>
               </>
             )}
+            {/* 브라우저로 열었을 때만 — 설치된 앱에선 안내할 게 없다. */}
+            {canInstall && (
+              <div className="settings-row">
+                <span className="settings-label">앱 설치</span>
+                <button
+                  type="button"
+                  className="settings-install"
+                  onClick={() => setShowInstall(true)}
+                >
+                  전체화면으로 설치
+                </button>
+              </div>
+            )}
             <button
               type="button"
               className="settings-close"
@@ -1197,6 +1190,28 @@ export default function App() {
               닫기
             </button>
 
+          </div>
+        </div>
+      )}
+
+      {showInstall && (
+        <div className="modal-backdrop" onClick={() => setShowInstall(false)}>
+          <div
+            className="settings-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="앱 설치"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="settings-title">전체화면으로 설치</h3>
+            <InstallGuide />
+            <button
+              type="button"
+              className="settings-close"
+              onClick={() => setShowInstall(false)}
+            >
+              닫기
+            </button>
           </div>
         </div>
       )}
@@ -1271,13 +1286,5 @@ export default function App() {
         />
       )}
       </main>
-  );
-}
-
-function GitHubIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.05-.02-2.06-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.34-5.47-5.96 0-1.32.47-2.39 1.24-3.23-.12-.3-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.23 0 4.63-2.81 5.65-5.49 5.95.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.3 0 .32.22.7.83.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z" />
-    </svg>
   );
 }
