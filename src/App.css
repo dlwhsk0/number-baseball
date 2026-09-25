@@ -117,7 +117,6 @@
 .net-banner,
 .room-code,
 .vs-name,
-.secret-peek,
 .online-input,
 .online-status,
 .score-row,
@@ -2940,27 +2939,25 @@
 }
 
 /* 내 숫자 훔쳐보기 방지 — 기본 블러, 꾹 누르면 보임 */
+/* 내 숫자 peek — 턴바 안(나가기 왼쪽)에 들어간다. 턴바가 이미 패널이라 자체 배경은 없음. */
 .secret-peek {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   justify-content: center;
-  padding: 7px 12px;
-  border-radius: var(--r-md);
-  background: var(--panel);
-  border: 1px dashed var(--border);
 }
 .peek-label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--muted);
   font-weight: 700;
+  white-space: nowrap;
 }
 .peek-value {
   position: relative;
   display: inline-flex;
   align-items: center;
   cursor: pointer;
-  min-width: 84px;
+  min-width: 62px;
   justify-content: center;
 }
 .peek-value .num-cells {
@@ -2970,20 +2967,24 @@
 .peek-value.on .num-cells {
   filter: none;
 }
+.peek-value .num-cells {
+  gap: 3px;
+}
 .peek-value .num-cells .hcell {
-  width: 22px;
-  height: 30px;
+  width: 16px;
+  height: 22px;
 }
 .peek-value .num-cells .seg7 {
-  font-size: 20px;
+  font-size: 15px;
 }
 .peek-hint {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   color: var(--muted);
+  white-space: nowrap;
   pointer-events: none;
 }
 
@@ -3467,6 +3468,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 .turn-exit {
   padding: 5px 11px;
@@ -3913,13 +3915,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px;
+  gap: 8px;
+  padding: 6px 12px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
 }
 .turn-who {
   font-weight: 800;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* 내 차례=그린 / 상대 차례=앰버 로 확실히 구분 */
 .turn-bar.my-turn {

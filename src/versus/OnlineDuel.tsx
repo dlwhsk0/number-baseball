@@ -927,10 +927,12 @@ export function OnlineDuel({ entry, onExit, onActiveChange }: Props) {
                 ? '내 차례'
                 : `${opponentNick} 차례`}
             </span>
-            <div className="turn-right">{matchExitBtn}</div>
+            {/* 내 숫자 peek은 턴바 안, 나가기 왼쪽에 — 줄 하나를 덜 쓰고 전광판이 그만큼 넓어진다. */}
+            <div className="turn-right">
+              {mySecret && <SecretPeek secret={mySecret} />}
+              {matchExitBtn}
+            </div>
           </div>
-
-          {mySecret && <SecretPeek secret={mySecret} />}
 
           {/* 긴장 배너 자리 항상 고정 — 문구가 떠도 스테이지·키패드가 안 밀림. */}
           <div className="tension-slot">
