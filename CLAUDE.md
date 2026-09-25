@@ -42,7 +42,7 @@
 ## 기능
 - **컨트롤**(`.controls`): **타이틀·부제 없음**(인트로에서만). 밝기 토글 없음(단일 다크).
   - 1행: `[?]`(좌, 첫 방문 시 `.help-callout` 말풍선) · `[ 솔로 | 멀티 | KBO ]` 세그먼트(`section`) — **새로고침해도 탭 유지**(`sessionStorage.nb_section`, 새 탭/앱 실행은 솔로. 멀티는 메뉴로 복귀 — 방 복원 X. `index.html` 테마 스크립트도 이 값으로 솔로일 때만 랭킹전 구단 테마) · **`[⚙]`**(우, 모든 탭 — 멀티·KBO 탭에선 설정 시트에 테마만).
-  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **테마 [다크|라이트|응원 구단]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임`.
+  - **설정 시트**(`⚙` → `.settings-sheet` 모달): **테마 [다크|라이트|응원 구단]** · **자릿수 [3자리|4자리]** · **시도 [5·10·15·직접]**(직접=숫자 입력, 라이브) · **힌트 [끔|켬]** · `↻ 새 게임` · **앱 설치 `전체화면으로 설치`**(브라우저일 때만 — 누르면 `InstallGuide` 모달).
   - 멀티는 헤더에 별도 세그먼트 없음(아래 **멀티 시작 메뉴** 카드가 전부 담당). `⚙` 자리는 `.gear-spacer`.
   - 세그먼트는 전부 `.seg`/`.seg-btn`(활성=그린) 공용.
 - **KBO 팬 랭킹**(구단 대항전): 팬이 응원 구단(KBO 10개 구단, `src/game/teams.ts` ↔ `server/src/teams.ts` 복제)을 달고 경쟁.
@@ -52,7 +52,7 @@
   헤더 KBO 탭 라벨은 **KBO 공식 로고**(`public/kbo-logo.png`, koreabaseball.com 로고 페이지의 AI 자료 가로조합을 흰 단색으로) — CSS `mask`로 써서 세그먼트 글자색을 따른다.
   - **솔로 랭킹전**: **응원 구단이 있으면 솔로는 기본이 랭킹전**(토글 없음 — `ranked = team !== null && !rankedOff`). 시작 실패(오프라인·하루 한도)면 그 실행 동안만 연습(`rankedOff`). 켜짐 전환(앱 시작·구단 첫 선택)은 `prevRankedRef` 효과가 처리.
     **첫 방문 온보딩**: 인트로·튜토리얼 뒤 구단이 없으면 1회 `TeamPicker intro`(KBO 로고 + 구단 대항전 소개 3줄 + 구단 선택, '나중에 할게요', `localStorage.nb_fan_intro`). 튜토리얼 마지막 단계에도 대항전 안내.
-    **랭킹전 중엔 응원 구단 테마가 자동 적용**(App `effectiveTheme` — 솔로+랭킹전+구단이면 `Team.theme`, 저장된 `nb_theme`는 안 바꿈. 두산·LG는 기존 `doosan`/`lgtwins`, 나머지는 `index.css`의 `team-<id>` 토큰 + 전광판에 구단 로고 워터마크 `:root[data-team]`/`--team-logo`). `index.html` 인라인 스크립트도 같은 규칙으로 페인트 전 적용. **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
+    **구단을 처음 고르면 테마가 '응원 구단'으로 자동 전환**(이후엔 설정에서 자유롭게 변경 — 랭킹전 여부는 테마에 관여하지 않는다). 테마 적용은 `App`의 `themeTeam`/`effectiveTheme` 한 곳뿐. **서버 판정**(정답은 서버만, `server/src/ranked.ts`) — `rankedStart`(같은 자릿수 진행 판 있으면 이어하기, `forfeit`면 실패 처리 후 새 판) / `rankedGuess`(판정·종료 시 정답·결과).
     시도 **15회 고정**(`RANKED_MAX_ATTEMPTS`). **점수 = 16 − 시도(1회=15점…15회=1점), 4자리 2배, 실패 0점**(`soloPoints`, `src/game/ranking.ts` ↔ `server/src/ranking.ts` 복제).
     추측이 있는 판을 버리면(새 게임·자릿수 변경·30분 방치) **실패로 기록**(체리피킹 방지), 1인 **24시간 30판 상한**(`RANKED_DAILY_LIMIT`), 같은 플레이어의 시작 요청은 직렬화.
     보조로 **IP당 하루 상한**(`RANKED_IP_DAILY_LIMIT`, 0=끔).
@@ -121,6 +121,7 @@
 - **`GuessPad`**(`src/components/GuessPad.tsx`, **모든 모드 공용 입력 보드**): 입력 세그먼트 + 키패드 + 메모(O/B/S) +
   자리별 후보 메모(길게 누르기)를 하나로 묶은 공용 컴포넌트. **판정은 안 함** — 입력 문자열만 구성해 `onSubmit(value)`로 넘긴다.
   솔로·로컬 스피드/주고받기·온라인 스피드/주고받기 6개 모드가 전부 이걸 쓴다(디자인·메모·키보드 입력 일원화).
+  **입력 구역 높이는 전 모드 공통 92px**(`.board .input-display`). 온라인 주고받기의 추측 발표 카드는 스테이지 자리를 먹지 않고 `position:absolute`로 전광판 쪽에 팝업(솔로 `.solo-reveal`과 같은 방식).
   - `variant`: `'guess'`(메모·후보·[던지기]) / `'secret'`(비밀 숫자 정하기, 메모 없음·[확인]).
   - `active`(내 차례 아니면 입력·제출 off·메모만), `disabled`(종료 등 전부 off), `showInput`(false=메모 전용 키패드),
     `stageContent`(온라인 주고받기 스테이지 스왑), `boardClass`(예: `online-board` 프레임, `batter-box` 솔로), `overlay`(솔로 결과 카드), `resetSignal`(새 판·자릿수 변경 시 입력·후보 비움), `onChange`(실시간 미리보기 중계).
@@ -156,7 +157,7 @@
 - **디자인 시스템**: **야구장(전광판+타자석)** 컨셉 + **iOS 글라스**. 짙은 네이비(`--bg #0a0d15`) 위 반투명 프로스티드 박스, 세븐세그먼트 LED 숫자.
   **다크가 기본**. 테마는 **설정 시트에서 [다크|라이트|응원 구단] 선택**(`App`의 `theme:'dark'|'light'|'team'`, `localStorage.nb_theme` 저장, 옛 `doosan`/`lgtwins` 값은 `team`으로 이관). `index.html` 인라인 스크립트가 페인트 전에 저장 테마를 복원(깜빡임 방지). 글라스는 다크/두산 전용(라이트는 불투명).
   라이트('주간 경기' 팔레트) 토큰은 `index.css`의 `:root[data-theme='light']`(밝은 보드·어두운 LCD 세그먼트·은은한 발광).
-  **구단 테마(전 구단 10개)**: `theme='team'`이면 **응원 구단(KBO 탭에서 고른 `nb_team`)의 테마**를 모든 탭에 적용(구단을 따로 고르는 아이콘 없음 — 구단을 바꾸면 테마도 따라감, 구단이 없으면 선택 시트부터). 솔로 랭킹전 중엔 테마 설정과 무관하게 구단 테마.
+  **구단 테마(전 구단 10개)**: `theme='team'`이면 **응원 구단(KBO 탭에서 고른 `nb_team`)의 테마**를 모든 탭에 적용(구단을 따로 고르는 아이콘 없음 — 구단을 바꾸면 테마도 따라감, 구단이 없으면 선택 시트부터). **어느 탭에서든 설정값이 최종**(옛날엔 솔로 랭킹전이 테마를 덮었는데, 구단을 고르면 랭킹전이 사실상 상시라 설정이 영구히 무시됐다).
   토큰: 두산 `doosan`·LG `lgtwins` + 나머지 8개 `team-<id>`(`index.css`, `Team.theme`로 매핑). 구단 테마일 때 전광판 중앙에 구단 로고 워터마크(`:root[data-team] .scoreboard::after`, 로고는 App이 `--team-logo`로 — 솔로는 헤더 아래 정중앙 보정). `index.html` 인라인 스크립트가 같은 규칙으로 페인트 전 복원.
   포인트색은 **그린+화이트 믹스**: 숫자(판독값)는 화이트(`--led`), 그린(`--accent` `#4dff5e`)은 액센트 —
   확인 버튼·헤더 발광·활성 컨트롤, 그리고 **정답(입력) 칸의 세그먼트/발광**. S·B·O 램프색은 주황·초록·빨강.
@@ -172,12 +173,15 @@
     키패드 키(`.key-digit.cell`)는 화이트 세그먼트 정사각, 기록은 미니 셀(`.hcell`).
   - **모션**: '적당히' — 슬롯 팝, 기록 행 등장, 램프 점등, 승리 `win-pulse`. `prefers-reduced-motion`이면 전부 정지(`index.css`).
   - `index.html` 인라인 스크립트/`theme-color`(#000)는 단일 다크라 사실상 고정. accent 위 글자는 `--on-accent`.
-- **푸터**: GitHub 로고 버튼. **이스터에그 2**: 여러 번(7회) 누르면 '개발자 모드' 해금 — 토스트 멘트가 뜨다가
-  마지막에 인사말+프로필 링크 모달(`App`의 `devUnlocked`). 
+- **이스터에그 2**(`⚾`): **설정 시트 좌상단의 흐릿한 야구공**을 7회 누르면 '개발자 모드' 해금 — 토스트 멘트가 뜨다가
+  마지막에 **야구장 입장권 모양 카드**(`src/components/DevCard.tsx` — 절취선·반원 노치·스텁 등번호)가 뜬다.
+  **배경 탭으로는 안 닫힌다**(`[닫기]`만). 백드롭에 `modal-backdrop` 클래스를 같이 둬야 `Keypad`의 전역 키보드 가드가 걸린다.
+  (옛 푸터 야구공은 제거 — `.app`(100dvh·overflow:hidden) 안에서 유일하게 압축되는 형제라 화면이 짧으면 다른 요소 위로 삐져나왔다.)
 - **게임 방법(튜토리얼)**: 헤더 좌측 상단 `?` 원형 버튼을 누르면 **단계별 튜토리얼**(`src/components/RulesModal.tsx`)이
-  열린다(5단계, `.tut-*`, 상단 진행 점 + 하단 [이전]/[다음]/[시작하기]). ①소개·규칙 ②판정 S·B·O 워크드 예시
+  열린다(5~6단계, `.tut-*`, 상단 진행 점 + 하단 [이전]/[다음]/[시작하기]). ①소개·규칙 ②판정 S·B·O 워크드 예시
   ③**키패드 메모 직접 눌러보기**(`Keypad markButtons` 실동작) ④**칸 길게 눌러 후보 메모 직접 해보기**(400ms 롱프레스→`note-pop`, 숨은 기능 안내)
-  ⑤대결·설정 요약. 좌상단 ✕/ESC/배경 탭으로 닫고, 열려 있는 동안 배경 스크롤 잠금.
+  ⑤대결·설정 요약 ⑥**앱 설치 안내**(브라우저에서 열었을 때만 — `isStandalone()`이면 단계 자체가 빠지고 점·카운트도 따라 줄어든다).
+  좌상단 ✕/ESC/배경 탭으로 닫고, 열려 있는 동안 배경 스크롤 잠금.
 
 ## 빌드 단계 (체크리스트)
 - [x] 단계 0: 스캐폴딩 + CLAUDE.md
@@ -196,7 +200,11 @@
 - 아이콘은 `scripts/gen-icons.mjs`로 SVG→PNG 생성해 `public/`에 커밋. **야구 베이스 한 구석**(흰 정사각형을 45°
   다이아몬드로 크게 그려 위쪽 꼭짓점만 확대, 베벨 테두리 + 네온 그린 발광)을 검정 타일에. 재생성: `pnpm add -D sharp` 후 `node scripts/gen-icons.mjs`
   (sharp는 애드혹 — 생성 후 `git checkout package.json pnpm-lock.yaml`로 의존성 되돌림).
-- **아이콘 변경 안내 배너는 제거됨**(옛 `ICON_VERSION`/`nb_icon_seen`/`beforeinstallprompt` 안내). PWA 설치 유도는 더 이상 하지 않는다 — 아이콘을 바꿔도 안내를 띄우지 않고, 기존 설치 사용자는 OS 캐시라 그대로 둔다.
+- **아이콘 변경 안내 배너는 제거됨**(옛 `ICON_VERSION`/`nb_icon_seen`). 아이콘을 바꿔도 안내를 띄우지 않고, 기존 설치 사용자는 OS 캐시라 그대로 둔다.
+- **설치 안내**(`src/pwa/install.ts` + `src/components/InstallGuide.tsx`): 불쑥 뜨는 배너는 안 쓰고, **튜토리얼 마지막 단계**와 **설정 시트 `앱 설치` 항목**에서만 안내한다.
+  `beforeinstallprompt`는 앱이 뜬 직후 한 번 날아오므로 `main.tsx`의 부수효과 임포트로 모듈 로드 시점에 잡아둔다 → 안드로이드·데스크톱 크롬은 `[지금 설치하기]` 원탭,
+  iOS는 API가 없어 `공유 → 홈 화면에 추가` 수동 안내(`getPlatform()` UA 판별, iPadOS는 `Macintosh`+`maxTouchPoints>1`). 거절·실패하면 그 자리에서 수동 안내로 폴백.
+  **설치된 앱(standalone)에선 튜토리얼 단계도 설정 항목도 안 보인다.**
 
 ## 컨벤션
 - **라이선스: PolyForm Noncommercial 1.0.0**(`LICENSE`, 두 `package.json`의 `license`, README 라이선스 절, `index.html` copyright 메타). 상업적 이용은 사전 서면 허락 필요. KBO·구단 로고(`public/teams`, `kbo-logo.png`)는 제3자 상표라 라이선스 대상 아님. GitHub ruleset `protect-main`(main 강제 푸시·삭제 금지).
