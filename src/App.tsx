@@ -444,7 +444,11 @@ export default function App() {
     setMNick(nick);
     persist('nb_nick', nick);
     saveTeam(t);
-    if (!team) showNet(`⚾ ${teamById(t)?.short} 응원 시작! 랭킹전 ON`);
+    // 구단을 처음 고른 순간엔 화면도 그 구단 색으로 물들인다(이후엔 설정에서 자유롭게 변경).
+    if (!team) {
+      showNet(`⚾ ${teamById(t)?.short} 응원 시작! 랭킹전 ON`);
+      setTheme('team');
+    }
     setTeamState(t);
     setRankedOff(false);
     const after = picker?.after;
@@ -518,19 +522,17 @@ export default function App() {
     if (r.status !== 'playing') rankedIdRef.current = null;
   };
 
-  // 화면에 적용할 테마 — 솔로 랭킹전 중엔 응원 구단 테마가 사용자 테마를 잠시 덮는다(저장값은 안 바꿈).
-  // 사용자가 '응원 구단' 테마를 골랐으면 어느 탭이든 그 구단 테마.
-  const rankedTeam =
-    (section === 'solo' && ranked) || theme === 'team' ? teamById(team) : undefined;
-  const effectiveTheme: string = rankedTeam ? rankedTeam.theme : theme === 'team' ? 'dark' : theme;
+  // 화면에 적용할 테마 — 오로지 설정값을 따른다. '응원 구단'을 골랐을 때만 구단 테마(탭·랭킹전 무관).
+  const themeTeam = theme === 'team' ? teamById(team) : undefined;
+  const effectiveTheme: string = themeTeam ? themeTeam.theme : theme === 'team' ? 'dark' : theme;
   useEffect(() => {
     const root = document.documentElement;
     if (effectiveTheme === 'dark') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', effectiveTheme);
-    // 전광판 워터마크용 구단 로고(랭킹전 중에만).
-    if (rankedTeam) {
-      root.setAttribute('data-team', rankedTeam.id);
-      root.style.setProperty('--team-logo', `url('${rankedTeam.logo}')`);
+    // 전광판 워터마크용 구단 로고(구단 테마일 때만).
+    if (themeTeam) {
+      root.setAttribute('data-team', themeTeam.id);
+      root.style.setProperty('--team-logo', `url('${themeTeam.logo}')`);
     } else {
       root.removeAttribute('data-team');
       root.style.removeProperty('--team-logo');
@@ -538,7 +540,7 @@ export default function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
     if (meta && bg) meta.setAttribute('content', bg);
-  }, [effectiveTheme, rankedTeam]);
+  }, [effectiveTheme, themeTeam]);
 
   // 랭킹전 켜짐/꺼짐 전환 — 켜지면(앱 시작·구단 첫 선택) 서버의 진행 중인 판을 이어받거나 새 판,
   // 꺼지면(시작 실패) 연습 판으로. 같은 값이면 아무것도 안 함(StrictMode 재실행에도 1회).
@@ -1011,7 +1013,7 @@ export default function App() {
             maxAttempts: state.maxAttempts,
             guesses: state.guesses,
           }}
-          team={rankedTeam}
+          team={themeTeam}
           onClose={() => setSharing(false)}
         />
       )}
@@ -1057,11 +1059,6 @@ export default function App() {
                 </button>
               </div>
             </div>
-            {rankedTeam && theme !== 'team' && (
-              <p className="settings-desc">
-                랭킹전 중엔 {rankedTeam.name} 테마가 적용돼요. 랭킹전을 끄면 고른 테마로 돌아가요.
-              </p>
-            )}
 
             {/* 아래는 솔로 게임 설정 — 멀티·KBO 탭에선 테마만 보인다. */}
             {section === 'solo' && (
