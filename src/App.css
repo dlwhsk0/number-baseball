@@ -1323,37 +1323,33 @@
   color: var(--out);
 }
 
-/* 푸터 — GitHub 프로필 링크 */
-.app-footer {
-  margin-top: auto;
-  display: flex;
-  justify-content: center;
-  padding-top: 8px;
-}
-.footer-link {
-  color: var(--muted);
-  display: inline-flex;
+/* 설정 시트 좌상단 야구공(이스터에그 트리거) — 은은하게. 옛 푸터 자리에서 옮겨왔다:
+   푸터는 .app(100dvh, overflow:hidden) 안에서 유일하게 압축되는 형제라
+   화면이 짧으면 찌그러져 다른 요소 위로 삐져나왔다. */
+.settings-ball {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   background: none;
   border: none;
-  padding: 6px;
-  cursor: pointer;
-  transition: color 0.15s ease, transform 0.05s ease;
-}
-.footer-link:hover {
-  color: var(--text);
-}
-.footer-link:active {
-  transform: scale(0.92);
-}
-/* 푸터 야구공(이스터에그 트리거) — 은은하게 */
-.footer-ball {
   font-size: 1.4rem;
   line-height: 1;
   opacity: 0.35;
-  transition: opacity 0.15s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s ease, transform 0.05s ease;
 }
-.footer-link:hover .footer-ball {
+.settings-ball:hover,
+.settings-ball:focus-visible {
   opacity: 0.7;
+}
+.settings-ball:active {
+  transform: scale(0.92);
 }
 
 /* 새 버전 알림 토스트 — 하단 고정, 게임을 가리지 않음. 눌러야만 새로고침. */
@@ -2264,9 +2260,10 @@
 }
 
 /* 개발자 모드(이스터에그 2) 토스트는 조금 아래에 */
+/* 설정 시트 위에 겹치지 않게 아래쪽에 — 트리거(야구공)가 시트 좌상단이라 위는 가린다. */
 .dev-toast {
   top: auto;
-  bottom: calc(70px + env(safe-area-inset-bottom));
+  bottom: calc(24px + env(safe-area-inset-bottom));
 }
 /* 개발자 모드 모달 */
 .dev-modal-backdrop {
@@ -2361,6 +2358,88 @@
   font-size: 0.85rem;
   font-family: inherit;
   cursor: pointer;
+}
+
+/* ===== 개발자 카드 — 야구장 입장권 ===== */
+.dev-modal {
+  gap: 12px;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.dticket {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  border-radius: var(--r-md);
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  box-shadow: 0 12px 40px var(--shadow), var(--glow-accent);
+  /* 좌우 반원 노치 — 표를 찢어낸 자리 */
+  -webkit-mask:
+    radial-gradient(10px at 0 50%, transparent 98%, #000),
+    radial-gradient(10px at 100% 50%, transparent 98%, #000);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(10px at 0 50%, transparent 98%, #000),
+    radial-gradient(10px at 100% 50%, transparent 98%, #000);
+  mask-composite: intersect;
+}
+/* 왼쪽 스텁 — 세로 ADMIT ONE + 등번호 + 절취선 */
+.dticket-stub {
+  flex: 0 0 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px 0;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-right: 2px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.dticket-admit {
+  writing-mode: vertical-rl;
+  font-family: var(--font-digit);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+}
+.dticket-no {
+  display: inline-flex;
+  gap: 3px;
+  font-size: 17px;
+  --led: var(--accent);
+}
+.dticket-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px 16px;
+  text-align: center;
+}
+.dticket-kicker {
+  font-family: var(--font-digit);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--muted);
+}
+.dticket .dev-emblem {
+  font-size: 2.4rem;
+}
+.dticket .dev-title {
+  font-size: 1.05rem;
+}
+.dticket-sub {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 /* 초대 코드 복사 버튼 */
