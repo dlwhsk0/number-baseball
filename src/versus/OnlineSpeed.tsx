@@ -67,7 +67,8 @@ function RaceInput({
   onSubmit: (value: string) => void;
 }) {
   // 제출하면 서버로 보내고 입력칸만 비운다(메모·후보는 GuessPad 내부에서 유지).
-  return <GuessPad digits={digits} onSubmit={onSubmit} />;
+  // boardClass — 주고받기·비밀 정하기와 같은 셀 프레임(입력칸 생김새 통일).
+  return <GuessPad digits={digits} onSubmit={onSubmit} boardClass="online-board" />;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
