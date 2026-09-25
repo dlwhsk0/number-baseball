@@ -5061,7 +5061,9 @@
   justify-content: center;
   align-items: center;
   height: 22px;
-  margin: 6px -14px -10px;
+  /* margin-top:auto — 기록이 0개면 늘어나는 형제(.history)가 아예 안 그려져서
+     손잡이가 전광판 위로 딸려 올라갔다. 남는 공간을 위쪽 마진이 먹어 항상 박스 하단. */
+  margin: auto -14px -10px;
   cursor: grab;
   touch-action: none; /* 끌기 중 페이지 스크롤·당겨서 새로고침 방지 */
   -webkit-tap-highlight-color: transparent;
