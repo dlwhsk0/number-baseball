@@ -25,7 +25,7 @@ import type {
   GuessRecord,
 } from './types.js';
 import { logger } from './logger.js';
-import { initDb, recordMatches, leaderboard, dbEnabled } from './db.js';
+import { initDb, recordMatches, leaderboard, dbEnabled, claimNick } from './db.js';
 import { rankedStart, rankedGuess, isPlayerId } from './ranked.js';
 import { pairMatches } from './ranking.js';
 import { isTeamId } from './teams.js';
@@ -519,6 +519,18 @@ io.on('connection', (socket) => {
       .catch((err) => {
         logger.error({ err }, 'rankedGuess 실패');
         ack({ ok: false, error: '판정에 실패했어요. 다시 던져주세요.' });
+      });
+  });
+
+  socket.on('claimNick', (p, ack) => {
+    if (typeof ack !== 'function') return;
+    if (!isPlayerId(p?.playerId)) return ack({ ok: false, error: '플레이어 정보가 올바르지 않아요.' });
+    if (!isTeamId(p?.team)) return ack({ ok: false, error: '응원 구단을 골라주세요.' });
+    claimNick(p.playerId, String(p.nick ?? ''), p.team)
+      .then(ack)
+      .catch((err) => {
+        logger.error({ err }, 'claimNick 실패');
+        ack({ ok: false, error: '닉네임을 저장하지 못했어요.' });
       });
   });
 

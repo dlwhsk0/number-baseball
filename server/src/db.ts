@@ -4,6 +4,7 @@ import pg from 'pg';
 import { logger } from './logger.js';
 import { rankWriteErrors } from './metrics.js';
 import { TEAMS } from './teams.js';
+import { cleanNick, randomNick, NICK_MAX } from './nickname.js';
 import { winPct, gamesBehind, tieRanks, PLACEMENT_GAMES, type MatchRow } from './ranking.js';
 import type { TeamSoloRow, PlayerRow, VersusRow, Leaderboard } from './types.js';
 
@@ -55,6 +56,7 @@ export async function initDb(): Promise<void> {
   p.on('error', (err) => logger.error({ err }, 'postgres pool error'));
   try {
     await p.query(MIGRATION);
+    await migrateNicks(p);
     pool = p;
     logger.info('postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성');
   } catch (err) {
@@ -81,33 +83,158 @@ function invalidate(): void {
   cache.clear();
 }
 
-// ---------- 쓰기 ----------
-async function upsertPlayer(c: pg.PoolClient | pg.Pool, id: string, nick: string, team: string) {
-  await c.query(
+// ---------- 닉네임(유일) ----------
+type Db = pg.PoolClient | pg.Pool;
+
+/** 대소문자 무시 유일 인덱스 — 같은 닉네임이 둘이면 순위표에서 누가 누군지 모른다. */
+const NICK_INDEX = 'players_nick_uniq';
+
+function isUniqueViolation(err: unknown): boolean {
+  return (err as { code?: string } | null)?.code === '23505';
+}
+
+async function currentNick(c: Db, id: string): Promise<string | null> {
+  const r = await c.query<{ nick: string }>('SELECT nick FROM players WHERE id = $1', [id]);
+  return r.rows[0]?.nick ?? null;
+}
+
+/** 다른 플레이어가 이미 쓰는 닉네임인지(대소문자 무시). */
+async function nickTaken(c: Db, nick: string, id: string | null): Promise<boolean> {
+  const r = await c.query(
+    'SELECT 1 FROM players WHERE lower(nick) = lower($1) AND ($2::uuid IS NULL OR id <> $2) LIMIT 1',
+    [nick, id],
+  );
+  return (r.rowCount ?? 0) > 0;
+}
+
+/** 아무도 안 쓰는 랜덤 닉네임(두 자리 숫자가 계속 겹치면 네 자리로). */
+async function freshNick(c: Db, team: string | null): Promise<string> {
+  for (let i = 0; i < 20; i++) {
+    const n = randomNick(team, i >= 8);
+    if (!(await nickTaken(c, n, null))) return n;
+  }
+  throw new Error('랜덤 닉네임 생성 실패');
+}
+
+/** 닉네임·구단 저장. 실제로 바뀐 행이 있으면 true(순위 캐시 무효화 판단용). */
+async function writePlayer(c: Db, id: string, nick: string, team: string): Promise<boolean> {
+  const r = await c.query(
     `INSERT INTO players (id, nick, team) VALUES ($1, $2, $3)
-     ON CONFLICT (id) DO UPDATE SET nick = EXCLUDED.nick, team = EXCLUDED.team, updated_at = now()`,
+     ON CONFLICT (id) DO UPDATE SET nick = EXCLUDED.nick, team = EXCLUDED.team, updated_at = now()
+     WHERE players.nick IS DISTINCT FROM EXCLUDED.nick OR players.team IS DISTINCT FROM EXCLUDED.team`,
     [id, nick, team],
   );
+  return (r.rowCount ?? 0) > 0;
 }
 
 /**
- * 닉네임·구단만 갱신(랭킹전 시작 때). 기록은 판이 끝나야 남기 때문에, 이게 없으면
+ * 게임 중 들어온 닉네임을 반영하고 실제로 쓰인 닉네임을 돌려준다(명시적 변경은 claimNick).
+ * - 비었으면(옛 기본값 '플레이어' 포함) 원래 닉네임 유지, 처음이면 랜덤 닉네임.
+ * - 다른 사람이 쓰는 닉네임이면 무시하고 원래 닉네임 유지 — 확인 없이 바꾸는 경로(멀티 메뉴·옛 클라)라도 중복이 안 생기게.
+ */
+async function savePlayer(c: Db, id: string, requested: string, team: string): Promise<{ nick: string; changed: boolean }> {
+  const cur = await currentNick(c, id);
+  const want = cleanNick(requested);
+  const sameAsMine = !!want && !!cur && want.toLowerCase() === cur.toLowerCase();
+  let nick = want && (sameAsMine || !(await nickTaken(c, want, id))) ? want : (cur ?? (await freshNick(c, team)));
+  try {
+    return { nick, changed: await writePlayer(c, id, nick, team) };
+  } catch (err) {
+    if (!isUniqueViolation(err)) throw err;
+    // 확인과 저장 사이에 누가 먼저 가져감 → 원래 닉네임(없으면 새 랜덤)으로 한 번 더.
+    nick = cur ?? (await freshNick(c, team));
+    return { nick, changed: await writePlayer(c, id, nick, team) };
+  }
+}
+
+export type ClaimNickResult = { ok: true; nick: string } | { ok: false; taken?: boolean; error: string };
+
+/** 닉네임 변경(중복 확인). 비워 보내면 원래 닉네임 유지, 처음이면 랜덤 닉네임을 받아 간다. */
+export async function claimNick(playerId: string, requested: string, team: string): Promise<ClaimNickResult> {
+  if (!pool) return { ok: false, error: '지금은 닉네임을 확인할 수 없어요.' };
+  const want = cleanNick(requested);
+  const taken = { ok: false as const, taken: true, error: '이미 누가 쓰고 있는 닉네임이에요.' };
+  try {
+    if (want && (await nickTaken(pool, want, playerId))) return taken;
+    const r = await savePlayer(pool, playerId, want, team);
+    if (want && r.nick !== want) return taken; // 확인 직후 선점당함
+    if (r.changed) invalidate();
+    return { ok: true, nick: r.nick };
+  } catch (err) {
+    if (isUniqueViolation(err)) return taken;
+    rankWriteErrors.inc({ kind: 'player' });
+    logger.error({ err }, 'nick 변경 실패');
+    return { ok: false, error: '닉네임을 저장하지 못했어요.' };
+  }
+}
+
+/**
+ * 시작 시 1회: 유일 인덱스가 아직 없으면 기존 데이터부터 정리하고 만든다.
+ * - '플레이어'(옛 기본값)·빈 닉네임 → 랜덤 닉네임
+ * - 겹치는 닉네임 → 판을 많이 한 사람이 원래 이름을 갖고, 나머지는 뒤에 숫자(곰돌이 → 곰돌이2)
+ * 무중단 배포 때 두 컨테이너가 겹쳐 떠도 한 번만 돌게 advisory lock.
+ */
+async function migrateNicks(p: pg.Pool): Promise<void> {
+  const c = await p.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query("SELECT pg_advisory_xact_lock(hashtext('nb_nick_migration'))");
+    const exists = await c.query<{ r: string | null }>('SELECT to_regclass($1) AS r', [NICK_INDEX]);
+    if (exists.rows[0]?.r) {
+      await c.query('COMMIT');
+      return;
+    }
+    const rows = await c.query<{ id: string; nick: string; team: string }>(
+      `SELECT p.id, p.nick, p.team FROM players p
+       LEFT JOIN (SELECT player_id, COUNT(*) AS n FROM solo_games GROUP BY player_id) g ON g.player_id = p.id
+       ORDER BY COALESCE(g.n, 0) DESC, p.updated_at ASC`,
+    );
+    const seen = new Set<string>();
+    let renamed = 0;
+    for (const row of rows.rows) {
+      const n = cleanNick(row.nick);
+      let next = n;
+      if (!n) {
+        for (let i = 0; !next || seen.has(next.toLowerCase()); i++) next = randomNick(row.team, i >= 8);
+      } else if (seen.has(n.toLowerCase())) {
+        for (let k = 2; seen.has(next.toLowerCase()); k++) {
+          next = `${n.slice(0, NICK_MAX - String(k).length)}${k}`;
+        }
+      }
+      seen.add(next.toLowerCase());
+      if (next !== row.nick) {
+        await c.query('UPDATE players SET nick = $2, updated_at = now() WHERE id = $1', [row.id, next]);
+        renamed++;
+      }
+    }
+    await c.query(`CREATE UNIQUE INDEX ${NICK_INDEX} ON players (lower(nick))`);
+    await c.query('COMMIT');
+    logger.info({ players: rows.rowCount, renamed }, '닉네임 정리 + 유일 인덱스 생성');
+  } catch (err) {
+    await c.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    c.release();
+  }
+}
+
+// ---------- 쓰기 ----------
+/**
+ * 닉네임·구단 갱신(랭킹전 시작 때). 기록은 판이 끝나야 남기 때문에, 이게 없으면
  * 닉네임을 바꿔도 순위표에는 '다음 판을 끝낼 때까지' 옛 이름이 뜬다.
  * 실제로 바뀐 게 있을 때만 캐시를 버린다(시작마다 무효화하면 30초 캐시가 무의미).
+ * 실제로 쓰인 닉네임을 돌려준다(클라 동기화용, 실패하면 null).
  */
-export async function touchPlayer(playerId: string, nick: string, team: string): Promise<void> {
-  if (!pool) return;
+export async function touchPlayer(playerId: string, nick: string, team: string): Promise<string | null> {
+  if (!pool) return null;
   try {
-    const r = await pool.query(
-      `INSERT INTO players (id, nick, team) VALUES ($1, $2, $3)
-       ON CONFLICT (id) DO UPDATE SET nick = EXCLUDED.nick, team = EXCLUDED.team, updated_at = now()
-       WHERE players.nick IS DISTINCT FROM EXCLUDED.nick OR players.team IS DISTINCT FROM EXCLUDED.team`,
-      [playerId, nick, team],
-    );
-    if (r.rowCount) invalidate();
+    const r = await savePlayer(pool, playerId, nick, team);
+    if (r.changed) invalidate();
+    return r.nick;
   } catch (err) {
     rankWriteErrors.inc({ kind: 'player' });
     logger.error({ err }, 'player 갱신 실패');
+    return null;
   }
 }
 
@@ -124,7 +251,7 @@ export interface SoloRecord {
 export async function recordSolo(r: SoloRecord): Promise<boolean> {
   if (!pool) return false;
   try {
-    await upsertPlayer(pool, r.playerId, r.nick, r.team);
+    await savePlayer(pool, r.playerId, r.nick, r.team);
     await pool.query(
       `INSERT INTO solo_games (player_id, team, digits, attempts, won, points)
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -153,8 +280,9 @@ export async function recordMatches(
   });
   if (!client) return;
   try {
+    // 닉네임은 트랜잭션 밖에서 — 중복 충돌(23505)이 나면 트랜잭션 전체가 깨지므로. 승패 기록과 원자적일 필요는 없다.
+    for (const p of players) await savePlayer(client, p.id, p.nick, p.team);
     await client.query('BEGIN');
-    for (const p of players) await upsertPlayer(client, p.id, p.nick, p.team);
     for (const r of rows) {
       await client.query(
         `INSERT INTO match_results (mode, team_w, team_l, draw, player_w, player_l)
