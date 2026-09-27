@@ -129,6 +129,10 @@ export default function App() {
       return '';
     }
   });
+  /** 닉네임 입력 세대 — 칸을 고칠 때마다 올려서, 그 전 입력의 늦은 확인 응답이 새 입력을 덮지 않게. */
+  const nickEditRef = useRef(0);
+  /** 닉네임 확인 요청 줄 — 한 번에 하나씩 보내서 서버 저장 순서가 입력 순서와 같게. */
+  const nickQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const [mDigits, setMDigits] = useState(3);
   const [mCode, setMCode] = useState('');
   // 코드 입력: IME(한글/안드로이드 예측 입력) 조합 중엔 값을 건드리지 않아야 입력이 안 씹힌다.
@@ -146,7 +150,9 @@ export default function App() {
       /* 무시 */
     }
     if (!team || !v || v === saved) return;
-    const r = await applyNick(v, team);
+    const edit = nickEditRef.current;
+    const r = await applyNick(v, team, () => nickEditRef.current !== edit);
+    if (nickEditRef.current !== edit) return; // 그새 다시 고침 → 이 결과는 버림
     if ('error' in r) {
       showNet(r.error);
       setMNick(saved);
@@ -464,11 +470,18 @@ export default function App() {
   const rankGenRef = useRef(0);
 
   /** 닉네임 저장(구단이 있으면 서버에서 중복 확인). 겹치면 에러 문구, 아니면 실제로 쓰인 닉네임. */
-  const applyNick = async (nick: string, t: string): Promise<{ nick: string } | { error: string }> => {
-    const r = await claimNick({ playerId: getPlayerId(), nick, team: t });
+  const applyNick = async (
+    nick: string,
+    t: string,
+    stale: () => boolean = () => false,
+  ): Promise<{ nick: string } | { error: string }> => {
+    const req = nickQueueRef.current.then(() => claimNick({ playerId: getPlayerId(), nick, team: t }));
+    nickQueueRef.current = req.catch(() => {});
+    const r = await req;
     if (r.taken) return { error: r.error ?? '이미 누가 쓰고 있는 닉네임이에요.' };
     // 서버·DB가 안 될 땐 일단 기기에 저장 — 다음 랭킹전 시작 때 서버가 확인해 맞춰 준다.
     const final = r.ok && r.nick ? r.nick : nick;
+    if (stale()) return { nick: final };
     setMNick(final);
     persist('nb_nick', final);
     return { nick: final };
@@ -821,7 +834,10 @@ export default function App() {
                 value={mNick}
                 maxLength={12}
                 placeholder="닉네임"
-                onChange={(e) => setMNick(e.target.value)}
+                onChange={(e) => {
+                  nickEditRef.current++;
+                  setMNick(e.target.value);
+                }}
                 onBlur={confirmMenuNick}
               />
             </label>

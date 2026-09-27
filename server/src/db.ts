@@ -190,14 +190,18 @@ async function migrateNicks(p: pg.Pool): Promise<void> {
        ORDER BY COALESCE(g.n, 0) DESC, p.updated_at ASC`,
     );
     const seen = new Set<string>();
+    // 원래 이름 전부 예약 — 뒤에 숫자를 붙인 이름이 아직 순회 안 한 다른 사람의 원래 이름(곰돌이2)을 뺏지 않게.
+    const originals = new Set(rows.rows.map((r) => cleanNick(r.nick).toLowerCase()).filter(Boolean));
+    const used = (x: string) => seen.has(x.toLowerCase());
+    const reserved = (x: string) => used(x) || originals.has(x.toLowerCase());
     let renamed = 0;
     for (const row of rows.rows) {
       const n = cleanNick(row.nick);
       let next = n;
       if (!n) {
-        for (let i = 0; !next || seen.has(next.toLowerCase()); i++) next = randomNick(row.team, i >= 8);
-      } else if (seen.has(n.toLowerCase())) {
-        for (let k = 2; seen.has(next.toLowerCase()); k++) {
+        for (let i = 0; !next || reserved(next); i++) next = randomNick(row.team, i >= 8);
+      } else if (used(n)) {
+        for (let k = 2; reserved(next); k++) {
           next = `${n.slice(0, NICK_MAX - String(k).length)}${k}`;
         }
       }
