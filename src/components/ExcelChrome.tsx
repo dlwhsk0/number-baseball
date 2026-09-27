@@ -13,9 +13,13 @@ interface Props {
   onSettings: () => void;
   /** 지금까지 추측 수 — 이름 상자·수식·상태 표시줄 숫자를 바꿔 '작업 중'처럼 보이게. */
   attempt: number;
+  /** 선택한 셀(ExcelSolo가 알려줌) — 있으면 이름 상자·수식 입력줄에 그대로. */
+  bar?: { ref: string; text: string } | null;
+  /** 배경 격자·머리글을 그릴지 — 솔로는 ExcelSolo가 진짜 셀을 그리므로 false. */
+  grid?: boolean;
 }
 
-const COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const XL_COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const ROWS = Array.from({ length: 80 }, (_, i) => i + 1);
 const RIBBON_TABS = ['홈', '삽입', '그리기', '페이지 레이아웃', '수식', '데이터', '검토', '보기'];
 const SHEETS: { id: Section; label: string }[] = [
@@ -34,11 +38,11 @@ const FORMULAS = [
   '=TEXT(TODAY(),"yyyy-mm-dd")',
 ];
 
-export function ExcelChrome({ section, onSection, onHelp, onSettings, attempt }: Props) {
+export function ExcelChrome({ section, onSection, onHelp, onSettings, attempt, bar, grid = true }: Props) {
   const row = attempt + 2;
   return (
     <>
-      <div className="xl-top">
+      <div className={`xl-top${grid ? '' : ' no-grid'}`}>
         <div className="xl-title">
           <span className="xl-autosave">
             자동 저장 <span className="xl-toggle" aria-hidden="true" />
@@ -96,32 +100,38 @@ export function ExcelChrome({ section, onSection, onHelp, onSettings, attempt }:
           </div>
         </div>
         <div className="xl-formula" aria-hidden="true">
-          <span className="xl-namebox">B{row}</span>
+          <span className="xl-namebox">{bar ? bar.ref : `B${row}`}</span>
           <span className="xl-fx">
             <i>✕</i>
             <i>✓</i>
             <em>fx</em>
           </span>
-          <span className="xl-ftext">{FORMULAS[attempt % FORMULAS.length]}</span>
+          <span className="xl-ftext">{bar ? bar.text : FORMULAS[attempt % FORMULAS.length]}</span>
         </div>
+        {grid && (
         <div className="xl-colhead" aria-hidden="true">
           <span className="xl-corner" />
-          {COLS.map((c) => (
+          {XL_COLS.map((c) => (
             <span key={c} className={c === 'B' ? 'on' : undefined}>
               {c}
             </span>
           ))}
         </div>
+        )}
       </div>
 
-      <div className="xl-rowhead" aria-hidden="true">
-        {ROWS.map((r) => (
-          <span key={r} className={r === row ? 'on' : undefined}>
-            {r}
-          </span>
-        ))}
-      </div>
-      <div className="xl-grid" aria-hidden="true" />
+      {grid && (
+        <>
+          <div className="xl-rowhead" aria-hidden="true">
+            {ROWS.map((r) => (
+              <span key={r} className={r === row ? 'on' : undefined}>
+                {r}
+              </span>
+            ))}
+          </div>
+          <div className="xl-grid" aria-hidden="true" />
+        </>
+      )}
 
       <div className="xl-bottom">
         <div className="xl-sheets" role="tablist" aria-label="모드 선택">
