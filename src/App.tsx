@@ -10,6 +10,7 @@ import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { FieldBackdrop } from './components/FieldBackdrop';
 import { ExcelChrome } from './components/ExcelChrome';
+import { ExcelSolo } from './components/ExcelSolo';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
@@ -352,7 +353,10 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== '`' || e.metaKey || e.ctrlKey || e.altKey) return;
       const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      // 엑셀 입력 셀(.xl-edit)은 예외 — 늘 포커스가 가 있어서 막으면 보스 키가 안 먹는다.
+      const typing =
+        el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (typing && !el.classList.contains('xl-edit')) return;
       if (document.querySelector('.modal-backdrop')) return;
       e.preventDefault();
       const cur = themeRef.current;
@@ -602,6 +606,9 @@ export default function App() {
     const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (icon) icon.href = excel ? '/sheet.svg' : '/favicon.svg';
   }, [effectiveTheme, themeTeam]);
+  const xl = effectiveTheme === 'excel';
+  // 엑셀 시트에서 선택한 셀 → 이름 상자·수식 입력줄.
+  const [xlBar, setXlBar] = useState<{ ref: string; text: string } | null>(null);
   // 인트로(전광판 부팅 연출) 도중 보스 키로 엑셀이 되면 인트로를 바로 닫는다 — 엑셀 위에 남으면 위장이 깨진다.
   useEffect(() => {
     if (effectiveTheme === 'excel' && showIntro) dismissIntro();
@@ -701,6 +708,8 @@ export default function App() {
           onHelp={openRules}
           onSettings={() => setShowSettings(true)}
           attempt={state.guesses.length}
+          bar={xlBar}
+          grid={section !== 'solo'}
         />
       )}
       {showIntro && <Intro onDone={dismissIntro} />}
@@ -764,7 +773,20 @@ export default function App() {
 
       </header>
 
-      {section === 'solo' ? (
+      {section === 'solo' && xl ? (
+        // 엑셀 위장: 전광판·타자석 대신 진짜 셀에서(입력 셀에 치고 Enter).
+        <ExcelSolo
+          state={state}
+          onSubmit={ranked ? submitRanked : judgeGuess}
+          onMemo={toggleMemo}
+          onMemoClear={clearMemo}
+          onNewGame={newGame}
+          onShare={() => setSharing(true)}
+          pending={rankPending}
+          ranked={ranked ? rankResult : null}
+          onSelect={setXlBar}
+        />
+      ) : section === 'solo' ? (
         <>
       {/* 상단: 전광판 — 기록, 게임 종료 시 결과 발표 */}
       <section className="history-section scoreboard">
@@ -1079,10 +1101,10 @@ export default function App() {
             >
               <span aria-hidden="true">⚾</span>
             </button>
-            <h3 className="settings-title">설정</h3>
+            <h3 className="settings-title">{xl ? '옵션' : '설정'}</h3>
 
             <div className="settings-row">
-              <span className="settings-label">테마</span>
+              <span className="settings-label">{xl ? 'Office 테마' : '테마'}</span>
               <div className="seg" role="group" aria-label="테마">
                 <button
                   type="button"
@@ -1125,7 +1147,7 @@ export default function App() {
             {section === 'solo' && (
               <>
             <div className="settings-row">
-              <span className="settings-label">자릿수</span>
+              <span className="settings-label">{xl ? '고정 자릿수' : '자릿수'}</span>
               <div className="seg" role="group" aria-label="자릿수">
                 {[3, 4].map((d) => (
                   <button
@@ -1143,12 +1165,12 @@ export default function App() {
 
             {ranked ? (
               <div className="settings-row">
-                <span className="settings-label">시도</span>
+                <span className="settings-label">{xl ? '최대 반복' : '시도'}</span>
                 <span className="settings-fixed">랭킹전은 {RANKED_MAX_ATTEMPTS}회 고정</span>
               </div>
             ) : (
             <div className="settings-row">
-              <span className="settings-label">시도</span>
+              <span className="settings-label">{xl ? '최대 반복' : '시도'}</span>
               <div className="seg" role="group" aria-label="시도 횟수">
                 {ATTEMPT_PRESETS.map((n) => (
                   <button
@@ -1199,7 +1221,7 @@ export default function App() {
 
             <div className="settings-row">
               <span className="settings-label">
-                힌트
+                {xl ? '빠른 채우기' : '힌트'}
                 <button
                   type="button"
                   className={`info-btn${hintInfo ? ' on' : ''}`}
@@ -1243,7 +1265,7 @@ export default function App() {
                 setShowSettings(false);
               }}
             >
-              ↻ 새 게임
+              {xl ? '새 통합 문서' : '↻ 새 게임'}
             </button>
               </>
             )}
@@ -1265,7 +1287,7 @@ export default function App() {
               className="settings-close"
               onClick={() => setShowSettings(false)}
             >
-              닫기
+              {xl ? '확인' : '닫기'}
             </button>
 
           </div>
