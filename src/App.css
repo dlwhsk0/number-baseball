@@ -386,6 +386,13 @@
   gap: 6px;
   font-weight: 700;
   color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+/* 테마 버튼 4개(다크·라이트·엑셀·응원 구단) — 좁은 화면에서도 한 줄로 */
+.settings-row .seg-btn {
+  white-space: nowrap;
+  padding-inline: 12px;
 }
 /* 라벨 옆 물음표 토글(설명 펼치기) */
 .info-btn {
@@ -1305,6 +1312,10 @@
 }
 .hsbo.zero {
   opacity: 0.38;
+}
+/* 엑셀 테마에서만 보이는 숫자 카운트(excel-theme.css) */
+.hsbo-count {
+  display: none;
 }
 .hsbo-letter {
   font-size: 0.56rem;

@@ -9,6 +9,7 @@ import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { FieldBackdrop } from './components/FieldBackdrop';
+import { ExcelChrome } from './components/ExcelChrome';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
@@ -34,7 +35,10 @@ type Section = 'solo' | 'multi' | 'kbo';
 const SECTION_KEY = 'nb_section';
 type GameType = 'speed' | 'duel';
 /** 사용자가 고르는 테마. 'team' = 응원 구단 테마(구단은 KBO 탭에서 고른 nb_team). */
-type Theme = 'dark' | 'light' | 'team';
+type Theme = 'dark' | 'light' | 'team' | 'excel';
+// 엑셀 위장 테마 — 브라우저 탭(제목·파비콘)도 스프레드시트처럼. index.html 인라인 스크립트와 같은 값.
+const EXCEL_TITLE = '업무보고_2026Q3.xlsx';
+const APP_TITLE = '숫자 야구';
 
 // 도메인 이사: 구 주소는 index.html의 인라인 스크립트가 페인트 전에 대표 주소로 넘긴다.
 // 단 설치된 PWA(standalone)는 넘기면 scope를 벗어나 앱이 깨지므로, 대신 재설치 안내 배너를 띄운다.
@@ -228,6 +232,8 @@ export default function App() {
   };
   const [showIntro, setShowIntro] = useState(() => {
     try {
+      // 엑셀 위장 중엔 전광판 부팅 연출을 건너뛴다(위장을 깬다).
+      if (localStorage.getItem('nb_theme') === 'excel') return false;
       return !sessionStorage.getItem('nb_intro');
     } catch {
       return false;
@@ -282,7 +288,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       const s = localStorage.getItem('nb_theme');
-      if (s === 'light' || s === 'team') return s;
+      if (s === 'light' || s === 'team' || s === 'excel') return s;
       if (s === 'doosan' || s === 'lgtwins') {
         if (!getTeam()) saveTeam(s === 'doosan' ? 'doosan' : 'lg');
         return 'team';
@@ -318,11 +324,55 @@ export default function App() {
       });
       return;
     }
+    if (t === 'excel') rememberPrevTheme(theme);
     setTheme(t);
     themeToast(
-      t === 'light' ? '☀️ 라이트 모드' : t === 'team' ? `⚾ ${teamById(teamId)?.name} 테마` : '🌙 다크 모드',
+      t === 'light'
+        ? '☀️ 라이트 모드'
+        : t === 'team'
+          ? `⚾ ${teamById(teamId)?.name} 테마`
+          : t === 'excel'
+            ? '📊 엑셀 모드 — ` 키로 바로 전환'
+            : '🌙 다크 모드',
     );
   };
+
+  // 보스 키(`): 엑셀 위장 ↔ 직전 테마를 조용히 토글(토스트 없음). 직전 테마는 nb_theme_prev.
+  const rememberPrevTheme = (t: Theme) => {
+    if (t === 'excel') return;
+    try {
+      localStorage.setItem('nb_theme_prev', t);
+    } catch {
+      /* 저장 불가 무시 */
+    }
+  };
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '`' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      if (document.querySelector('.modal-backdrop')) return;
+      e.preventDefault();
+      const cur = themeRef.current;
+      if (cur !== 'excel') {
+        rememberPrevTheme(cur);
+        setTheme('excel');
+        return;
+      }
+      let prev: Theme = 'dark';
+      try {
+        const s = localStorage.getItem('nb_theme_prev');
+        if (s === 'light' || (s === 'team' && teamById(getTeam()))) prev = s;
+      } catch {
+        /* 무시 */
+      }
+      setTheme(prev);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // 이스터에그 2: 하단 깃허브 로고를 여러 번 누르면 '개발자 모드' 해금(삼성 개발자모드 오마주).
   const devTapRef = useRef(0);
@@ -546,7 +596,17 @@ export default function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
     if (meta && bg) meta.setAttribute('content', bg);
+    // 탭 위장 — 엑셀이면 제목·파비콘도 스프레드시트처럼(index.html이 페인트 전에 같은 일을 한다).
+    const excel = effectiveTheme === 'excel';
+    document.title = excel ? EXCEL_TITLE : APP_TITLE;
+    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (icon) icon.href = excel ? '/sheet.svg' : '/favicon.svg';
   }, [effectiveTheme, themeTeam]);
+  // 인트로(전광판 부팅 연출) 도중 보스 키로 엑셀이 되면 인트로를 바로 닫는다 — 엑셀 위에 남으면 위장이 깨진다.
+  useEffect(() => {
+    if (effectiveTheme === 'excel' && showIntro) dismissIntro();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveTheme, showIntro]);
 
   // 랭킹전 켜짐/꺼짐 전환 — 켜지면(앱 시작·구단 첫 선택) 서버의 진행 중인 판을 이어받거나 새 판,
   // 꺼지면(시작 실패) 연습 판으로. 같은 값이면 아무것도 안 함(StrictMode 재실행에도 1회).
@@ -634,6 +694,15 @@ export default function App() {
   return (
       <main className="app">
       <FieldBackdrop />
+      {effectiveTheme === 'excel' && (
+        <ExcelChrome
+          section={section}
+          onSection={(s) => (s === 'multi' ? setSection(s) : guardedSwitch(() => setSection(s)))}
+          onHelp={openRules}
+          onSettings={() => setShowSettings(true)}
+          attempt={state.guesses.length}
+        />
+      )}
       {showIntro && <Intro onDone={dismissIntro} />}
       <header className="controls">
         <div className="controls-row">
@@ -1030,6 +1099,15 @@ export default function App() {
                   onClick={() => changeTheme('light')}
                 >
                   라이트
+                </button>
+                <button
+                  type="button"
+                  className={`seg-btn${theme === 'excel' ? ' active' : ''}`}
+                  aria-pressed={theme === 'excel'}
+                  onClick={() => changeTheme('excel')}
+                  title="회사용 위장 — 키보드 ` 로 바로 전환"
+                >
+                  엑셀
                 </button>
                 <button
                   type="button"

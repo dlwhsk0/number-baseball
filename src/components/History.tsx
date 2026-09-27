@@ -80,6 +80,8 @@ export function History({
                     className={`hsbo lamp-${key}${c[key] === 0 ? ' zero' : ''}`}
                   >
                     <span className="hsbo-letter">{letter}</span>
+                    {/* 엑셀 테마 전용 — 전구 대신 숫자(기본 CSS에선 숨김). */}
+                    <span className="hsbo-count">{c[key]}</span>
                     <span className="bulbs">
                       {Array.from({ length: g.guess.length }, (_, k) => (
                         <span key={k} className={`bulb${k < c[key] ? ' on' : ''}`} />
