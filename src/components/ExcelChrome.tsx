@@ -4,7 +4,8 @@
  *   [파일] 탭 = 설정, [도움말] 탭 = 게임 방법, 하단 시트 탭 = 솔로/멀티/KBO 전환.
  * 스타일은 src/excel-theme.css(:root[data-theme='excel'] 스코프).
  */
-type Section = 'solo' | 'multi' | 'kbo';
+import { useRef, useState } from 'react';
+import { isValidSheetName, type XlSection as Section } from './excel';
 
 interface Props {
   section: Section;
@@ -17,16 +18,96 @@ interface Props {
   bar?: { ref: string; text: string } | null;
   /** 배경 격자·머리글을 그릴지 — 솔로는 ExcelSolo가 진짜 셀을 그리므로 false. */
   grid?: boolean;
+  /** 하단 시트 탭 이름(사용자가 더블클릭·길게 눌러 바꿈). */
+  names: Record<Section, string>;
+  onRename: (s: Section, name: string) => void;
+}
+
+/**
+ * 시트 탭 하나 — 누르면 전환, 더블클릭(폰은 길게 누르기)하면 그 자리에서 이름 편집.
+ * Enter/포커스 해제=저장, Esc=취소. 엑셀 규칙(31자·금지 문자)에 안 맞으면 원래 이름으로.
+ */
+function SheetTab({
+  name,
+  on,
+  onPick,
+  onRename,
+}: {
+  name: string;
+  on: boolean;
+  onPick: () => void;
+  onRename: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const pressRef = useRef<number | undefined>(undefined);
+  const longRef = useRef(false);
+  const start = () => {
+    setDraft(name);
+    setEditing(true);
+  };
+  const finish = (save: boolean) => {
+    setEditing(false);
+    if (save && isValidSheetName(draft) && draft.trim() !== name) onRename(draft.trim());
+  };
+  const clearPress = () => window.clearTimeout(pressRef.current);
+
+  if (editing)
+    return (
+      <input
+        className="xl-sheet xl-sheet-edit on"
+        value={draft}
+        autoFocus
+        maxLength={31}
+        aria-label="시트 이름"
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => finish(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.nativeEvent.isComposing) finish(true);
+          else if (e.key === 'Escape') finish(false);
+        }}
+        style={{ width: `${Math.max(4, draft.length + 2)}ch` }}
+      />
+    );
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={on}
+      className={`xl-sheet${on ? ' on' : ''}`}
+      title="더블클릭하여 이름 바꾸기"
+      onClick={() => {
+        if (longRef.current) {
+          longRef.current = false;
+          return;
+        }
+        onPick();
+      }}
+      onDoubleClick={start}
+      onPointerDown={(e) => {
+        if (e.pointerType === 'mouse') return;
+        longRef.current = false;
+        clearPress();
+        pressRef.current = window.setTimeout(() => {
+          longRef.current = true;
+          start();
+        }, 550);
+      }}
+      onPointerUp={clearPress}
+      onPointerLeave={clearPress}
+      onPointerCancel={clearPress}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {name}
+    </button>
+  );
 }
 
 const XL_COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const ROWS = Array.from({ length: 80 }, (_, i) => i + 1);
 const RIBBON_TABS = ['홈', '삽입', '그리기', '페이지 레이아웃', '수식', '데이터', '검토', '보기'];
-const SHEETS: { id: Section; label: string }[] = [
-  { id: 'solo', label: '매출현황' },
-  { id: 'multi', label: '협업일정' },
-  { id: 'kbo', label: '거래처' },
-];
+const SHEET_ORDER: Section[] = ['solo', 'multi', 'kbo'];
 const FORMULAS = [
   '=SUMIFS(매출!C:C,매출!A:A,"3분기")',
   '=VLOOKUP(B3,거래처!$A:$D,2,FALSE)',
@@ -38,7 +119,17 @@ const FORMULAS = [
   '=TEXT(TODAY(),"yyyy-mm-dd")',
 ];
 
-export function ExcelChrome({ section, onSection, onHelp, onSettings, attempt, bar, grid = true }: Props) {
+export function ExcelChrome({
+  section,
+  onSection,
+  onHelp,
+  onSettings,
+  attempt,
+  bar,
+  grid = true,
+  names,
+  onRename,
+}: Props) {
   const row = attempt + 2;
   return (
     <>
@@ -138,17 +229,14 @@ export function ExcelChrome({ section, onSection, onHelp, onSettings, attempt, b
           <span className="xl-nav" aria-hidden="true">
             ◀ ▶
           </span>
-          {SHEETS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={section === s.id}
-              className={`xl-sheet${section === s.id ? ' on' : ''}`}
-              onClick={() => onSection(s.id)}
-            >
-              {s.label}
-            </button>
+          {SHEET_ORDER.map((id) => (
+            <SheetTab
+              key={id}
+              name={names[id]}
+              on={section === id}
+              onPick={() => onSection(id)}
+              onRename={(n) => onRename(id, n)}
+            />
           ))}
           <span className="xl-add" aria-hidden="true">
             ⊕
