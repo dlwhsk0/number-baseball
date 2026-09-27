@@ -193,6 +193,20 @@ export interface RankedStartAck {
   /** 순위표에 실제로 쓰인 닉네임(비었으면 랜덤, 중복이면 원래 이름) — 클라가 이걸로 맞춘다. */
   nick?: string;
 }
+export interface TransferCreateAck {
+  ok: boolean;
+  error?: string;
+  code?: string;
+  /** 만료 시각(epoch ms). */
+  expiresAt?: number;
+}
+export interface TransferRedeemAck {
+  ok: boolean;
+  error?: string;
+  playerId?: string;
+  nick?: string;
+  team?: string;
+}
 export interface ClaimNickAck {
   ok: boolean;
   error?: string;
@@ -243,6 +257,10 @@ export interface ClientToServerEvents {
   rankedGuess: (p: { gameId: string; guess: string }, ack: (r: RankedGuessAck) => void) => void;
   /** 닉네임 변경(중복 확인) — 비워 보내면 원래 이름 유지, 처음이면 랜덤 닉네임. */
   claimNick: (p: { playerId: string; nick: string; team: string }, ack: (r: ClaimNickAck) => void) => void;
+  /** 기기 옮기기 — 옛 기기에서 코드 발급(10분·1회용). */
+  transferCreate: (p: { playerId: string }, ack: (r: TransferCreateAck) => void) => void;
+  /** 기기 옮기기 — 새 기기에서 코드 입력. 이 기기 기록은 옛 id로 합쳐지고 옛 id·닉네임·구단을 받는다. */
+  transferRedeem: (p: { code: string; playerId: string }, ack: (r: TransferRedeemAck) => void) => void;
   /** 순위표 조회(구단 솔로·개인·구단 대결). */
   leaderboard: (p: { playerId?: string }, ack: (r: LeaderboardAck) => void) => void;
   /** 턴제 랜덤 매치 대기열 등록(같은 자릿수끼리). 취소는 cancelQueue(또는 leave). */
