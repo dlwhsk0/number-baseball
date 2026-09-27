@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GameState, MemoMark } from '../game/useGame';
 import { cycleMemoMark } from '../game/useGame';
 import { isValidGuess } from '../game/logic';
 import type { RankedResult } from '../net/protocol';
+import { ExcelGrid } from './ExcelGrid';
+import { XL_COLS, type XlBar, type XlCell } from './excel';
 
 /**
  * 엑셀 위장 테마의 솔로 게임 — 전광판·타자석 대신 '진짜 셀'에서 한다.
@@ -12,22 +14,12 @@ import type { RankedResult } from '../net/protocol';
  * 판정은 안 한다 — App이 넘긴 onSubmit(연습=로컬 판정, 랭킹전=서버)을 부를 뿐.
  */
 
-const XL_COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const HEAD_ROW = 5;
 const FIRST_ROW = HEAD_ROW + 1;
 const MEMO_ROWS = [
   ['1', '2', '3', '4', '5'],
   ['6', '7', '8', '9', '0'],
 ];
-
-interface Cell {
-  v?: ReactNode;
-  /** 수식 입력줄에 보일 값(없으면 v가 문자열일 때 그대로). */
-  f?: string;
-  cls?: string;
-  onClick?: () => void;
-  editor?: boolean;
-}
 
 interface Props {
   state: GameState;
@@ -40,7 +32,7 @@ interface Props {
   pending: string | null;
   ranked: RankedResult | null;
   /** 선택한 셀 → 이름 상자·수식 입력줄(ExcelChrome). */
-  onSelect: (bar: { ref: string; text: string } | null) => void;
+  onSelect: (bar: XlBar) => void;
 }
 
 export function ExcelSolo({
@@ -96,7 +88,7 @@ export function ExcelSolo({
 
   const idx = Array.from({ length: digits }, (_, i) => i + 1).join(',');
   const cells = useMemo(() => {
-    const m = new Map<string, Cell>();
+    const m = new Map<string, XlCell>();
     m.set('A1', { v: '3분기 실적 집계', cls: 'xl-title-cell' });
     m.set('E1', { v: `${guesses.length}/${maxAttempts}`, cls: 'xl-r xl-muted' });
     MEMO_ROWS.forEach((row, ri) =>
@@ -148,7 +140,17 @@ export function ExcelSolo({
         m.set(inputKey, { v: pending, cls: 'xl-r' });
         ['C', 'D', 'E'].forEach((c) => m.set(`${c}${inputRow}`, { v: '#BUSY!', cls: 'xl-r xl-muted' }));
       } else {
-        m.set(inputKey, { editor: true, f: draft });
+        m.set(inputKey, {
+          editor: {
+            value: draft,
+            onChange: (v) => setDraft(v.replace(/\D/g, '').slice(0, digits)),
+            onEnter: submit,
+            inputMode: 'numeric',
+            maxLength: digits,
+            inputRef,
+            label: `${digits}자리 숫자 입력`,
+          },
+        });
       }
     } else {
       const r = inputRow + 1;
@@ -174,84 +176,8 @@ export function ExcelSolo({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guesses, digits, maxAttempts, status, secret, memo, pending, ranked, draft, playing, inputRow]);
 
-  // 이름 상자·수식 입력줄 동기화.
-  useEffect(() => {
-    const c = cells.get(sel);
-    const text = c?.f ?? (typeof c?.v === 'string' || typeof c?.v === 'number' ? String(c.v) : '');
-    onSelect({ ref: sel, text });
-  }, [sel, cells, onSelect]);
-  useEffect(() => () => onSelect(null), [onSelect]);
-
-  const rows = Math.max(40, inputRow + 16);
-  const cols = XL_COLS.length;
-
   return (
-    <div className="xl-ws" role="grid" aria-label="시트">
-      <div className="xl-ws-grid" style={{ gridTemplateRows: `repeat(${rows + 1}, var(--xl-row))` }}>
-        <span className="xl-h xl-h-corner" />
-        {XL_COLS.map((c) => (
-          <span key={c} className={`xl-h xl-h-col${sel.replace(/\d+$/, '') === c ? ' on' : ''}`}>
-            {c}
-          </span>
-        ))}
-        {Array.from({ length: rows }, (_, ri) => {
-          const r = ri + 1;
-          const selRow = Number(sel.replace(/^[A-Z]+/, ''));
-          return [
-            <span key={`h${r}`} className={`xl-h xl-h-row${selRow === r ? ' on' : ''}`}>
-              {r}
-            </span>,
-            ...Array.from({ length: cols }, (_, ci) => {
-              const key = `${XL_COLS[ci]}${r}`;
-              const c = cells.get(key);
-              const selected = key === sel;
-              const cls = `xl-cell${c?.cls ? ` ${c.cls}` : ''}${selected ? ' sel' : ''}${c?.onClick ? ' clickable' : ''}`;
-              if (c?.editor)
-                return (
-                  <label key={key} className={`${cls} xl-editor`} onClick={() => setSel(key)}>
-                    <input
-                      ref={inputRef}
-                      className="xl-edit"
-                      value={draft}
-                      inputMode="numeric"
-                      enterKeyHint="done"
-                      autoComplete="off"
-                      maxLength={digits}
-                      aria-label={`${digits}자리 숫자 입력`}
-                      onFocus={() => setSel(key)}
-                      onChange={(e) => {
-                        setSel(key);
-                        setDraft(e.target.value.replace(/\D/g, '').slice(0, digits));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          submit();
-                        } else if (e.key === 'Escape') setDraft('');
-                      }}
-                    />
-                  </label>
-                );
-              return (
-                <span
-                  key={key}
-                  className={cls}
-                  // 데스크톱: 다른 셀을 눌러도 입력 셀 포커스를 뺏지 않는다(계속 타이핑 가능).
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setSel(key);
-                    c?.onClick?.();
-                    refocus();
-                  }}
-                >
-                  {c?.v}
-                </span>
-              );
-            }),
-          ];
-        })}
-      </div>
-
+    <ExcelGrid cells={cells} sel={sel} onSel={setSel} onBar={onSelect} afterClick={refocus}>
       {invalid && (
         <div className="modal-backdrop xl-dialog-backdrop" onClick={() => setInvalid(false)}>
           <div className="xl-dialog" role="alertdialog" aria-labelledby="xl-dv-msg" onClick={(e) => e.stopPropagation()}>
@@ -294,6 +220,6 @@ export function ExcelSolo({
           </div>
         </div>
       )}
-    </div>
+    </ExcelGrid>
   );
 }
