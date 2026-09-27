@@ -1,6 +1,7 @@
 // 팬 랭킹 저장소(Postgres). DATABASE_URL이 없으면 랭킹 기능만 꺼지고 대전은 그대로 동작한다.
 // 기록 실패는 게임 진행을 막지 않는다(로그 + rank_write_errors 메트릭).
 import pg from 'pg';
+import { randomInt } from 'node:crypto';
 import { logger } from './logger.js';
 import { rankWriteErrors } from './metrics.js';
 import { TEAMS } from './teams.js';
@@ -44,6 +45,11 @@ CREATE TABLE IF NOT EXISTS match_results (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS match_results_created_idx ON match_results (created_at);
+CREATE TABLE IF NOT EXISTS transfer_codes (
+  code text PRIMARY KEY,
+  player_id uuid NOT NULL,
+  expires_at timestamptz NOT NULL
+);
 `;
 
 export async function initDb(): Promise<void> {
@@ -219,6 +225,84 @@ async function migrateNicks(p: pg.Pool): Promise<void> {
     throw err;
   } finally {
     c.release();
+  }
+}
+
+// ---------- 기기 옮기기 ----------
+/** 코드 글자 — 헷갈리는 0/O·1/I/L은 뺀다. */
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const TRANSFER_CODE_LEN = 6;
+const TRANSFER_TTL_MIN = 10;
+
+function makeCode(): string {
+  let out = '';
+  for (let i = 0; i < TRANSFER_CODE_LEN; i++) out += CODE_CHARS[randomInt(CODE_CHARS.length)];
+  return out;
+}
+
+export type TransferCreateResult = { ok: true; code: string; expiresAt: number } | { ok: false; error: string };
+
+/** 옛 기기: 기록을 옮길 코드 발급(10분·1회용). 이전에 받은 코드는 무효. */
+export async function createTransferCode(playerId: string): Promise<TransferCreateResult> {
+  if (!pool) return { ok: false, error: '지금은 기기 옮기기를 할 수 없어요.' };
+  if ((await currentNick(pool, playerId)) === null) {
+    return { ok: false, error: '옮길 기록이 없어요. 응원 구단을 고르고 랭킹전을 해보세요.' };
+  }
+  await pool.query('DELETE FROM transfer_codes WHERE player_id = $1 OR expires_at < now()', [playerId]);
+  for (let i = 0; i < 5; i++) {
+    const code = makeCode();
+    const r = await pool.query<{ expires_at: Date }>(
+      `INSERT INTO transfer_codes (code, player_id, expires_at)
+       VALUES ($1, $2, now() + make_interval(mins => $3))
+       ON CONFLICT (code) DO NOTHING RETURNING expires_at`,
+      [code, playerId, TRANSFER_TTL_MIN],
+    );
+    if (r.rows[0]) return { ok: true, code, expiresAt: r.rows[0].expires_at.getTime() };
+  }
+  return { ok: false, error: '코드를 만들지 못했어요. 다시 시도해주세요.' };
+}
+
+export type TransferRedeemResult =
+  | { ok: true; playerId: string; nick: string; team: string }
+  | { ok: false; invalid?: boolean; error: string };
+
+/**
+ * 새 기기: 코드를 입력하면 옛 기기의 id를 받아 간다. 이 기기 id로 쌓인 기록은 옛 id로 합치고 이 기기 id는 지운다
+ * (한 사람 기록이 두 id로 갈라지지 않게). 코드는 한 번 쓰면 사라진다.
+ */
+export async function redeemTransferCode(code: string, fromId: string): Promise<TransferRedeemResult> {
+  if (!pool) return { ok: false, error: '지금은 기기 옮기기를 할 수 없어요.' };
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const r = await client.query<{ player_id: string }>(
+      'DELETE FROM transfer_codes WHERE code = $1 AND expires_at > now() RETURNING player_id',
+      [code],
+    );
+    const target = r.rows[0]?.player_id;
+    if (!target) {
+      await client.query('ROLLBACK');
+      return { ok: false, invalid: true, error: '코드가 틀렸거나 시간이 지났어요.' };
+    }
+    if (target !== fromId) {
+      await client.query('UPDATE solo_games SET player_id = $2 WHERE player_id = $1', [fromId, target]);
+      await client.query('UPDATE match_results SET player_w = $2 WHERE player_w = $1', [fromId, target]);
+      await client.query('UPDATE match_results SET player_l = $2 WHERE player_l = $1', [fromId, target]);
+      await client.query('DELETE FROM players WHERE id = $1', [fromId]);
+    }
+    const p = await client.query<{ nick: string; team: string }>('SELECT nick, team FROM players WHERE id = $1', [target]);
+    await client.query('COMMIT');
+    invalidate();
+    const row = p.rows[0];
+    if (!row) return { ok: false, error: '옮길 기록을 찾지 못했어요.' };
+    return { ok: true, playerId: target, nick: row.nick, team: row.team };
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    rankWriteErrors.inc({ kind: 'transfer' });
+    logger.error({ err }, '기기 옮기기 실패');
+    return { ok: false, error: '기록을 옮기지 못했어요. 다시 시도해주세요.' };
+  } finally {
+    client.release();
   }
 }
 

@@ -15,7 +15,8 @@ import { OnlineDuel } from './versus/OnlineDuel';
 import { OnlineSpeed } from './versus/OnlineSpeed';
 import { peekRoom } from './net/peek';
 import { startRanked, guessRanked, claimNick } from './net/ranked';
-import { getPlayerId, getTeam, saveTeam } from './net/fan';
+import { TransferSheet } from './components/TransferSheet';
+import { getPlayerId, getTeam, saveTeam, setPlayerId } from './net/fan';
 import type { RankedResult } from './net/protocol';
 import { RANKED_MAX_ATTEMPTS } from './game/ranking';
 import { teamById } from './game/teams';
@@ -31,6 +32,8 @@ import './App.css';
 
 type Section = 'solo' | 'multi' | 'kbo';
 /** 마지막 탭(새로고침 유지). index.html 테마 복원 스크립트도 이 값을 읽는다. */
+/** 기기 옮기기 성공 표시(새로고침 너머로 토스트를 띄우려고). */
+const TRANSFER_DONE_KEY = 'nb_transfer_done';
 const SECTION_KEY = 'nb_section';
 type GameType = 'speed' | 'duel';
 /** 사용자가 고르는 테마. 'team' = 응원 구단 테마(구단은 KBO 탭에서 고른 nb_team). */
@@ -193,6 +196,18 @@ export default function App() {
     if (netTimerRef.current) window.clearTimeout(netTimerRef.current);
     netTimerRef.current = window.setTimeout(() => setNetMsg(null), 1900);
   };
+  // 기기 옮기기 직후(새로고침 뒤) 한 번 알림.
+  useEffect(() => {
+    try {
+      const nick = sessionStorage.getItem(TRANSFER_DONE_KEY);
+      if (nick === null) return;
+      sessionStorage.removeItem(TRANSFER_DONE_KEY);
+      showNet(`📲 '${nick}' 기록을 가져왔어요`);
+    } catch {
+      /* 무시 */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const on = () => setOnline(true);
     const off = () => setOnline(false);
@@ -459,6 +474,7 @@ export default function App() {
     setFanIntro(false);
     persist('nb_fan_intro', '1');
   };
+  const [showTransfer, setShowTransfer] = useState(false);
   const [pendingForfeit, setPendingForfeit] = useState(false);
   /** 서버 판정을 기다리는 추측 — 왕복하는 동안 타자석에 '판정 중' 카드를 띄워 빈 화면을 없앤다. */
   const [rankPending, setRankPending] = useState<string | null>(null);
@@ -470,7 +486,9 @@ export default function App() {
   /** 닉네임 저장(구단이 있으면 서버에서 중복 확인). 겹치면 에러 문구, 아니면 실제로 쓰인 닉네임. */
   const applyNick = async (nick: string, t: string): Promise<{ nick: string } | { error: string }> => {
     const r = await claimNick({ playerId: getPlayerId(), nick, team: t });
-    if (r.taken) return { error: r.error ?? '이미 누가 쓰고 있는 닉네임이에요.' };
+    if (r.taken) {
+      return { error: `${r.error ?? '이미 누가 쓰고 있는 닉네임이에요.'} 내 닉네임이면 KBO 탭 → 기기 옮기기로 가져오세요.` };
+    }
     // 서버·DB가 안 될 땐 일단 기기에 저장 — 다음 랭킹전 시작 때 서버가 확인해 맞춰 준다.
     const final = r.ok && r.nick ? r.nick : nick;
     setMNick(final);
@@ -814,7 +832,12 @@ export default function App() {
       )}
         </>
       ) : section === 'kbo' ? (
-        <KboBoard myTeam={team} nick={mNick.trim()} onPickTeam={() => setPicker({})} />
+        <KboBoard
+          myTeam={team}
+          nick={mNick.trim()}
+          onPickTeam={() => setPicker({})}
+          onTransfer={() => setShowTransfer(true)}
+        />
       ) : launch === null ? (
         <div className="versus versus-center">
           <div className="online-menu-card">
@@ -1303,6 +1326,24 @@ export default function App() {
             return err;
           }}
           onClose={closeFanIntro}
+        />
+      )}
+
+      {showTransfer && (
+        <TransferSheet
+          onDone={({ playerId, nick, team: t }) => {
+            // 신원을 통째로 바꿨으니 화면·랭킹전 상태를 새로 읽게 새로고침(진행 중이던 판은 서버가 버렸다).
+            setPlayerId(playerId);
+            saveTeam(t);
+            persist('nb_nick', nick);
+            try {
+              sessionStorage.setItem(TRANSFER_DONE_KEY, nick);
+            } catch {
+              /* 무시 */
+            }
+            location.reload();
+          }}
+          onClose={() => setShowTransfer(false)}
         />
       )}
 

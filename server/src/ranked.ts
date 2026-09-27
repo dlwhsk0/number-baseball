@@ -74,6 +74,12 @@ function drop(g: RankedGame): void {
   if (byPlayer.get(g.playerId) === g) byPlayer.delete(g.playerId);
 }
 
+/** 진행 중인 판을 기록 없이 버린다 — 기기 옮기기로 이 id가 없어질 때(남은 판이 지운 id로 기록되지 않게). */
+export function discardRankedGame(playerId: string): void {
+  const g = byPlayer.get(playerId);
+  if (g) drop(g);
+}
+
 /** 판 종료 기록 + 결과(점수·누적·구단 순위). */
 async function finish(g: RankedGame, won: boolean): Promise<RankedResult> {
   drop(g);

@@ -32,6 +32,17 @@ export function getPlayerId(): string {
   }
 }
 
+/** 기기 옮기기로 받은 옛 기기의 id로 교체. */
+export function setPlayerId(id: string): void {
+  if (!UUID_RE.test(id)) return;
+  memId = id;
+  try {
+    localStorage.setItem(ID_KEY, id);
+  } catch {
+    /* 저장 불가 — 이번 실행 동안만 메모리로 */
+  }
+}
+
 /** 응원 구단 id(미선택이면 null). */
 export function getTeam(): string | null {
   try {
