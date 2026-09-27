@@ -46,8 +46,8 @@ CREATE TABLE IF NOT EXISTS match_results (
 );
 CREATE INDEX IF NOT EXISTS match_results_created_idx ON match_results (created_at);
 CREATE TABLE IF NOT EXISTS transfer_codes (
-  code text PRIMARY KEY,
-  player_id uuid NOT NULL,
+  player_id uuid PRIMARY KEY,
+  code text NOT NULL UNIQUE,
   expires_at timestamptz NOT NULL
 );
 `;
@@ -248,16 +248,22 @@ export async function createTransferCode(playerId: string): Promise<TransferCrea
   if ((await currentNick(pool, playerId)) === null) {
     return { ok: false, error: '옮길 기록이 없어요. 응원 구단을 고르고 랭킹전을 해보세요.' };
   }
-  await pool.query('DELETE FROM transfer_codes WHERE player_id = $1 OR expires_at < now()', [playerId]);
+  await pool.query('DELETE FROM transfer_codes WHERE expires_at < now()');
   for (let i = 0; i < 5; i++) {
     const code = makeCode();
-    const r = await pool.query<{ expires_at: Date }>(
-      `INSERT INTO transfer_codes (code, player_id, expires_at)
-       VALUES ($1, $2, now() + make_interval(mins => $3))
-       ON CONFLICT (code) DO NOTHING RETURNING expires_at`,
-      [code, playerId, TRANSFER_TTL_MIN],
-    );
-    if (r.rows[0]) return { ok: true, code, expiresAt: r.rows[0].expires_at.getTime() };
+    try {
+      // 플레이어당 한 행(player_id PK) — 동시에 두 번 받아도 마지막 코드 하나만 남는다.
+      const r = await pool.query<{ expires_at: Date }>(
+        `INSERT INTO transfer_codes (player_id, code, expires_at)
+         VALUES ($1, $2, now() + make_interval(mins => $3))
+         ON CONFLICT (player_id) DO UPDATE SET code = EXCLUDED.code, expires_at = EXCLUDED.expires_at
+         RETURNING expires_at`,
+        [playerId, code, TRANSFER_TTL_MIN],
+      );
+      return { ok: true, code, expiresAt: r.rows[0].expires_at.getTime() };
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err; // 다른 사람 코드와 겹침 → 새 코드로 재시도
+    }
   }
   return { ok: false, error: '코드를 만들지 못했어요. 다시 시도해주세요.' };
 }
@@ -284,17 +290,25 @@ export async function redeemTransferCode(code: string, fromId: string): Promise<
       await client.query('ROLLBACK');
       return { ok: false, invalid: true, error: '코드가 틀렸거나 시간이 지났어요.' };
     }
+    // 옮겨 갈 대상이 먼저 있어야 한다 — 없으면 아무것도 안 바꾸고 되돌림(기록이 없는 id를 가리키지 않게).
+    const p = await client.query<{ nick: string; team: string }>(
+      'SELECT nick, team FROM players WHERE id = $1 FOR UPDATE',
+      [target],
+    );
+    const row = p.rows[0];
+    if (!row) {
+      await client.query('ROLLBACK');
+      return { ok: false, error: '옮길 기록을 찾지 못했어요.' };
+    }
     if (target !== fromId) {
       await client.query('UPDATE solo_games SET player_id = $2 WHERE player_id = $1', [fromId, target]);
       await client.query('UPDATE match_results SET player_w = $2 WHERE player_w = $1', [fromId, target]);
       await client.query('UPDATE match_results SET player_l = $2 WHERE player_l = $1', [fromId, target]);
+      await client.query('DELETE FROM transfer_codes WHERE player_id = $1', [fromId]);
       await client.query('DELETE FROM players WHERE id = $1', [fromId]);
     }
-    const p = await client.query<{ nick: string; team: string }>('SELECT nick, team FROM players WHERE id = $1', [target]);
     await client.query('COMMIT');
     invalidate();
-    const row = p.rows[0];
-    if (!row) return { ok: false, error: '옮길 기록을 찾지 못했어요.' };
     return { ok: true, playerId: target, nick: row.nick, team: row.team };
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});

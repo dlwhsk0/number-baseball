@@ -132,24 +132,25 @@ function clientIp(socket: { handshake: { headers: Record<string, unknown>; addre
 }
 
 /**
- * 기기 옮기기 코드 무작위 대입 방지 — IP당 10분에 틀린 코드 10번까지(메모리, 재시작 시 초기화).
+ * 기기 옮기기 코드 무작위 대입 방지 — IP당 10분에 코드 입력 10번까지(메모리, 재시작 시 초기화).
+ * 판정 전에 먼저 한 번으로 세서 동시에 몰아 보내도 한도를 못 넘긴다. 성공한 입력도 센다(정상 사용자는 한두 번).
  * 코드가 31^6(약 9억) 경우라 이 정도면 10분 유효시간 안에 맞히는 건 사실상 불가능.
  */
-const TRANSFER_MISS_MAX = 10;
-const TRANSFER_MISS_WINDOW_MS = 10 * 60 * 1000;
-const transferMisses = new Map<string, number[]>();
-function recentMisses(ip: string | null): number[] {
+const TRANSFER_TRY_MAX = 10;
+const TRANSFER_TRY_WINDOW_MS = 10 * 60 * 1000;
+const transferTries = new Map<string, number[]>();
+/** 이번 입력을 한 번으로 세고, 한도 안이면 true. */
+function takeTransferTry(ip: string | null): boolean {
+  const key = ip ?? '';
   const now = Date.now();
-  const list = (transferMisses.get(ip ?? '') ?? []).filter((t) => now - t < TRANSFER_MISS_WINDOW_MS);
-  if (list.length) transferMisses.set(ip ?? '', list);
-  else transferMisses.delete(ip ?? '');
-  return list;
-}
-function transferLocked(ip: string | null): boolean {
-  return recentMisses(ip).length >= TRANSFER_MISS_MAX;
-}
-function transferMiss(ip: string | null): void {
-  transferMisses.set(ip ?? '', [...recentMisses(ip), Date.now()]);
+  const list = (transferTries.get(key) ?? []).filter((t) => now - t < TRANSFER_TRY_WINDOW_MS);
+  if (list.length >= TRANSFER_TRY_MAX) {
+    transferTries.set(key, list);
+    return false;
+  }
+  list.push(now);
+  transferTries.set(key, list);
+  return true;
 }
 
 /** 클라가 보낸 팬 신원 검증(형식이 틀리면 버림 → 구단 대결 기록에서 빠짐). */
@@ -569,16 +570,14 @@ io.on('connection', (socket) => {
   socket.on('transferRedeem', (p, ack) => {
     if (typeof ack !== 'function') return;
     if (!isPlayerId(p?.playerId)) return ack({ ok: false, error: '플레이어 정보가 올바르지 않아요.' });
-    const ip = clientIp(socket);
-    if (transferLocked(ip)) {
-      return ack({ ok: false, error: '코드를 너무 많이 틀렸어요. 10분 뒤에 다시 해주세요.' });
-    }
     const code = String(p.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (code.length !== TRANSFER_CODE_LEN) return ack({ ok: false, error: `코드는 ${TRANSFER_CODE_LEN}자리예요.` });
+    if (!takeTransferTry(clientIp(socket))) {
+      return ack({ ok: false, error: '코드를 너무 많이 입력했어요. 10분 뒤에 다시 해주세요.' });
+    }
     const fromId = p.playerId;
     redeemTransferCode(code, fromId)
       .then((r) => {
-        if (!r.ok && 'invalid' in r && r.invalid) transferMiss(ip);
         // 이 기기 id는 사라졌다 — 진행 중이던 랭킹전 판이 지운 id로 기록되지 않게 버린다.
         if (r.ok && r.playerId !== fromId) discardRankedGame(fromId);
         ack(r);

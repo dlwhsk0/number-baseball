@@ -1333,7 +1333,12 @@ export default function App() {
         <TransferSheet
           onDone={({ playerId, nick, team: t }) => {
             // 신원을 통째로 바꿨으니 화면·랭킹전 상태를 새로 읽게 새로고침(진행 중이던 판은 서버가 버렸다).
-            setPlayerId(playerId);
+            // 저장이 안 되는 브라우저(개인정보 보호 모드 등)면 새로고침하는 순간 id가 사라지니 멈추고 알린다.
+            if (!setPlayerId(playerId)) {
+              setShowTransfer(false);
+              showNet('이 브라우저엔 저장할 수 없어요 — 일반 모드에서 다시 해주세요');
+              return;
+            }
             saveTeam(t);
             persist('nb_nick', nick);
             try {

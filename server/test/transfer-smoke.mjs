@@ -36,6 +36,17 @@ const c1 = await emit(s, 'transferCreate', { playerId: oldId });
 assert(c1.ok && /^[A-Z2-9]{6}$/.test(c1.code), `코드 발급(${c1.code})`);
 const c2 = await emit(s, 'transferCreate', { playerId: oldId });
 assert(c2.ok && c2.code !== c1.code, '다시 받으면 새 코드');
+// 동시에 두 번 받아도 마지막 하나만 유효.
+const [p1, p2] = await Promise.all([
+  emit(s, 'transferCreate', { playerId: oldId }),
+  emit(s, 'transferCreate', { playerId: oldId }),
+]);
+assert(p1.ok && p2.ok, '동시 발급 2번 OK');
+const c3 = await emit(s, 'transferCreate', { playerId: oldId });
+const p1r = await emit(s, 'transferRedeem', { code: p1.code, playerId: randomUUID() });
+const p2r = await emit(s, 'transferRedeem', { code: p2.code, playerId: randomUUID() });
+assert(!p1r.ok && !p2r.ok, '새 코드를 받으면 동시 발급된 코드들도 무효');
+c2.code = c3.code;
 const stale = await emit(s, 'transferRedeem', { code: c1.code, playerId: newId });
 assert(!stale.ok, '이전 코드는 무효');
 

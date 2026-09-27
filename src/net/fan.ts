@@ -32,14 +32,15 @@ export function getPlayerId(): string {
   }
 }
 
-/** 기기 옮기기로 받은 옛 기기의 id로 교체. */
-export function setPlayerId(id: string): void {
-  if (!UUID_RE.test(id)) return;
+/** 기기 옮기기로 받은 옛 기기의 id로 교체. 저장하지 못했으면 false(새로고침하면 사라지니 호출자가 알려야 한다). */
+export function setPlayerId(id: string): boolean {
+  if (!UUID_RE.test(id)) return false;
   memId = id;
   try {
     localStorage.setItem(ID_KEY, id);
+    return localStorage.getItem(ID_KEY) === id;
   } catch {
-    /* 저장 불가 — 이번 실행 동안만 메모리로 */
+    return false;
   }
 }
 
