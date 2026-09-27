@@ -14,7 +14,7 @@ import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
 import { OnlineSpeed } from './versus/OnlineSpeed';
 import { peekRoom } from './net/peek';
-import { startRanked, guessRanked } from './net/ranked';
+import { startRanked, guessRanked, claimNick } from './net/ranked';
 import { getPlayerId, getTeam, saveTeam } from './net/fan';
 import type { RankedResult } from './net/protocol';
 import { RANKED_MAX_ATTEMPTS } from './game/ranking';
@@ -129,6 +129,8 @@ export default function App() {
       return '';
     }
   });
+  /** 닉네임 중복 확인 중 — 그동안 칸을 잠가 확인 결과가 새 입력을 덮지 않게. */
+  const [nickChecking, setNickChecking] = useState(false);
   const [mDigits, setMDigits] = useState(3);
   const [mCode, setMCode] = useState('');
   // 코드 입력: IME(한글/안드로이드 예측 입력) 조합 중엔 값을 건드리지 않아야 입력이 안 씹힌다.
@@ -136,6 +138,25 @@ export default function App() {
   const normalizeCode = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [peeking, setPeeking] = useState(false);
+  /** 멀티 메뉴에서 고친 닉네임 — 구단이 있으면(개인 순위에 오르는 이름) 서버에서 중복 확인, 겹치면 되돌림. */
+  const confirmMenuNick = async () => {
+    const v = mNick.trim();
+    let saved = '';
+    try {
+      saved = localStorage.getItem('nb_nick') ?? '';
+    } catch {
+      /* 무시 */
+    }
+    if (!team || !v || v === saved) return;
+    setNickChecking(true);
+    const r = await applyNick(v, team);
+    setNickChecking(false);
+    if ('error' in r) {
+      showNet(r.error);
+      setMNick(saved);
+      persist('nb_nick', saved);
+    }
+  };
   const persistNick = () => {
     try {
       localStorage.setItem('nb_nick', mNick.trim());
@@ -446,9 +467,24 @@ export default function App() {
   /** 랭킹 요청 세대 — 새 판 시작·연습 전환 때 올려서, 그 전에 보낸 요청의 늦은 응답은 버린다. */
   const rankGenRef = useRef(0);
 
-  const saveFan = (nick: string, t: string) => {
-    setMNick(nick);
-    persist('nb_nick', nick);
+  /** 닉네임 저장(구단이 있으면 서버에서 중복 확인). 겹치면 에러 문구, 아니면 실제로 쓰인 닉네임. */
+  const applyNick = async (nick: string, t: string): Promise<{ nick: string } | { error: string }> => {
+    const r = await claimNick({ playerId: getPlayerId(), nick, team: t });
+    if (r.taken) return { error: r.error ?? '이미 누가 쓰고 있는 닉네임이에요.' };
+    // 서버·DB가 안 될 땐 일단 기기에 저장 — 다음 랭킹전 시작 때 서버가 확인해 맞춰 준다.
+    const final = r.ok && r.nick ? r.nick : nick;
+    setMNick(final);
+    persist('nb_nick', final);
+    return { nick: final };
+  };
+
+  /** 팬 등록 시트 저장 — 닉네임이 겹치면 시트를 닫지 않고 에러 문구를 돌려준다. */
+  const saveFan = async (nick: string, t: string): Promise<string | null> => {
+    if (nick === '' || nick !== mNick.trim()) {
+      const r = await applyNick(nick, t);
+      if ('error' in r) return r.error;
+      if (!nick && r.nick) showNet(`닉네임은 '${r.nick}' — KBO 탭에서 바꿀 수 있어요`);
+    }
     saveTeam(t);
     // 구단을 처음 고른 순간엔 화면도 그 구단 색으로 물들인다(이후엔 설정에서 자유롭게 변경).
     if (!team) {
@@ -460,6 +496,7 @@ export default function App() {
     const after = picker?.after;
     setPicker(null);
     after?.(t);
+    return null;
   };
 
   /** 랭킹전 판 시작(같은 자릿수로 진행 중인 판이 서버에 있으면 이어하기, forfeit면 버리고 새 판). */
@@ -491,6 +528,11 @@ export default function App() {
       return;
     }
     rankedIdRef.current = r.gameId;
+    // 서버가 정한 닉네임으로 맞춤(비었으면 랜덤, 다른 사람과 겹치면 원래 이름).
+    if (r.nick && r.nick !== mNick.trim()) {
+      setMNick(r.nick);
+      persist('nb_nick', r.nick);
+    }
     const guesses = r.guesses ?? [];
     prevGuessCountRef.current = guesses.length; // 이어하기 기록엔 발표 카드 안 띄움
     restore(r.digits ?? d, r.maxAttempts ?? RANKED_MAX_ATTEMPTS, hint, guesses);
@@ -782,8 +824,11 @@ export default function App() {
                 className="online-input"
                 value={mNick}
                 maxLength={12}
-                placeholder="플레이어"
+                placeholder={nickChecking ? '확인 중…' : '닉네임'}
+                readOnly={nickChecking}
+                aria-busy={nickChecking}
                 onChange={(e) => setMNick(e.target.value)}
+                onBlur={confirmMenuNick}
               />
             </label>
             <div className="versus-field">
@@ -1252,9 +1297,10 @@ export default function App() {
           intro
           nick={mNick}
           team={team}
-          onSave={(n, t) => {
-            closeFanIntro();
-            saveFan(n, t);
+          onSave={async (n, t) => {
+            const err = await saveFan(n, t);
+            if (!err) closeFanIntro();
+            return err;
           }}
           onClose={closeFanIntro}
         />

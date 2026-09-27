@@ -5201,6 +5201,10 @@
   font-size: 0.72rem;
   color: var(--muted);
 }
+.fan-nick-hint.error {
+  color: var(--out);
+  font-weight: 600;
+}
 
 .board-foot {
   margin: 6px 0 0;

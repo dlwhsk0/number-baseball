@@ -143,7 +143,7 @@ function PlayerLine({ p, mine = false }: { p: PlayerRow; mine?: boolean }) {
 interface Props {
   /** 내 응원 구단(강조 표시). */
   myTeam: string | null;
-  /** 내 닉네임(개인 순위에 쓰이는 이름 — 비어 있으면 서버가 '플레이어'로 기록). */
+  /** 내 닉네임(개인 순위에 쓰이는 이름 — 비어 있으면 서버가 랜덤 닉네임을 붙여 랭킹전 시작 때 동기화). */
   nick: string;
   /** 응원 구단 고르기/바꾸기 시트 열기. */
   onPickTeam: () => void;

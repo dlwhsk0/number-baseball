@@ -1,6 +1,6 @@
 // 솔로 랭킹전·순위표 요청 — 공용 소켓의 ack 래퍼(연결 안 됐으면 붙고 보냄, 타임아웃 폴백).
 import { getSocket } from './socket';
-import type { RankedStartAck, RankedGuessAck, LeaderboardAck } from './protocol';
+import type { RankedStartAck, RankedGuessAck, LeaderboardAck, ClaimNickAck } from './protocol';
 
 const NO_SERVER = '서버 응답이 없어요. 다시 시도해주세요.';
 
@@ -46,4 +46,9 @@ export function guessRanked(gameId: string, guess: string): Promise<RankedGuessA
 
 export function fetchLeaderboard(playerId: string): Promise<LeaderboardAck> {
   return request((done) => getSocket().emit('leaderboard', { playerId }, done));
+}
+
+/** 닉네임 변경(서버가 중복 확인) — 비워 보내면 원래 이름 유지, 처음이면 랜덤 닉네임을 받는다. */
+export function claimNick(p: { playerId: string; nick: string; team: string }): Promise<ClaimNickAck> {
+  return request((done) => getSocket().emit('claimNick', p, done));
 }

@@ -189,6 +189,16 @@ export interface RankedStartAck {
   maxAttempts?: number;
   /** 이어하기(같은 기기에서 진행 중이던 판)면 그동안의 기록. */
   guesses?: GuessRecord[];
+  /** 순위표에 실제로 쓰인 닉네임(비었으면 랜덤, 중복이면 원래 이름) — 클라가 이걸로 맞춘다. */
+  nick?: string;
+}
+export interface ClaimNickAck {
+  ok: boolean;
+  error?: string;
+  /** 다른 사람이 이미 쓰는 닉네임. */
+  taken?: boolean;
+  /** 저장된 닉네임(비워 보냈으면 서버가 정한 랜덤 닉네임). */
+  nick?: string;
 }
 /** 랭킹전 종료 시 결과(점수·누적·구단 순위). */
 export interface RankedResult {
@@ -230,6 +240,8 @@ export interface ClientToServerEvents {
     ack: (r: RankedStartAck) => void,
   ) => void;
   rankedGuess: (p: { gameId: string; guess: string }, ack: (r: RankedGuessAck) => void) => void;
+  /** 닉네임 변경(중복 확인) — 비워 보내면 원래 이름 유지, 처음이면 랜덤 닉네임. */
+  claimNick: (p: { playerId: string; nick: string; team: string }, ack: (r: ClaimNickAck) => void) => void;
   /** 순위표 조회(구단 솔로·개인·구단 대결). */
   leaderboard: (p: { playerId?: string }, ack: (r: LeaderboardAck) => void) => void;
   /** 턴제 랜덤 매치 대기열 등록(같은 자릿수끼리). 취소는 cancelQueue(또는 leave). */
