@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useGame, type GuessRecord } from './game/useGame';
 import { GuessPad } from './components/GuessPad';
@@ -11,6 +11,9 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { FieldBackdrop } from './components/FieldBackdrop';
 import { ExcelChrome } from './components/ExcelChrome';
 import { ExcelSolo } from './components/ExcelSolo';
+import { ExcelMulti } from './components/ExcelMulti';
+import { ExcelKbo } from './components/ExcelKbo';
+import { loadSheetNames, saveSheetNames, xlPlain, type XlBar, type XlSection } from './components/excel';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
@@ -169,6 +172,15 @@ export default function App() {
     }
     if (r.digits === 3 || r.digits === 4) setMDigits(r.digits);
     setLaunch({ conn: 'online', gameType: r.mode, action: 'join', code: c });
+  };
+  // 온라인 진입(랜덤 매치·방 만들기) — 멀티 메뉴 카드와 엑셀 시트 공용.
+  const startOnline = (action: 'random' | 'create') => {
+    if (!online) {
+      showNet('온라인은 네트워크 연결이 필요해요');
+      return;
+    }
+    persistNick();
+    setLaunch({ conn: 'online', gameType, action });
   };
   const [netMsg, setNetMsg] = useState<string | null>(null);
   const netTimerRef = useRef<number | undefined>(undefined);
@@ -608,7 +620,20 @@ export default function App() {
   }, [effectiveTheme, themeTeam]);
   const xl = effectiveTheme === 'excel';
   // 엑셀 시트에서 선택한 셀 → 이름 상자·수식 입력줄.
-  const [xlBar, setXlBar] = useState<{ ref: string; text: string } | null>(null);
+  const [xlBar, setXlBar] = useState<XlBar>(null);
+  // 하단 시트 탭 이름 — 사용자가 바꿀 수 있고 기기에 저장(nb_xl_sheets).
+  const [sheetNames, setSheetNames] = useState(loadSheetNames);
+  const renameSheet = (sec: XlSection, name: string) =>
+    setSheetNames((prev) => {
+      const next = { ...prev, [sec]: name };
+      saveSheetNames(next);
+      return next;
+    });
+  // 같은 값이면 상태를 안 바꾼다(시트가 렌더마다 알려줘도 무한 렌더 안 되게).
+  const onXlBar = useCallback(
+    (b: XlBar) => setXlBar((prev) => (prev?.ref === b?.ref && prev?.text === b?.text ? prev : b)),
+    [],
+  );
   // 인트로(전광판 부팅 연출) 도중 보스 키로 엑셀이 되면 인트로를 바로 닫는다 — 엑셀 위에 남으면 위장이 깨진다.
   useEffect(() => {
     if (effectiveTheme === 'excel' && showIntro) dismissIntro();
@@ -709,7 +734,10 @@ export default function App() {
           onSettings={() => setShowSettings(true)}
           attempt={state.guesses.length}
           bar={xlBar}
-          grid={section !== 'solo'}
+          names={sheetNames}
+          onRename={renameSheet}
+          // 진짜 시트(솔로·멀티 메뉴·KBO)는 머리글을 직접 그린다 — 대전 화면만 배경 격자.
+          grid={section === 'multi' && launch !== null}
         />
       )}
       {showIntro && <Intro onDone={dismissIntro} />}
@@ -784,7 +812,7 @@ export default function App() {
           onShare={() => setSharing(true)}
           pending={rankPending}
           ranked={ranked ? rankResult : null}
-          onSelect={setXlBar}
+          onSelect={onXlBar}
         />
       ) : section === 'solo' ? (
         <>
@@ -862,8 +890,33 @@ export default function App() {
         </div>
       )}
         </>
+      ) : section === 'kbo' && xl ? (
+        <ExcelKbo myTeam={team} nick={mNick.trim()} onPickTeam={() => setPicker({})} onSelect={onXlBar} />
       ) : section === 'kbo' ? (
         <KboBoard myTeam={team} nick={mNick.trim()} onPickTeam={() => setPicker({})} />
+      ) : launch === null && xl ? (
+        <ExcelMulti
+          nick={mNick}
+          onNick={setMNick}
+          onNickCommit={persistNick}
+          team={team}
+          onPickTeam={() =>
+            setPicker({ message: '온라인 대전에서 다른 구단 팬을 이기면 우리 구단이 1승!' })
+          }
+          digits={mDigits}
+          onDigits={setMDigits}
+          gameType={gameType}
+          onGameType={setGameType}
+          online={online}
+          onRandom={() => startOnline('random')}
+          onCreate={() => startOnline('create')}
+          code={mCode}
+          onCode={(v, composing) => setMCode(composing ? v : normalizeCode(v))}
+          onJoin={joinByCode}
+          peeking={peeking}
+          onLocal={() => setLaunch({ conn: 'local', gameType })}
+          onSelect={onXlBar}
+        />
       ) : launch === null ? (
         <div className="versus versus-center">
           <div className="online-menu-card">
@@ -945,14 +998,7 @@ export default function App() {
                 type="button"
                 className={`versus-primary${online ? '' : ' disabled'}`}
                 aria-disabled={!online}
-                onClick={() => {
-                  if (!online) {
-                    showNet('온라인은 네트워크 연결이 필요해요');
-                    return;
-                  }
-                  persistNick();
-                  setLaunch({ conn: 'online', gameType, action: 'random' });
-                }}
+                onClick={() => startOnline('random')}
               >
                 🎲 랜덤 매치
               </button>
@@ -963,14 +1009,7 @@ export default function App() {
                 online ? '' : ' disabled'
               }`}
               aria-disabled={!online}
-              onClick={() => {
-                if (!online) {
-                  showNet('온라인은 네트워크 연결이 필요해요');
-                  return;
-                }
-                persistNick();
-                setLaunch({ conn: 'online', gameType, action: 'create' });
-              }}
+              onClick={() => startOnline('create')}
             >
               🚪 방 만들기
             </button>
@@ -1040,9 +1079,10 @@ export default function App() {
         <DuelVersus onExit={() => setLaunch(null)} />
       )}
 
-      {eggMsg && <div className="egg-toast">{eggMsg}</div>}
-      {netMsg && <div className="egg-toast">{netMsg}</div>}
-      {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
+      {/* 엑셀 테마에선 CSS가 이걸 수식 입력줄 아래 '메시지 표시줄'로 바꾼다 — 문구도 이모지 없이. */}
+      {eggMsg && <div className="egg-toast" role="status">{xl ? xlPlain(eggMsg) : eggMsg}</div>}
+      {netMsg && <div className="egg-toast" role="status">{xl ? xlPlain(netMsg) : netMsg}</div>}
+      {devMsg && <div className="egg-toast dev-toast" role="status">{xl ? xlPlain(devMsg) : devMsg}</div>}
 
       {movedPending && (
         <div className="reinstall-banner" role="status">
