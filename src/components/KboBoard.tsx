@@ -143,14 +143,16 @@ function PlayerLine({ p, mine = false }: { p: PlayerRow; mine?: boolean }) {
 interface Props {
   /** 내 응원 구단(강조 표시). */
   myTeam: string | null;
-  /** 내 닉네임(개인 순위에 쓰이는 이름 — 비어 있으면 서버가 '플레이어'로 기록). */
+  /** 내 닉네임(개인 순위에 쓰이는 이름 — 비어 있으면 서버가 랜덤 닉네임을 붙여 랭킹전 시작 때 동기화). */
   nick: string;
   /** 응원 구단 고르기/바꾸기 시트 열기. */
   onPickTeam: () => void;
+  /** 기기 옮기기 시트 열기. */
+  onTransfer: () => void;
 }
 
 /** KBO 탭 — 구단 순위(솔로 랭킹전 누적 · 온라인 구단 대결) + 개인 순위(평균 점수). 탭에 들어올 때마다 새로 불러온다. */
-export function KboBoard({ myTeam, nick, onPickTeam }: Props) {
+export function KboBoard({ myTeam, nick, onPickTeam, onTransfer }: Props) {
   const [tab, setTab] = useState<Tab>('solo');
   const [data, setData] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -220,6 +222,10 @@ export function KboBoard({ myTeam, nick, onPickTeam }: Props) {
           ) : (
             <span className="fan-team-none">⚾ 응원 구단 고르기</span>
           )}
+        </button>
+        {/* 기록은 기기에 묶여 있어 새 기기·홈 화면 앱으로 갈 땐 코드로 옮긴다. */}
+        <button type="button" className="kbo-transfer" onClick={onTransfer}>
+          📲 기기 옮기기
         </button>
 
         <div className="seg board-tabs" role="tablist">

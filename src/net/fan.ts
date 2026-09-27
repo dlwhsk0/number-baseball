@@ -32,6 +32,18 @@ export function getPlayerId(): string {
   }
 }
 
+/** 기기 옮기기로 받은 옛 기기의 id로 교체. 저장하지 못했으면 false(새로고침하면 사라지니 호출자가 알려야 한다). */
+export function setPlayerId(id: string): boolean {
+  if (!UUID_RE.test(id)) return false;
+  memId = id;
+  try {
+    localStorage.setItem(ID_KEY, id);
+    return localStorage.getItem(ID_KEY) === id;
+  } catch {
+    return false;
+  }
+}
+
 /** 응원 구단 id(미선택이면 null). */
 export function getTeam(): string | null {
   try {

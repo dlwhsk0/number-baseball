@@ -13,6 +13,7 @@ export interface XlEditor {
   onEnter?: () => void;
   onBlur?: () => void;
   placeholder?: string;
+  readOnly?: boolean;
   maxLength?: number;
   inputMode?: 'numeric' | 'text';
   align?: 'left' | 'right';

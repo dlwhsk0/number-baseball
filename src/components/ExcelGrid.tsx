@@ -79,6 +79,8 @@ export function ExcelGrid({ cells, sel, onSel, onBar, minRows = 40, afterClick, 
                       className={`xl-edit${ed.align === 'left' ? ' left' : ''}`}
                       value={ed.value}
                       placeholder={ed.placeholder}
+                      readOnly={ed.readOnly}
+                      aria-busy={ed.readOnly || undefined}
                       inputMode={ed.inputMode ?? 'text'}
                       enterKeyHint="done"
                       autoComplete="off"

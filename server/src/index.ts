@@ -25,8 +25,8 @@ import type {
   GuessRecord,
 } from './types.js';
 import { logger } from './logger.js';
-import { initDb, recordMatches, leaderboard, dbEnabled } from './db.js';
-import { rankedStart, rankedGuess, isPlayerId } from './ranked.js';
+import { initDb, recordMatches, leaderboard, dbEnabled, claimNick, createTransferCode, redeemTransferCode, TRANSFER_CODE_LEN } from './db.js';
+import { rankedStart, rankedGuess, isPlayerId, discardRankedGame } from './ranked.js';
 import { pairMatches } from './ranking.js';
 import { isTeamId } from './teams.js';
 import type { Fan } from './rooms.js';
@@ -129,6 +129,28 @@ function clientIp(socket: { handshake: { headers: Record<string, unknown>; addre
     .map((v) => v.trim())
     .filter(Boolean);
   return parts.at(-1) ?? socket.handshake.address ?? null;
+}
+
+/**
+ * 기기 옮기기 코드 무작위 대입 방지 — IP당 10분에 코드 입력 10번까지(메모리, 재시작 시 초기화).
+ * 판정 전에 먼저 한 번으로 세서 동시에 몰아 보내도 한도를 못 넘긴다. 성공한 입력도 센다(정상 사용자는 한두 번).
+ * 코드가 31^6(약 9억) 경우라 이 정도면 10분 유효시간 안에 맞히는 건 사실상 불가능.
+ */
+const TRANSFER_TRY_MAX = 10;
+const TRANSFER_TRY_WINDOW_MS = 10 * 60 * 1000;
+const transferTries = new Map<string, number[]>();
+/** 이번 입력을 한 번으로 세고, 한도 안이면 true. */
+function takeTransferTry(ip: string | null): boolean {
+  const key = ip ?? '';
+  const now = Date.now();
+  const list = (transferTries.get(key) ?? []).filter((t) => now - t < TRANSFER_TRY_WINDOW_MS);
+  if (list.length >= TRANSFER_TRY_MAX) {
+    transferTries.set(key, list);
+    return false;
+  }
+  list.push(now);
+  transferTries.set(key, list);
+  return true;
 }
 
 /** 클라가 보낸 팬 신원 검증(형식이 틀리면 버림 → 구단 대결 기록에서 빠짐). */
@@ -519,6 +541,50 @@ io.on('connection', (socket) => {
       .catch((err) => {
         logger.error({ err }, 'rankedGuess 실패');
         ack({ ok: false, error: '판정에 실패했어요. 다시 던져주세요.' });
+      });
+  });
+
+  socket.on('claimNick', (p, ack) => {
+    if (typeof ack !== 'function') return;
+    if (!isPlayerId(p?.playerId)) return ack({ ok: false, error: '플레이어 정보가 올바르지 않아요.' });
+    if (!isTeamId(p?.team)) return ack({ ok: false, error: '응원 구단을 골라주세요.' });
+    claimNick(p.playerId, String(p.nick ?? ''), p.team)
+      .then(ack)
+      .catch((err) => {
+        logger.error({ err }, 'claimNick 실패');
+        ack({ ok: false, error: '닉네임을 저장하지 못했어요.' });
+      });
+  });
+
+  socket.on('transferCreate', (p, ack) => {
+    if (typeof ack !== 'function') return;
+    if (!isPlayerId(p?.playerId)) return ack({ ok: false, error: '플레이어 정보가 올바르지 않아요.' });
+    createTransferCode(p.playerId)
+      .then(ack)
+      .catch((err) => {
+        logger.error({ err }, 'transferCreate 실패');
+        ack({ ok: false, error: '코드를 만들지 못했어요.' });
+      });
+  });
+
+  socket.on('transferRedeem', (p, ack) => {
+    if (typeof ack !== 'function') return;
+    if (!isPlayerId(p?.playerId)) return ack({ ok: false, error: '플레이어 정보가 올바르지 않아요.' });
+    const code = String(p.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== TRANSFER_CODE_LEN) return ack({ ok: false, error: `코드는 ${TRANSFER_CODE_LEN}자리예요.` });
+    if (!takeTransferTry(clientIp(socket))) {
+      return ack({ ok: false, error: '코드를 너무 많이 입력했어요. 10분 뒤에 다시 해주세요.' });
+    }
+    const fromId = p.playerId;
+    redeemTransferCode(code, fromId)
+      .then((r) => {
+        // 이 기기 id는 사라졌다 — 진행 중이던 랭킹전 판이 지운 id로 기록되지 않게 버린다.
+        if (r.ok && r.playerId !== fromId) discardRankedGame(fromId);
+        ack(r);
+      })
+      .catch((err) => {
+        logger.error({ err }, 'transferRedeem 실패');
+        ack({ ok: false, error: '기록을 옮기지 못했어요.' });
       });
   });
 

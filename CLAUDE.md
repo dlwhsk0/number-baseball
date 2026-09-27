@@ -69,11 +69,19 @@
     [솔로] 탭도 [대결]처럼 **KBO 팀 순위표식 표**(순위·구단·점수·판·성공·평균·팬, 막대 없음 — 구단 테마 색과 겹쳐 안 읽혀서 뺌). 판 없는 구단은 순위 '-'.
     **동순위**(`tieRanks`, `src/game/ranking.ts` ↔ 서버 복제): 같은 값이면 같은 순위, 다음은 건너뜀(1,2,3,4,4,6) — 솔로=점수, 대결=승률(서버 개인 `topPlayers`도 `myRank`와 같은 기준으로 동순위).
     **가을야구 색**: 5위 이내(공동 5위 포함) 순위 숫자를 주황(`.ps`).
-    닉네임은 KBO 탭 내 카드에 노출(비어 있으면 서버가 '플레이어'로 기록 — `TeamPicker`에서 변경, 랭킹전 시작 때 `touchPlayer`로 즉시 반영).
+    닉네임은 KBO 탭 내 카드에 노출(`TeamPicker`에서 변경, 랭킹전 시작 때 `touchPlayer`로 즉시 반영).
+    **닉네임은 유일**(`players_nick_uniq` = `lower(nick)` 유일 인덱스): 변경은 `claimNick` 이벤트로 서버가 중복 확인(겹치면 시트에 에러, 멀티 메뉴 닉네임 칸은 blur 때 확인·되돌림).
+    **비워두면 랜덤 닉네임**(`server/src/nickname.ts` — 구단명·연고지 또는 야구 말 + 구단 마스코트 + 숫자, 예: 두산곰27·끝내기호랑이08). 옛 기본값 '플레이어'는 예약어(빈 값 취급).
+    확인 없이 들어오는 경로(랭킹전 시작·멀티 기록·옛 클라)는 겹치거나 비면 **원래 이름 유지**(처음이면 랜덤), `rankedStart` ack의 `nick`으로 클라 `nb_nick`을 맞춘다.
+    기존 데이터는 서버 시작 때 1회 정리(`migrateNicks` — 인덱스가 없을 때만: '플레이어'→랜덤, 중복은 판 많은 쪽이 원래 이름·나머지는 뒤에 숫자). 스모크 `nick-smoke.mjs`.
+    **기기 옮기기**(`src/components/TransferSheet.tsx`, KBO 탭 내 구단 카드 아래 `📲 기기 옮기기`): 기록이 기기 id에 묶여 새 폰·홈 화면 앱(iOS는 Safari와 저장소 분리)·도메인 이사 때 갈라지는 문제 대응.
+    원래 기기 `[코드 받기]` → `transferCreate`(6자리, 헷갈리는 0/O/1/I/L 제외, 10분·1회용, 다시 받으면 이전 코드 무효, `transfer_codes` 테이블) → 새 기기 `[코드 입력]` → `transferRedeem`:
+    **새 기기 id의 기록(solo_games·match_results)을 원래 id로 합치고 새 기기 id 행은 삭제**, 원래 id·닉네임·구단을 돌려줌 → 클라가 `nb_player_id`/`nb_team`/`nb_nick` 교체 후 새로고침(`sessionStorage.nb_transfer_done`으로 토스트). 새 기기의 진행 중 랭킹전 판은 기록 없이 버림(`discardRankedGame`).
+    무작위 대입 방지: IP당 10분 틀린 코드 10번. 닉네임 중복 에러에도 '기기 옮기기' 안내. 스모크 `transfer-smoke.mjs`.
     이벤트 `leaderboard`, 서버 30초 캐시(기록 시 무효화 — 세대 번호로 조회 중 기록된 옛 결과는 캐시 안 함). 솔로 랭킹전 결과의 [순위 보기]는 KBO 탭으로 이동.
     구단 대결 기록은 한 판의 쌍들을 한 트랜잭션으로.
-  - **저장소 = Postgres**(`server/src/db.ts`, env `DATABASE_URL`, 시작 시 `CREATE TABLE IF NOT EXISTS` — `players`/`solo_games`/`match_results`). **없으면 랭킹만 비활성**(대전 정상). Dokploy 설정은 `docs/dokploy-deploy.md` §5-B.
-    스모크: `server/test/ranked-smoke.mjs`, `team-versus-smoke.mjs`(DB 붙은 서버 필요).
+  - **저장소 = Postgres**(`server/src/db.ts`, env `DATABASE_URL`, 시작 시 `CREATE TABLE IF NOT EXISTS` — `players`/`solo_games`/`match_results`/`transfer_codes`). **없으면 랭킹만 비활성**(대전 정상). Dokploy 설정은 `docs/dokploy-deploy.md` §5-B.
+    스모크: `server/test/ranked-smoke.mjs`, `team-versus-smoke.mjs`, `nick-smoke.mjs`, `transfer-smoke.mjs`(DB 붙은 서버 필요).
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
 - **대결 모드**(App `section='multi'`): **멀티 시작 메뉴** — 하나의 글라스 카드(`.online-menu-card`)에 위→아래로

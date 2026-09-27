@@ -74,6 +74,12 @@ function drop(g: RankedGame): void {
   if (byPlayer.get(g.playerId) === g) byPlayer.delete(g.playerId);
 }
 
+/** 진행 중인 판을 기록 없이 버린다 — 기기 옮기기로 이 id가 없어질 때(남은 판이 지운 id로 기록되지 않게). */
+export function discardRankedGame(playerId: string): void {
+  const g = byPlayer.get(playerId);
+  if (g) drop(g);
+}
+
 /** 판 종료 기록 + 결과(점수·누적·구단 순위). */
 async function finish(g: RankedGame, won: boolean): Promise<RankedResult> {
   drop(g);
@@ -183,11 +189,13 @@ async function startLocked(p: {
     // 같은 자릿수면 이어하기(새로고침·재접속 — 구단을 바꿨어도 이 판은 시작한 구단으로 기록).
     // 아니면(자릿수 변경·새 게임) 포기 처리.
     if (!p.forfeit && cur.digits === digits) {
-      cur.nick = p.nick;
       cur.lastAt = Date.now();
-      void touchPlayer(playerId, p.nick, p.team);
+      // 이어하기에도 닉네임 갱신(중복이면 서버가 원래 이름 유지) — 실제로 쓰인 이름을 판과 클라에 반영.
+      const nick = await touchPlayer(playerId, p.nick, p.team);
+      if (nick) cur.nick = nick;
       return {
         ok: true,
+        nick: nick ?? undefined,
         gameId: cur.id,
         digits,
         maxAttempts: RANKED_MAX_ATTEMPTS,
@@ -217,11 +225,13 @@ async function startLocked(p: {
   byPlayer.set(playerId, g);
   byId.set(g.id, g);
   // 닉네임·구단 갱신 — 바꾼 이름이 판을 끝내기 전에 순위표에 뜨게. 시작이 성공한 경우에만
-  // (한도에 걸려 거절된 요청이 프로필을 바꾸거나 순위 캐시를 비우지 않게). 판정과 무관해 기다리지 않는다.
-  void touchPlayer(playerId, p.nick, p.team);
+  // (한도에 걸려 거절된 요청이 프로필을 바꾸거나 순위 캐시를 비우지 않게).
+  // 기다리는 이유: 비었거나 중복이면 서버가 정한 이름(랜덤/원래 이름)을 클라에 돌려줘 맞춘다.
+  const nick = await touchPlayer(playerId, p.nick, p.team);
+  if (nick) g.nick = nick;
   // IP 자체는 안 남기고, 프록시 뒤에서 실제 공인 IP가 보이는지만(IP 상한이 동작하는지 확인용).
   logger.info({ digits, ipPublic: !!p.ip && isPublicIp(p.ip) }, 'ranked start');
-  return { ok: true, gameId: g.id, digits, maxAttempts: RANKED_MAX_ATTEMPTS, guesses: [] };
+  return { ok: true, gameId: g.id, digits, maxAttempts: RANKED_MAX_ATTEMPTS, guesses: [], nick: nick ?? undefined };
 }
 
 export async function rankedGuess(p: { gameId: unknown; guess: unknown }): Promise<RankedGuessAck> {

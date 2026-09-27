@@ -13,7 +13,9 @@ type GameType = 'speed' | 'duel';
 interface Props {
   nick: string;
   onNick: (v: string) => void;
+  /** 닉네임 확정(서버 중복 확인) — 칸을 벗어날 때. */
   onNickCommit: () => void;
+  nickChecking: boolean;
   team: string | null;
   onPickTeam: () => void;
   digits: number;
@@ -46,8 +48,10 @@ export function ExcelMulti(p: Props) {
         value: p.nick,
         onChange: (v) => p.onNick(v),
         onBlur: p.onNickCommit,
-        onEnter: p.onNickCommit,
-        placeholder: '비워두면 자동',
+        // Enter는 칸을 벗어나게만 — 확인은 blur 한 번(두 번 요청 안 가게).
+        onEnter: () => (document.activeElement as HTMLElement | null)?.blur(),
+        readOnly: p.nickChecking,
+        placeholder: p.nickChecking ? '확인 중…' : '비워두면 자동',
         maxLength: 12,
         align: 'left',
         label: '닉네임',

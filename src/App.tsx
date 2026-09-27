@@ -19,8 +19,9 @@ import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
 import { OnlineSpeed } from './versus/OnlineSpeed';
 import { peekRoom } from './net/peek';
-import { startRanked, guessRanked } from './net/ranked';
-import { getPlayerId, getTeam, saveTeam } from './net/fan';
+import { startRanked, guessRanked, claimNick } from './net/ranked';
+import { TransferSheet } from './components/TransferSheet';
+import { getPlayerId, getTeam, saveTeam, setPlayerId } from './net/fan';
 import type { RankedResult } from './net/protocol';
 import { RANKED_MAX_ATTEMPTS } from './game/ranking';
 import { teamById } from './game/teams';
@@ -36,6 +37,8 @@ import './App.css';
 
 type Section = 'solo' | 'multi' | 'kbo';
 /** 마지막 탭(새로고침 유지). index.html 테마 복원 스크립트도 이 값을 읽는다. */
+/** 기기 옮기기 성공 표시(새로고침 너머로 토스트를 띄우려고). */
+const TRANSFER_DONE_KEY = 'nb_transfer_done';
 const SECTION_KEY = 'nb_section';
 type GameType = 'speed' | 'duel';
 /** 사용자가 고르는 테마. 'team' = 응원 구단 테마(구단은 KBO 탭에서 고른 nb_team). */
@@ -137,6 +140,8 @@ export default function App() {
       return '';
     }
   });
+  /** 닉네임 중복 확인 중 — 그동안 칸을 잠가 확인 결과가 새 입력을 덮지 않게. */
+  const [nickChecking, setNickChecking] = useState(false);
   const [mDigits, setMDigits] = useState(3);
   const [mCode, setMCode] = useState('');
   // 코드 입력: IME(한글/안드로이드 예측 입력) 조합 중엔 값을 건드리지 않아야 입력이 안 씹힌다.
@@ -144,6 +149,25 @@ export default function App() {
   const normalizeCode = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
   const [launch, setLaunch] = useState<Launch | null>(null);
   const [peeking, setPeeking] = useState(false);
+  /** 멀티 메뉴에서 고친 닉네임 — 구단이 있으면(개인 순위에 오르는 이름) 서버에서 중복 확인, 겹치면 되돌림. */
+  const confirmMenuNick = async () => {
+    const v = mNick.trim();
+    let saved = '';
+    try {
+      saved = localStorage.getItem('nb_nick') ?? '';
+    } catch {
+      /* 무시 */
+    }
+    if (!team || !v || v === saved) return;
+    setNickChecking(true);
+    const r = await applyNick(v, team);
+    setNickChecking(false);
+    if ('error' in r) {
+      showNet(r.error);
+      setMNick(saved);
+      persist('nb_nick', saved);
+    }
+  };
   const persistNick = () => {
     try {
       localStorage.setItem('nb_nick', mNick.trim());
@@ -189,6 +213,18 @@ export default function App() {
     if (netTimerRef.current) window.clearTimeout(netTimerRef.current);
     netTimerRef.current = window.setTimeout(() => setNetMsg(null), 1900);
   };
+  // 기기 옮기기 직후(새로고침 뒤) 한 번 알림.
+  useEffect(() => {
+    try {
+      const nick = sessionStorage.getItem(TRANSFER_DONE_KEY);
+      if (nick === null) return;
+      sessionStorage.removeItem(TRANSFER_DONE_KEY);
+      showNet(`📲 '${nick}' 기록을 가져왔어요`);
+    } catch {
+      /* 무시 */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const on = () => setOnline(true);
     const off = () => setOnline(false);
@@ -504,6 +540,7 @@ export default function App() {
     setFanIntro(false);
     persist('nb_fan_intro', '1');
   };
+  const [showTransfer, setShowTransfer] = useState(false);
   const [pendingForfeit, setPendingForfeit] = useState(false);
   /** 서버 판정을 기다리는 추측 — 왕복하는 동안 타자석에 '판정 중' 카드를 띄워 빈 화면을 없앤다. */
   const [rankPending, setRankPending] = useState<string | null>(null);
@@ -512,9 +549,26 @@ export default function App() {
   /** 랭킹 요청 세대 — 새 판 시작·연습 전환 때 올려서, 그 전에 보낸 요청의 늦은 응답은 버린다. */
   const rankGenRef = useRef(0);
 
-  const saveFan = (nick: string, t: string) => {
-    setMNick(nick);
-    persist('nb_nick', nick);
+  /** 닉네임 저장(구단이 있으면 서버에서 중복 확인). 겹치면 에러 문구, 아니면 실제로 쓰인 닉네임. */
+  const applyNick = async (nick: string, t: string): Promise<{ nick: string } | { error: string }> => {
+    const r = await claimNick({ playerId: getPlayerId(), nick, team: t });
+    if (r.taken) {
+      return { error: `${r.error ?? '이미 누가 쓰고 있는 닉네임이에요.'} 내 닉네임이면 KBO 탭 → 기기 옮기기로 가져오세요.` };
+    }
+    // 서버·DB가 안 될 땐 일단 기기에 저장 — 다음 랭킹전 시작 때 서버가 확인해 맞춰 준다.
+    const final = r.ok && r.nick ? r.nick : nick;
+    setMNick(final);
+    persist('nb_nick', final);
+    return { nick: final };
+  };
+
+  /** 팬 등록 시트 저장 — 닉네임이 겹치면 시트를 닫지 않고 에러 문구를 돌려준다. */
+  const saveFan = async (nick: string, t: string): Promise<string | null> => {
+    if (nick === '' || nick !== mNick.trim()) {
+      const r = await applyNick(nick, t);
+      if ('error' in r) return r.error;
+      if (!nick && r.nick) showNet(`닉네임은 '${r.nick}' — KBO 탭에서 바꿀 수 있어요`);
+    }
     saveTeam(t);
     // 구단을 처음 고른 순간엔 화면도 그 구단 색으로 물들인다(이후엔 설정에서 자유롭게 변경).
     if (!team) {
@@ -526,6 +580,7 @@ export default function App() {
     const after = picker?.after;
     setPicker(null);
     after?.(t);
+    return null;
   };
 
   /** 랭킹전 판 시작(같은 자릿수로 진행 중인 판이 서버에 있으면 이어하기, forfeit면 버리고 새 판). */
@@ -557,6 +612,11 @@ export default function App() {
       return;
     }
     rankedIdRef.current = r.gameId;
+    // 서버가 정한 닉네임으로 맞춤(비었으면 랜덤, 다른 사람과 겹치면 원래 이름).
+    if (r.nick && r.nick !== mNick.trim()) {
+      setMNick(r.nick);
+      persist('nb_nick', r.nick);
+    }
     const guesses = r.guesses ?? [];
     prevGuessCountRef.current = guesses.length; // 이어하기 기록엔 발표 카드 안 띄움
     restore(r.digits ?? d, r.maxAttempts ?? RANKED_MAX_ATTEMPTS, hint, guesses);
@@ -891,14 +951,26 @@ export default function App() {
       )}
         </>
       ) : section === 'kbo' && xl ? (
-        <ExcelKbo myTeam={team} nick={mNick.trim()} onPickTeam={() => setPicker({})} onSelect={onXlBar} />
+        <ExcelKbo
+          myTeam={team}
+          nick={mNick.trim()}
+          onPickTeam={() => setPicker({})}
+          onTransfer={() => setShowTransfer(true)}
+          onSelect={onXlBar}
+        />
       ) : section === 'kbo' ? (
-        <KboBoard myTeam={team} nick={mNick.trim()} onPickTeam={() => setPicker({})} />
+        <KboBoard
+          myTeam={team}
+          nick={mNick.trim()}
+          onPickTeam={() => setPicker({})}
+          onTransfer={() => setShowTransfer(true)}
+        />
       ) : launch === null && xl ? (
         <ExcelMulti
           nick={mNick}
           onNick={setMNick}
-          onNickCommit={persistNick}
+          onNickCommit={confirmMenuNick}
+          nickChecking={nickChecking}
           team={team}
           onPickTeam={() =>
             setPicker({ message: '온라인 대전에서 다른 구단 팬을 이기면 우리 구단이 1승!' })
@@ -926,8 +998,11 @@ export default function App() {
                 className="online-input"
                 value={mNick}
                 maxLength={12}
-                placeholder="플레이어"
+                placeholder={nickChecking ? '확인 중…' : '닉네임'}
+                readOnly={nickChecking}
+                aria-busy={nickChecking}
                 onChange={(e) => setMNick(e.target.value)}
+                onBlur={confirmMenuNick}
               />
             </label>
             <div className="versus-field">
@@ -1392,11 +1467,35 @@ export default function App() {
           intro
           nick={mNick}
           team={team}
-          onSave={(n, t) => {
-            closeFanIntro();
-            saveFan(n, t);
+          onSave={async (n, t) => {
+            const err = await saveFan(n, t);
+            if (!err) closeFanIntro();
+            return err;
           }}
           onClose={closeFanIntro}
+        />
+      )}
+
+      {showTransfer && (
+        <TransferSheet
+          onDone={({ playerId, nick, team: t }) => {
+            // 신원을 통째로 바꿨으니 화면·랭킹전 상태를 새로 읽게 새로고침(진행 중이던 판은 서버가 버렸다).
+            // 저장이 안 되는 브라우저(개인정보 보호 모드 등)면 새로고침하는 순간 id가 사라지니 멈추고 알린다.
+            if (!setPlayerId(playerId)) {
+              setShowTransfer(false);
+              showNet('이 브라우저엔 저장할 수 없어요 — 일반 모드에서 다시 해주세요');
+              return;
+            }
+            saveTeam(t);
+            persist('nb_nick', nick);
+            try {
+              sessionStorage.setItem(TRANSFER_DONE_KEY, nick);
+            } catch {
+              /* 무시 */
+            }
+            location.reload();
+          }}
+          onClose={() => setShowTransfer(false)}
         />
       )}
 

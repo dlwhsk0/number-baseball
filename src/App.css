@@ -5212,6 +5212,10 @@
   font-size: 0.72rem;
   color: var(--muted);
 }
+.fan-nick-hint.error {
+  color: var(--out);
+  font-weight: 600;
+}
 
 .board-foot {
   margin: 6px 0 0;
@@ -5518,4 +5522,64 @@
 }
 .ios-switch:checked::after {
   transform: translateX(20px);
+}
+
+/* 기기 옮기기(TransferSheet) */
+.transfer-step {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.transfer-code-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: var(--r-md);
+  background: var(--cell);
+  border: 1px solid var(--border);
+}
+.transfer-code {
+  font-family: var(--font-digit);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  margin-right: -0.3em;
+  color: var(--accent);
+  user-select: all;
+}
+.transfer-left {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.transfer-input {
+  flex: none;
+  text-align: center;
+  font-family: var(--font-digit);
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.transfer-warn {
+  margin: -4px 0 0;
+  font-size: 0.75rem;
+}
+.transfer-error {
+  margin: 0;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--out);
+}
+.kbo-transfer {
+  align-self: flex-end;
+  margin: -4px 2px 0;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
 }

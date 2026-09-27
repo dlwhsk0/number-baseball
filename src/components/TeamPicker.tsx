@@ -8,7 +8,8 @@ interface Props {
   message?: string;
   /** 첫 방문 온보딩 — 구단 대항전 소개를 위에 붙이고 닫기 대신 '나중에 할게요'. */
   intro?: boolean;
-  onSave: (nick: string, team: string) => void;
+  /** 저장 — 실패(닉네임 중복 등)면 에러 문구를 돌려주고 시트는 그대로 둔다. */
+  onSave: (nick: string, team: string) => Promise<string | null>;
   onClose: () => void;
 }
 
@@ -16,6 +17,17 @@ interface Props {
 export function TeamPicker({ nick, team, message, intro = false, onSave, onClose }: Props) {
   const [name, setName] = useState(nick);
   const [pick, setPick] = useState<string | null>(team);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!pick || saving) return;
+    setSaving(true);
+    setError(null);
+    const err = await onSave(name.trim(), pick);
+    setSaving(false);
+    if (err) setError(err);
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -67,13 +79,20 @@ export function TeamPicker({ nick, team, message, intro = false, onSave, onClose
             className="online-input"
             value={name}
             maxLength={12}
-            placeholder="플레이어"
-            onChange={(e) => setName(e.target.value)}
+            placeholder="비워두면 랜덤 닉네임"
+            aria-invalid={!!error}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError(null);
+            }}
           />
         </label>
-        {/* 비워두면 placeholder 그대로 '플레이어'로 기록된다 — 순위표에서 남 이름처럼 보이는 걸 막는 안내. */}
-        <p className="fan-nick-hint">
-          {name.trim() ? '개인 순위에 이 이름으로 올라가요.' : "비워두면 '플레이어'로 올라가요."}
+        {/* 닉네임은 순위표에서 사람을 구분하는 이름이라 겹칠 수 없다(서버가 확인). */}
+        <p className={`fan-nick-hint${error ? ' error' : ''}`} role={error ? 'alert' : undefined}>
+          {error ??
+            (name.trim()
+              ? '개인 순위에 이 이름으로 올라가요. (다른 사람과 겹칠 수 없어요)'
+              : "비워두면 '두산곰27'처럼 구단 마스코트로 랜덤 닉네임을 붙여 드려요.")}
         </p>
 
         <div className="team-grid" role="radiogroup" aria-label="구단">
@@ -100,11 +119,11 @@ export function TeamPicker({ nick, team, message, intro = false, onSave, onClose
 
         <button
           type="button"
-          className={`versus-primary${pick ? '' : ' disabled'}`}
-          aria-disabled={!pick}
-          onClick={() => pick && onSave(name.trim(), pick)}
+          className={`versus-primary${pick && !saving ? '' : ' disabled'}`}
+          aria-disabled={!pick || saving}
+          onClick={save}
         >
-          이 구단 응원하기
+          {saving ? '확인 중…' : '이 구단 응원하기'}
         </button>
         <button type="button" className="settings-close" onClick={onClose}>
           {intro ? '나중에 할게요' : '닫기'}
