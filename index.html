@@ -23,7 +23,7 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- 다크가 기본. 저장된 테마(라이트/응원 구단)를 페인트 전에 복원해 깜빡임 방지.
+    <!-- 다크가 기본. 저장된 테마(라이트/엑셀/응원 구단)를 페인트 전에 복원해 깜빡임 방지.
          '응원 구단'을 고른 경우에만 구단 테마(App의 effectiveTheme과 같은 규칙 — 탭·랭킹전 무관). -->
     <script>
       try {
@@ -45,6 +45,11 @@
                   ? 'doosan'
                   : 'team-' + team;
         if (t && t !== 'dark') document.documentElement.setAttribute('data-theme', t);
+        // 엑셀 위장: 탭 제목·파비콘도 페인트 전에(App의 EXCEL_TITLE과 같은 값).
+        if (t === 'excel') {
+          document.title = '업무보고_2026Q3.xlsx';
+          document.querySelector('link[rel="icon"]').setAttribute('href', '/sheet.svg');
+        }
       } catch (e) {}
     </script>
     <!-- 구 주소 → 대표 주소(homerun-bb) 이사. 브라우저에서 열었을 때만 페인트 전에 넘긴다.

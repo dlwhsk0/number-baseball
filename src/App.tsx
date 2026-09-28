@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { useGame, type GuessRecord } from './game/useGame';
 import { GuessPad } from './components/GuessPad';
@@ -9,6 +9,11 @@ import { Intro } from './components/Intro';
 import { RulesModal } from './components/RulesModal';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { FieldBackdrop } from './components/FieldBackdrop';
+import { ExcelChrome } from './components/ExcelChrome';
+import { ExcelSolo } from './components/ExcelSolo';
+import { ExcelMulti } from './components/ExcelMulti';
+import { ExcelKbo } from './components/ExcelKbo';
+import { loadSheetNames, saveSheetNames, xlPlain, type XlBar, type XlSection } from './components/excel';
 import { SpeedVersus } from './versus/SpeedVersus';
 import { DuelVersus } from './versus/DuelVersus';
 import { OnlineDuel } from './versus/OnlineDuel';
@@ -37,7 +42,10 @@ const TRANSFER_DONE_KEY = 'nb_transfer_done';
 const SECTION_KEY = 'nb_section';
 type GameType = 'speed' | 'duel';
 /** 사용자가 고르는 테마. 'team' = 응원 구단 테마(구단은 KBO 탭에서 고른 nb_team). */
-type Theme = 'dark' | 'light' | 'team';
+type Theme = 'dark' | 'light' | 'team' | 'excel';
+// 엑셀 위장 테마 — 브라우저 탭(제목·파비콘)도 스프레드시트처럼. index.html 인라인 스크립트와 같은 값.
+const EXCEL_TITLE = '업무보고_2026Q3.xlsx';
+const APP_TITLE = '숫자 야구';
 
 // 도메인 이사: 구 주소는 index.html의 인라인 스크립트가 페인트 전에 대표 주소로 넘긴다.
 // 단 설치된 PWA(standalone)는 넘기면 scope를 벗어나 앱이 깨지므로, 대신 재설치 안내 배너를 띄운다.
@@ -189,6 +197,15 @@ export default function App() {
     if (r.digits === 3 || r.digits === 4) setMDigits(r.digits);
     setLaunch({ conn: 'online', gameType: r.mode, action: 'join', code: c });
   };
+  // 온라인 진입(랜덤 매치·방 만들기) — 멀티 메뉴 카드와 엑셀 시트 공용.
+  const startOnline = (action: 'random' | 'create') => {
+    if (!online) {
+      showNet('온라인은 네트워크 연결이 필요해요');
+      return;
+    }
+    persistNick();
+    setLaunch({ conn: 'online', gameType, action });
+  };
   const [netMsg, setNetMsg] = useState<string | null>(null);
   const netTimerRef = useRef<number | undefined>(undefined);
   const showNet = (m: string) => {
@@ -264,6 +281,8 @@ export default function App() {
   };
   const [showIntro, setShowIntro] = useState(() => {
     try {
+      // 엑셀 위장 중엔 전광판 부팅 연출을 건너뛴다(위장을 깬다).
+      if (localStorage.getItem('nb_theme') === 'excel') return false;
       return !sessionStorage.getItem('nb_intro');
     } catch {
       return false;
@@ -318,7 +337,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       const s = localStorage.getItem('nb_theme');
-      if (s === 'light' || s === 'team') return s;
+      if (s === 'light' || s === 'team' || s === 'excel') return s;
       if (s === 'doosan' || s === 'lgtwins') {
         if (!getTeam()) saveTeam(s === 'doosan' ? 'doosan' : 'lg');
         return 'team';
@@ -354,11 +373,58 @@ export default function App() {
       });
       return;
     }
+    if (t === 'excel') rememberPrevTheme(theme);
     setTheme(t);
     themeToast(
-      t === 'light' ? '☀️ 라이트 모드' : t === 'team' ? `⚾ ${teamById(teamId)?.name} 테마` : '🌙 다크 모드',
+      t === 'light'
+        ? '☀️ 라이트 모드'
+        : t === 'team'
+          ? `⚾ ${teamById(teamId)?.name} 테마`
+          : t === 'excel'
+            ? '📊 엑셀 모드 — ` 키로 바로 전환'
+            : '🌙 다크 모드',
     );
   };
+
+  // 보스 키(`): 엑셀 위장 ↔ 직전 테마를 조용히 토글(토스트 없음). 직전 테마는 nb_theme_prev.
+  const rememberPrevTheme = (t: Theme) => {
+    if (t === 'excel') return;
+    try {
+      localStorage.setItem('nb_theme_prev', t);
+    } catch {
+      /* 저장 불가 무시 */
+    }
+  };
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '`' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      // 엑셀 입력 셀(.xl-edit)은 예외 — 늘 포커스가 가 있어서 막으면 보스 키가 안 먹는다.
+      const typing =
+        el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (typing && !el.classList.contains('xl-edit')) return;
+      if (document.querySelector('.modal-backdrop')) return;
+      e.preventDefault();
+      const cur = themeRef.current;
+      if (cur !== 'excel') {
+        rememberPrevTheme(cur);
+        setTheme('excel');
+        return;
+      }
+      let prev: Theme = 'dark';
+      try {
+        const s = localStorage.getItem('nb_theme_prev');
+        if (s === 'light' || (s === 'team' && teamById(getTeam()))) prev = s;
+      } catch {
+        /* 무시 */
+      }
+      setTheme(prev);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // 이스터에그 2: 하단 깃허브 로고를 여러 번 누르면 '개발자 모드' 해금(삼성 개발자모드 오마주).
   const devTapRef = useRef(0);
@@ -606,7 +672,33 @@ export default function App() {
     const meta = document.querySelector('meta[name="theme-color"]');
     const bg = getComputedStyle(root).getPropertyValue('--bg').trim();
     if (meta && bg) meta.setAttribute('content', bg);
+    // 탭 위장 — 엑셀이면 제목·파비콘도 스프레드시트처럼(index.html이 페인트 전에 같은 일을 한다).
+    const excel = effectiveTheme === 'excel';
+    document.title = excel ? EXCEL_TITLE : APP_TITLE;
+    const icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (icon) icon.href = excel ? '/sheet.svg' : '/favicon.svg';
   }, [effectiveTheme, themeTeam]);
+  const xl = effectiveTheme === 'excel';
+  // 엑셀 시트에서 선택한 셀 → 이름 상자·수식 입력줄.
+  const [xlBar, setXlBar] = useState<XlBar>(null);
+  // 하단 시트 탭 이름 — 사용자가 바꿀 수 있고 기기에 저장(nb_xl_sheets).
+  const [sheetNames, setSheetNames] = useState(loadSheetNames);
+  const renameSheet = (sec: XlSection, name: string) =>
+    setSheetNames((prev) => {
+      const next = { ...prev, [sec]: name };
+      saveSheetNames(next);
+      return next;
+    });
+  // 같은 값이면 상태를 안 바꾼다(시트가 렌더마다 알려줘도 무한 렌더 안 되게).
+  const onXlBar = useCallback(
+    (b: XlBar) => setXlBar((prev) => (prev?.ref === b?.ref && prev?.text === b?.text ? prev : b)),
+    [],
+  );
+  // 인트로(전광판 부팅 연출) 도중 보스 키로 엑셀이 되면 인트로를 바로 닫는다 — 엑셀 위에 남으면 위장이 깨진다.
+  useEffect(() => {
+    if (effectiveTheme === 'excel' && showIntro) dismissIntro();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveTheme, showIntro]);
 
   // 랭킹전 켜짐/꺼짐 전환 — 켜지면(앱 시작·구단 첫 선택) 서버의 진행 중인 판을 이어받거나 새 판,
   // 꺼지면(시작 실패) 연습 판으로. 같은 값이면 아무것도 안 함(StrictMode 재실행에도 1회).
@@ -694,6 +786,20 @@ export default function App() {
   return (
       <main className="app">
       <FieldBackdrop />
+      {effectiveTheme === 'excel' && (
+        <ExcelChrome
+          section={section}
+          onSection={(s) => (s === 'multi' ? setSection(s) : guardedSwitch(() => setSection(s)))}
+          onHelp={openRules}
+          onSettings={() => setShowSettings(true)}
+          attempt={state.guesses.length}
+          bar={xlBar}
+          names={sheetNames}
+          onRename={renameSheet}
+          // 진짜 시트(솔로·멀티 메뉴·KBO)는 머리글을 직접 그린다 — 대전 화면만 배경 격자.
+          grid={section === 'multi' && launch !== null}
+        />
+      )}
       {showIntro && <Intro onDone={dismissIntro} />}
       <header className="controls">
         <div className="controls-row">
@@ -755,7 +861,20 @@ export default function App() {
 
       </header>
 
-      {section === 'solo' ? (
+      {section === 'solo' && xl ? (
+        // 엑셀 위장: 전광판·타자석 대신 진짜 셀에서(입력 셀에 치고 Enter).
+        <ExcelSolo
+          state={state}
+          onSubmit={ranked ? submitRanked : judgeGuess}
+          onMemo={toggleMemo}
+          onMemoClear={clearMemo}
+          onNewGame={newGame}
+          onShare={() => setSharing(true)}
+          pending={rankPending}
+          ranked={ranked ? rankResult : null}
+          onSelect={onXlBar}
+        />
+      ) : section === 'solo' ? (
         <>
       {/* 상단: 전광판 — 기록, 게임 종료 시 결과 발표 */}
       <section className="history-section scoreboard">
@@ -831,12 +950,44 @@ export default function App() {
         </div>
       )}
         </>
+      ) : section === 'kbo' && xl ? (
+        <ExcelKbo
+          myTeam={team}
+          nick={mNick.trim()}
+          onPickTeam={() => setPicker({})}
+          onTransfer={() => setShowTransfer(true)}
+          onSelect={onXlBar}
+        />
       ) : section === 'kbo' ? (
         <KboBoard
           myTeam={team}
           nick={mNick.trim()}
           onPickTeam={() => setPicker({})}
           onTransfer={() => setShowTransfer(true)}
+        />
+      ) : launch === null && xl ? (
+        <ExcelMulti
+          nick={mNick}
+          onNick={setMNick}
+          onNickCommit={confirmMenuNick}
+          nickChecking={nickChecking}
+          team={team}
+          onPickTeam={() =>
+            setPicker({ message: '온라인 대전에서 다른 구단 팬을 이기면 우리 구단이 1승!' })
+          }
+          digits={mDigits}
+          onDigits={setMDigits}
+          gameType={gameType}
+          onGameType={setGameType}
+          online={online}
+          onRandom={() => startOnline('random')}
+          onCreate={() => startOnline('create')}
+          code={mCode}
+          onCode={(v, composing) => setMCode(composing ? v : normalizeCode(v))}
+          onJoin={joinByCode}
+          peeking={peeking}
+          onLocal={() => setLaunch({ conn: 'local', gameType })}
+          onSelect={onXlBar}
         />
       ) : launch === null ? (
         <div className="versus versus-center">
@@ -922,14 +1073,7 @@ export default function App() {
                 type="button"
                 className={`versus-primary${online ? '' : ' disabled'}`}
                 aria-disabled={!online}
-                onClick={() => {
-                  if (!online) {
-                    showNet('온라인은 네트워크 연결이 필요해요');
-                    return;
-                  }
-                  persistNick();
-                  setLaunch({ conn: 'online', gameType, action: 'random' });
-                }}
+                onClick={() => startOnline('random')}
               >
                 🎲 랜덤 매치
               </button>
@@ -940,14 +1084,7 @@ export default function App() {
                 online ? '' : ' disabled'
               }`}
               aria-disabled={!online}
-              onClick={() => {
-                if (!online) {
-                  showNet('온라인은 네트워크 연결이 필요해요');
-                  return;
-                }
-                persistNick();
-                setLaunch({ conn: 'online', gameType, action: 'create' });
-              }}
+              onClick={() => startOnline('create')}
             >
               🚪 방 만들기
             </button>
@@ -1017,9 +1154,10 @@ export default function App() {
         <DuelVersus onExit={() => setLaunch(null)} />
       )}
 
-      {eggMsg && <div className="egg-toast">{eggMsg}</div>}
-      {netMsg && <div className="egg-toast">{netMsg}</div>}
-      {devMsg && <div className="egg-toast dev-toast">{devMsg}</div>}
+      {/* 엑셀 테마에선 CSS가 이걸 수식 입력줄 아래 '메시지 표시줄'로 바꾼다 — 문구도 이모지 없이. */}
+      {eggMsg && <div className="egg-toast" role="status">{xl ? xlPlain(eggMsg) : eggMsg}</div>}
+      {netMsg && <div className="egg-toast" role="status">{xl ? xlPlain(netMsg) : netMsg}</div>}
+      {devMsg && <div className="egg-toast dev-toast" role="status">{xl ? xlPlain(devMsg) : devMsg}</div>}
 
       {movedPending && (
         <div className="reinstall-banner" role="status">
@@ -1078,10 +1216,10 @@ export default function App() {
             >
               <span aria-hidden="true">⚾</span>
             </button>
-            <h3 className="settings-title">설정</h3>
+            <h3 className="settings-title">{xl ? '옵션' : '설정'}</h3>
 
             <div className="settings-row">
-              <span className="settings-label">테마</span>
+              <span className="settings-label">{xl ? 'Office 테마' : '테마'}</span>
               <div className="seg" role="group" aria-label="테마">
                 <button
                   type="button"
@@ -1101,6 +1239,15 @@ export default function App() {
                 </button>
                 <button
                   type="button"
+                  className={`seg-btn${theme === 'excel' ? ' active' : ''}`}
+                  aria-pressed={theme === 'excel'}
+                  onClick={() => changeTheme('excel')}
+                  title="회사용 위장 — 키보드 ` 로 바로 전환"
+                >
+                  엑셀
+                </button>
+                <button
+                  type="button"
                   className={`seg-btn seg-team${theme === 'team' ? ' active' : ''}`}
                   aria-pressed={theme === 'team'}
                   onClick={() => changeTheme('team')}
@@ -1115,7 +1262,7 @@ export default function App() {
             {section === 'solo' && (
               <>
             <div className="settings-row">
-              <span className="settings-label">자릿수</span>
+              <span className="settings-label">{xl ? '고정 자릿수' : '자릿수'}</span>
               <div className="seg" role="group" aria-label="자릿수">
                 {[3, 4].map((d) => (
                   <button
@@ -1133,12 +1280,12 @@ export default function App() {
 
             {ranked ? (
               <div className="settings-row">
-                <span className="settings-label">시도</span>
+                <span className="settings-label">{xl ? '최대 반복' : '시도'}</span>
                 <span className="settings-fixed">랭킹전은 {RANKED_MAX_ATTEMPTS}회 고정</span>
               </div>
             ) : (
             <div className="settings-row">
-              <span className="settings-label">시도</span>
+              <span className="settings-label">{xl ? '최대 반복' : '시도'}</span>
               <div className="seg" role="group" aria-label="시도 횟수">
                 {ATTEMPT_PRESETS.map((n) => (
                   <button
@@ -1189,7 +1336,7 @@ export default function App() {
 
             <div className="settings-row">
               <span className="settings-label">
-                힌트
+                {xl ? '빠른 채우기' : '힌트'}
                 <button
                   type="button"
                   className={`info-btn${hintInfo ? ' on' : ''}`}
@@ -1233,7 +1380,7 @@ export default function App() {
                 setShowSettings(false);
               }}
             >
-              ↻ 새 게임
+              {xl ? '새 통합 문서' : '↻ 새 게임'}
             </button>
               </>
             )}
@@ -1255,7 +1402,7 @@ export default function App() {
               className="settings-close"
               onClick={() => setShowSettings(false)}
             >
-              닫기
+              {xl ? '확인' : '닫기'}
             </button>
 
           </div>

@@ -1,0 +1,1230 @@
+/* ===================================================================
+   엑셀 위장 테마 — 회사에서 눈치 안 보고 하는 용도.
+   App이 data-theme="excel"을 달면 적용. 창 틀(제목줄·리본·시트 탭)은 ExcelChrome.tsx.
+   원칙: 야구장·세븐세그먼트·전구·발광·글라스·요란한 연출을 전부 걷어내고
+   흰 셀 + 회색 격자 + 엑셀 그린, 판정색은 '조건부 서식' 톤으로.
+   =================================================================== */
+:root[data-theme='excel'] {
+  color-scheme: light;
+  font-family: Calibri, 'Malgun Gothic', '맑은 고딕', 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-2: #ffffff;
+  --cell: #ffffff;
+  --key: #ffffff;
+  --text: #1f1f1f;
+  --muted: #616161;
+  --border: #d4d4d4;
+  --shadow: transparent;
+  --glass-blur: 0px;
+  --glass-edge: transparent;
+  --led: #1f1f1f;
+  --glow: transparent;
+  --accent: #107c41; /* 엑셀 그린 */
+  --accent-glow: transparent;
+  --on-accent: #ffffff;
+  /* 조건부 서식 — 글자색(판정색) */
+  --strike: #9c5700;
+  --ball: #006100;
+  --out: #9c0006;
+  --bulb-off: #e6e6e6;
+  --logo-ring: transparent;
+  --r-sm: 0px;
+  --r-md: 2px;
+  --r-lg: 2px;
+  --font-digit: Calibri, 'Malgun Gothic', 'Segoe UI', sans-serif;
+  --glow-text: none;
+  --glow-accent: none;
+
+  /* 크롬 치수 */
+  --xl-green: #107c41;
+  --xl-chrome: #f3f3f3;
+  --xl-line: #e1e1e1;
+  --xl-head: #f5f5f5;
+  --xl-rowhead: 34px;
+  /* 열 너비 — 폰에선 A~E 다섯 칸이 딱 들어오게, 넓은 화면은 엑셀 기본 폭 근처. */
+  --xl-col: max(64px, min(84px, calc((100vw - var(--xl-rowhead)) / 5)));
+  --xl-row: 20px;
+  --xl-top: 172px; /* 제목 30 + 탭 30 + 리본 64 + 수식 28 + 열머리글 20 */
+  --xl-bottom: 52px; /* 시트 탭 30 + 상태줄 22 */
+  --xl-fill-s: #ffeb9c;
+  --xl-fill-b: #c6efce;
+  --xl-fill-o: #ffc7ce;
+}
+@media (max-width: 720px) {
+  :root[data-theme='excel'] {
+    --xl-top: 108px; /* 좁은 화면은 리본 줄 생략 */
+  }
+}
+
+:root[data-theme='excel'] body {
+  background: #fff;
+}
+
+/* ---------- 평면화: 글라스·발광·그림자 제거, 연출은 reduced-motion처럼 즉시 끝 ---------- */
+/* animation:none 대신 duration을 0에 가깝게 — animationend에 기대는 로직(발표 카드 등)이 안 깨지게. */
+:root[data-theme='excel'] *,
+:root[data-theme='excel'] *::before,
+:root[data-theme='excel'] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  text-shadow: none !important;
+  animation-duration: 0.001ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+:root[data-theme='excel'] .field-bg,
+:root[data-theme='excel'] .scoreboard::before,
+:root[data-theme='excel'] .scoreboard::after,
+:root[data-theme='excel'] .board.batter-box::after,
+:root[data-theme='excel'] .help-callout,
+:root[data-theme='excel'] header.controls {
+  display: none !important;
+}
+:root[data-theme='excel'] .scoreboard,
+:root[data-theme='excel'] .history-section,
+:root[data-theme='excel'] .keypad,
+:root[data-theme='excel'] .board,
+:root[data-theme='excel'] .board.batter-box,
+:root[data-theme='excel'] .reveal-card,
+:root[data-theme='excel'] .online-result,
+:root[data-theme='excel'] .modal,
+:root[data-theme='excel'] .confirm,
+:root[data-theme='excel'] .settings-sheet,
+:root[data-theme='excel'] .dev-modal,
+:root[data-theme='excel'] .turn-bar,
+:root[data-theme='excel'] .rp-card,
+:root[data-theme='excel'] .kbo-card,
+:root[data-theme='excel'] .online-menu-card,
+:root[data-theme='excel'] .cell {
+  box-shadow: none !important;
+  filter: none !important;
+  background-image: none !important;
+  border-radius: var(--r-md) !important;
+}
+:root[data-theme='excel'] .scoreboard,
+:root[data-theme='excel'] .keypad,
+:root[data-theme='excel'] .board.batter-box,
+:root[data-theme='excel'] .kbo-card,
+:root[data-theme='excel'] .online-menu-card,
+:root[data-theme='excel'] .rp-card,
+:root[data-theme='excel'] .turn-bar {
+  background: #fff !important;
+  border: 1px solid var(--border) !important;
+}
+:root[data-theme='excel'] .team-logo {
+  filter: grayscale(1) opacity(0.55) !important;
+}
+
+/* ---------- 앱 영역: 크롬 사이, 행 머리글 오른쪽 ---------- */
+:root[data-theme='excel'] .app {
+  max-width: 520px;
+  padding-top: calc(var(--xl-top) + 8px);
+  padding-bottom: calc(var(--xl-bottom) + 8px + env(safe-area-inset-bottom));
+  padding-left: 14px;
+  padding-right: 14px;
+  gap: 8px;
+  font-size: 14px;
+}
+@media (max-width: 600px) {
+  :root[data-theme='excel'] .app {
+    padding-left: calc(var(--xl-rowhead) + 6px);
+    padding-right: 6px;
+  }
+}
+
+/* ---------- 세븐세그먼트 → 일반 숫자(스크린리더용 실제 값을 그대로 보인다) ---------- */
+:root[data-theme='excel'] .seg7 {
+  width: auto;
+  height: auto;
+  min-width: 0.55em;
+  display: inline-grid;
+  place-items: center;
+  filter: none !important;
+  line-height: 1;
+  color: var(--led);
+  font-family: var(--font-digit);
+  font-weight: 400;
+}
+:root[data-theme='excel'] .seg7 i {
+  display: none;
+}
+:root[data-theme='excel'] .seg7 .sr-only {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+}
+:root[data-theme='excel'] .seg7.is-off {
+  color: #b0b0b0;
+}
+/* 세그먼트 기준 em 크기들이 일반 글꼴엔 커서 줄인다. */
+:root[data-theme='excel'] .hcell .seg7 {
+  font-size: 15px;
+}
+:root[data-theme='excel'] .key-digit .seg7 {
+  font-size: 18px;
+}
+:root[data-theme='excel'] .slot .seg7 {
+  font-size: min(34px, 50cqw);
+  --led: #1f1f1f;
+  filter: none !important;
+}
+
+/* ---------- 전광판 → 표(기록) ---------- */
+:root[data-theme='excel'] .scoreboard {
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+:root[data-theme='excel'] .scoreboard .history-head {
+  margin: 0;
+  padding: 3px 8px;
+  background: var(--xl-head);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 700;
+  font-size: 12px;
+  color: #444;
+}
+:root[data-theme='excel'] .history-label {
+  font-size: 0;
+}
+:root[data-theme='excel'] .history-label::after {
+  content: '3분기 실적 집계';
+  font-size: 12px;
+}
+:root[data-theme='excel'] .history {
+  gap: 0;
+}
+:root[data-theme='excel'] .history-row {
+  grid-template-columns: 34px 1fr auto;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  background: #fff;
+  border-bottom: 1px solid var(--xl-line);
+  min-height: 24px;
+}
+:root[data-theme='excel'] .history-row > * {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+:root[data-theme='excel'] .history-index {
+  justify-content: center;
+  background: var(--xl-head);
+  border-right: 1px solid var(--border);
+  color: #555;
+  font-size: 12px;
+}
+:root[data-theme='excel'] .history-guess {
+  gap: 0;
+  padding: 0 8px;
+  border-right: 1px solid var(--xl-line);
+}
+:root[data-theme='excel'] .hcell {
+  width: auto;
+  height: auto;
+  border: none;
+  background: transparent;
+}
+:root[data-theme='excel'] .history-row.win-row {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* S·B·O: 전구 대신 숫자 셀 + 조건부 서식 배경 */
+:root[data-theme='excel'] .sbo {
+  gap: 0;
+  align-items: stretch;
+}
+:root[data-theme='excel'] .hsbo {
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  width: 44px;
+  padding: 0 6px;
+  border-right: 1px solid var(--xl-line);
+  font-size: 13px;
+}
+:root[data-theme='excel'] .hsbo .bulbs {
+  display: none;
+}
+:root[data-theme='excel'] .hsbo-letter {
+  font-size: 10px;
+  font-weight: 400;
+  color: #8a8a8a !important;
+}
+:root[data-theme='excel'] .hsbo-count {
+  display: inline;
+}
+:root[data-theme='excel'] .hsbo.zero {
+  opacity: 1;
+  color: #9a9a9a;
+}
+:root[data-theme='excel'] .hsbo.lamp-strike:not(.zero) {
+  background: var(--xl-fill-s);
+  color: var(--strike);
+}
+:root[data-theme='excel'] .hsbo.lamp-ball:not(.zero) {
+  background: var(--xl-fill-b);
+  color: var(--ball);
+}
+:root[data-theme='excel'] .hsbo.lamp-out:not(.zero) {
+  background: var(--xl-fill-o);
+  color: var(--out);
+}
+:root[data-theme='excel'] .bulb {
+  box-shadow: none !important;
+  border-radius: 0;
+}
+:root[data-theme='excel'] .pull-handle {
+  /* 전광판 패딩을 0으로 했으니 좌우 음수 마진(원래 패딩 상쇄용)도 없앤다. */
+  margin: auto 0 0;
+  height: 16px;
+  background: var(--xl-head);
+  border-top: 1px solid var(--border);
+}
+:root[data-theme='excel'] .pull-grip {
+  background: #c8c8c8 !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 입력칸 = 선택된 셀, 키패드 = 리본 버튼 ---------- */
+:root[data-theme='excel'] .board.batter-box {
+  padding: 10px !important;
+  gap: 10px;
+}
+:root[data-theme='excel'] .board .input-display {
+  min-height: 0;
+  height: 52px;
+}
+:root[data-theme='excel'] .slot {
+  aspect-ratio: auto;
+  height: 100%;
+  max-width: none;
+  border: 1px solid var(--border) !important;
+  border-radius: 0;
+  background: #fff !important;
+}
+:root[data-theme='excel'] .slot.filled {
+  border-color: #b5b5b5 !important;
+}
+:root[data-theme='excel'] .slot.editing,
+:root[data-theme='excel'] .slot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+:root[data-theme='excel'] .slot-cands {
+  background: #f3f3f3;
+  color: #555;
+  border-radius: 0;
+  box-shadow: none;
+}
+:root[data-theme='excel'] .keypad {
+  padding: 0 !important;
+  border: none !important;
+  gap: 6px;
+}
+:root[data-theme='excel'] .keypad-digits,
+:root[data-theme='excel'] .keypad-actions,
+:root[data-theme='excel'] .keypad-actions.memo-marks {
+  gap: 4px;
+}
+:root[data-theme='excel'] .key {
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 400;
+  background: #fff;
+  color: var(--text);
+}
+:root[data-theme='excel'] .key-digit {
+  aspect-ratio: auto;
+  height: 38px;
+}
+:root[data-theme='excel'] .key:hover:not(:disabled) {
+  background: #f3f3f3;
+}
+:root[data-theme='excel'] .key:active:not(:disabled) {
+  transform: none;
+  background: #e1e1e1;
+  border-color: #b5b5b5;
+}
+:root[data-theme='excel'] .key-icon {
+  width: 48px;
+  font-size: 1.1rem;
+}
+:root[data-theme='excel'] .key-mark .mark-letter {
+  font-size: 13px;
+  font-weight: 700;
+}
+:root[data-theme='excel'] .key-mark.active,
+:root[data-theme='excel'] .key-memo.active {
+  box-shadow: inset 0 0 0 1px var(--mark-c) !important;
+  background: #f3f3f3;
+}
+:root[data-theme='excel'] .key-digit.mark-strike {
+  background: var(--xl-fill-s);
+  box-shadow: none;
+}
+:root[data-theme='excel'] .key-digit.mark-ball {
+  background: var(--xl-fill-b);
+  box-shadow: none;
+}
+:root[data-theme='excel'] .key-digit.mark-out {
+  background: var(--xl-fill-o);
+  box-shadow: none;
+}
+:root[data-theme='excel'] .key-badge {
+  display: none;
+}
+:root[data-theme='excel'] .keypad.is-memo .keypad-digits {
+  outline: 1px dashed #b5b5b5;
+  outline-offset: 3px;
+}
+:root[data-theme='excel'] .key-submit {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+:root[data-theme='excel'] .key-submit:hover:not(:disabled) {
+  background: #0e6b38;
+}
+/* '던지기' → '입력'(야구 단어 숨기기) */
+:root[data-theme='excel'] .key-submit {
+  font-size: 0;
+}
+:root[data-theme='excel'] .key-submit::after {
+  content: '입력';
+  font-size: 14px;
+}
+
+/* ---------- 카드·팝업 = 엑셀 대화상자 ---------- */
+:root[data-theme='excel'] .reveal-card {
+  background: #fff !important;
+  border: 1px solid #b5b5b5 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
+}
+:root[data-theme='excel'] .solo-reveal .reveal-card {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
+}
+:root[data-theme='excel'] .modal-backdrop {
+  background: rgba(255, 255, 255, 0.55);
+}
+:root[data-theme='excel'] .modal,
+:root[data-theme='excel'] .confirm,
+:root[data-theme='excel'] .settings-sheet,
+:root[data-theme='excel'] .dev-modal {
+  background: #fff !important;
+  border: 1px solid #b5b5b5 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22) !important;
+}
+/* 토스트 → 엑셀 '메시지 표시줄'(수식 입력줄 바로 아래 노란 띠, 보호된 보기 알림처럼). */
+:root[data-theme='excel'] .egg-toast {
+  position: fixed;
+  top: calc(var(--xl-top) - var(--xl-row));
+  left: 0;
+  right: 0;
+  transform: none;
+  z-index: 130;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-bottom: 1px solid #e3cf85;
+  border-radius: 0;
+  background: #fff4ce;
+  color: #1f1f1f;
+  box-shadow: none;
+  font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:root[data-theme='excel'] .egg-toast::before {
+  content: 'i';
+  flex: 0 0 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #8a6d00;
+  color: #fff;
+  font: italic 700 11px/1 Georgia, serif;
+}
+:root[data-theme='excel'] .egg-toast::after {
+  content: '✕';
+  margin-left: auto;
+  color: #6b6b6b;
+  font-size: 11px;
+}
+:root[data-theme='excel'] .seg {
+  background: #fff;
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+}
+:root[data-theme='excel'] .seg-btn {
+  border-radius: 0;
+}
+:root[data-theme='excel'] .seg-btn.active {
+  background: #e6f2eb;
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+:root[data-theme='excel'] .settings-ball {
+  opacity: 0.08;
+}
+
+/* ===================================================================
+   창 틀(ExcelChrome) — 테마가 excel일 때만 렌더되지만 스코프는 유지.
+   =================================================================== */
+:root[data-theme='excel'] .xl-top,
+:root[data-theme='excel'] .xl-bottom,
+:root[data-theme='excel'] .xl-rowhead,
+:root[data-theme='excel'] .xl-grid {
+  position: fixed;
+  /* .app(z-index:1) 스택 안 — 격자·행 머리글은 콘텐츠 뒤(-1), 위아래 틀은 콘텐츠 위(2), 모달(100+)보단 아래. */
+  z-index: -1;
+  font-family: 'Segoe UI', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  font-size: 12px;
+  color: #262626;
+  -webkit-user-select: none;
+  user-select: none;
+}
+:root[data-theme='excel'] .xl-top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--xl-top);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--xl-chrome);
+  overflow: hidden;
+}
+/* 진짜 시트(ExcelSolo)가 열 머리글을 직접 그릴 땐 창 틀이 그 줄을 덮지 않게. */
+:root[data-theme='excel'] .xl-top.no-grid {
+  height: calc(var(--xl-top) - var(--xl-row));
+}
+/* 제목줄 */
+:root[data-theme='excel'] .xl-title {
+  flex: 0 0 30px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 0 12px;
+  padding-top: env(safe-area-inset-top);
+  background: var(--xl-green);
+  color: #fff;
+}
+:root[data-theme='excel'] .xl-autosave {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+:root[data-theme='excel'] .xl-toggle {
+  width: 22px;
+  height: 11px;
+  border-radius: 6px;
+  border: 1px solid #fff;
+  position: relative;
+}
+:root[data-theme='excel'] .xl-toggle::after {
+  content: '';
+  position: absolute;
+  top: 1.5px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+:root[data-theme='excel'] .xl-filename {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:root[data-theme='excel'] .xl-win {
+  display: flex;
+  height: 100%;
+}
+:root[data-theme='excel'] .xl-win i {
+  width: 42px;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  :root[data-theme='excel'] .xl-autosave,
+  :root[data-theme='excel'] .xl-win {
+    display: none;
+  }
+}
+/* 리본 탭 */
+:root[data-theme='excel'] .xl-tabs {
+  flex: 0 0 30px;
+  display: flex;
+  align-items: stretch;
+  padding: 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--xl-chrome);
+}
+:root[data-theme='excel'] .xl-tabs::-webkit-scrollbar {
+  display: none;
+}
+:root[data-theme='excel'] .xl-tab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  white-space: nowrap;
+  cursor: default;
+}
+:root[data-theme='excel'] button.xl-tab {
+  cursor: pointer;
+}
+:root[data-theme='excel'] button.xl-tab:hover {
+  background: #e5e5e5;
+}
+:root[data-theme='excel'] .xl-tab.xl-file {
+  color: var(--xl-green);
+  font-weight: 600;
+}
+:root[data-theme='excel'] .xl-tab.on {
+  color: var(--xl-green);
+  font-weight: 600;
+  box-shadow: inset 0 -3px 0 var(--xl-green);
+}
+/* 리본(장식) */
+:root[data-theme='excel'] .xl-ribbon {
+  flex: 0 0 64px;
+  display: flex;
+  align-items: stretch;
+  margin: 0 8px 6px;
+  padding: 4px 0;
+  background: #fff;
+  border: 1px solid var(--xl-line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+@media (max-width: 720px) {
+  :root[data-theme='excel'] .xl-ribbon {
+    display: none;
+  }
+}
+:root[data-theme='excel'] .xl-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  align-content: space-between;
+  gap: 2px 4px;
+  padding: 0 12px;
+  border-right: 1px solid var(--xl-line);
+  white-space: nowrap;
+}
+:root[data-theme='excel'] .xl-glabel {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 10.5px;
+  color: #6b6b6b;
+}
+:root[data-theme='excel'] .xl-big {
+  font-size: 20px;
+  line-height: 1;
+}
+:root[data-theme='excel'] .xl-box {
+  padding: 1px 6px;
+  border: 1px solid #c8c6c4;
+  min-width: 26px;
+  text-align: left;
+}
+:root[data-theme='excel'] .xl-box.wide {
+  min-width: 78px;
+}
+:root[data-theme='excel'] .xl-fmt {
+  display: flex;
+  gap: 8px;
+  padding: 0 4px;
+}
+:root[data-theme='excel'] .xl-fmt b,
+:root[data-theme='excel'] .xl-fmt i,
+:root[data-theme='excel'] .xl-fmt u {
+  font-size: 12px;
+}
+/* 수식 입력줄 */
+:root[data-theme='excel'] .xl-formula {
+  flex: 0 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #fff;
+  border-top: 1px solid var(--xl-line);
+  border-bottom: 1px solid var(--xl-line);
+}
+:root[data-theme='excel'] .xl-namebox {
+  width: 72px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-right: 1px solid var(--xl-line);
+}
+:root[data-theme='excel'] .xl-fx {
+  display: flex;
+  gap: 10px;
+  padding: 0 10px;
+  color: #8a8a8a;
+  border-right: 1px solid var(--xl-line);
+}
+:root[data-theme='excel'] .xl-fx i,
+:root[data-theme='excel'] .xl-fx em {
+  font-style: normal;
+}
+:root[data-theme='excel'] .xl-fx em {
+  font-style: italic;
+  color: #444;
+}
+:root[data-theme='excel'] .xl-ftext {
+  flex: 1;
+  min-width: 0;
+  padding: 0 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: Calibri, 'Malgun Gothic', sans-serif;
+  font-size: 13px;
+}
+/* 열 머리글 */
+:root[data-theme='excel'] .xl-colhead {
+  flex: 0 0 var(--xl-row);
+  display: flex;
+  background: var(--xl-head);
+  border-bottom: 1px solid #c8c8c8;
+}
+:root[data-theme='excel'] .xl-colhead > span {
+  flex: 0 0 var(--xl-col);
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--xl-line);
+  color: #555;
+}
+:root[data-theme='excel'] .xl-colhead > .xl-corner {
+  flex-basis: var(--xl-rowhead);
+}
+:root[data-theme='excel'] .xl-colhead > .on,
+:root[data-theme='excel'] .xl-rowhead > .on {
+  background: #d3f0e0;
+  color: var(--xl-green);
+  font-weight: 600;
+}
+:root[data-theme='excel'] .xl-colhead > .on {
+  box-shadow: inset 0 -2px 0 var(--xl-green);
+}
+/* 행 머리글 + 격자 */
+:root[data-theme='excel'] .xl-rowhead {
+  top: var(--xl-top);
+  bottom: var(--xl-bottom);
+  left: 0;
+  width: var(--xl-rowhead);
+  overflow: hidden;
+  background: var(--xl-head);
+  border-right: 1px solid #c8c8c8;
+  display: flex;
+  flex-direction: column;
+}
+:root[data-theme='excel'] .xl-rowhead > span {
+  flex: 0 0 var(--xl-row);
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid var(--xl-line);
+  color: #555;
+  font-size: 11px;
+}
+:root[data-theme='excel'] .xl-rowhead > .on {
+  box-shadow: inset -2px 0 0 var(--xl-green);
+}
+:root[data-theme='excel'] .xl-grid {
+  top: var(--xl-top);
+  bottom: var(--xl-bottom);
+  left: var(--xl-rowhead);
+  right: 0;
+  background-color: #fff;
+  background-image: linear-gradient(to right, var(--xl-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--xl-line) 1px, transparent 1px);
+  background-size: var(--xl-col) var(--xl-row);
+  background-position: calc(var(--xl-col) - 1px) calc(var(--xl-row) - 1px);
+}
+/* 하단: 시트 탭 + 상태 표시줄 */
+:root[data-theme='excel'] .xl-bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--xl-bottom) + env(safe-area-inset-bottom));
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--xl-chrome);
+  border-top: 1px solid #c8c8c8;
+}
+:root[data-theme='excel'] .xl-sheets {
+  flex: 0 0 30px;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+:root[data-theme='excel'] .xl-nav,
+:root[data-theme='excel'] .xl-add {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: #8a8a8a;
+  font-size: 11px;
+  white-space: nowrap;
+}
+:root[data-theme='excel'] .xl-add {
+  font-size: 15px;
+}
+:root[data-theme='excel'] .xl-sheet {
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border: none;
+  border-right: 1px solid var(--xl-line);
+  background: none;
+  font: inherit;
+  color: #444;
+  cursor: pointer;
+  white-space: nowrap;
+}
+:root[data-theme='excel'] .xl-sheet:hover {
+  background: #e5e5e5;
+}
+:root[data-theme='excel'] .xl-sheet.on {
+  background: #fff;
+  color: var(--xl-green);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--xl-green);
+}
+:root[data-theme='excel'] .xl-status {
+  flex: 0 0 22px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  font-size: 11px;
+  color: #444;
+  white-space: nowrap;
+  overflow: hidden;
+}
+:root[data-theme='excel'] .xl-stat {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+}
+:root[data-theme='excel'] .xl-zoom {
+  color: #6b6b6b;
+}
+@media (max-width: 600px) {
+  :root[data-theme='excel'] .xl-zoom {
+    display: none;
+  }
+}
+
+/* 멀티 메뉴·KBO 탭의 둥근 버튼·입력칸도 각지게(엑셀 컨트롤처럼). */
+:root[data-theme='excel'] .versus button,
+:root[data-theme='excel'] .versus input,
+:root[data-theme='excel'] .kbo-view button {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+
+/* 결과 카드 — 트로피·이모지·큰 제목을 걷어내고 '검토 결과' 셀처럼 차분하게. */
+:root[data-theme='excel'] .online-result {
+  background: #fff !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+}
+:root[data-theme='excel'] .result-emblem {
+  display: none;
+}
+:root[data-theme='excel'] .result-headline {
+  font-size: 15px !important;
+  font-weight: 700;
+  color: var(--text) !important;
+  text-align: left;
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--xl-head);
+  border-bottom: 1px solid var(--border);
+}
+:root[data-theme='excel'] .online-result.win .result-headline {
+  background: var(--xl-fill-b);
+  color: var(--ball) !important;
+}
+:root[data-theme='excel'] .online-result.lose .result-headline {
+  background: var(--xl-fill-o);
+  color: var(--out) !important;
+}
+:root[data-theme='excel'] .online-result button {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+:root[data-theme='excel'] .rp-badge {
+  border-radius: 0;
+}
+
+
+/* ===================================================================
+   진짜 시트(ExcelSolo) — 솔로 게임이 셀 안에서 돈다. 창 틀 사이를 채우고 안쪽만 스크롤.
+   =================================================================== */
+:root[data-theme='excel'] .xl-ws {
+  position: fixed;
+  top: calc(var(--xl-top) - var(--xl-row));
+  bottom: calc(var(--xl-bottom) + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  z-index: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  font-family: Calibri, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  font-size: 14px;
+  color: #1f1f1f;
+}
+:root[data-theme='excel'] .xl-ws-grid {
+  display: grid;
+  grid-template-columns: var(--xl-rowhead) repeat(26, var(--xl-col));
+  width: max-content;
+}
+:root[data-theme='excel'] .xl-h {
+  position: sticky;
+  display: grid;
+  place-items: center;
+  background: var(--xl-head);
+  color: #555;
+  font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size: 11.5px;
+  border-right: 1px solid var(--xl-line);
+  border-bottom: 1px solid var(--xl-line);
+  -webkit-user-select: none;
+  user-select: none;
+}
+:root[data-theme='excel'] .xl-h-col {
+  top: 0;
+  z-index: 2;
+  border-bottom-color: #c8c8c8;
+}
+:root[data-theme='excel'] .xl-h-row {
+  left: 0;
+  z-index: 1;
+  border-right-color: #c8c8c8;
+}
+:root[data-theme='excel'] .xl-h-corner {
+  top: 0;
+  left: 0;
+  z-index: 3;
+  border-right-color: #c8c8c8;
+  border-bottom-color: #c8c8c8;
+}
+:root[data-theme='excel'] .xl-h.on {
+  background: #d3f0e0;
+  color: var(--xl-green);
+  font-weight: 600;
+}
+:root[data-theme='excel'] .xl-h-col.on {
+  box-shadow: inset 0 -2px 0 var(--xl-green);
+}
+:root[data-theme='excel'] .xl-h-row.on {
+  box-shadow: inset -2px 0 0 var(--xl-green);
+}
+:root[data-theme='excel'] .xl-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 4px;
+  border-right: 1px solid var(--xl-line);
+  border-bottom: 1px solid var(--xl-line);
+  white-space: nowrap;
+  /* 옆 칸이 비면 글자가 넘쳐 보이는 엑셀 동작 흉내 */
+  overflow: visible;
+  cursor: cell;
+  -webkit-user-select: none;
+  user-select: none;
+}
+:root[data-theme='excel'] .xl-cell.clickable {
+  cursor: pointer;
+}
+:root[data-theme='excel'] .xl-cell.sel {
+  outline: 2px solid var(--xl-green);
+  outline-offset: -1px;
+  z-index: 1;
+}
+:root[data-theme='excel'] .xl-cell.sel::after {
+  /* 채우기 핸들(우하단 작은 네모) */
+  content: '';
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 6px;
+  height: 6px;
+  background: var(--xl-green);
+  border: 1px solid #fff;
+}
+:root[data-theme='excel'] .xl-r {
+  justify-content: flex-end;
+}
+:root[data-theme='excel'] .xl-c {
+  justify-content: center;
+}
+:root[data-theme='excel'] .xl-muted {
+  color: #7a7a7a;
+}
+:root[data-theme='excel'] .xl-small {
+  font-size: 12px;
+}
+:root[data-theme='excel'] .xl-zero {
+  color: #a6a6a6;
+}
+:root[data-theme='excel'] .xl-title-cell {
+  font-weight: 700;
+  font-size: 15px;
+  z-index: 1;
+}
+:root[data-theme='excel'] .xl-head-cell {
+  background: #e8f2ec;
+  font-weight: 700;
+  border-bottom: 1px solid #9fc9b0;
+}
+/* 조건부 서식 */
+:root[data-theme='excel'] .f-s,
+:root[data-theme='excel'] .xl-memo.m-strike {
+  background: var(--xl-fill-s);
+  color: var(--strike);
+}
+:root[data-theme='excel'] .f-b,
+:root[data-theme='excel'] .xl-memo.m-ball {
+  background: var(--xl-fill-b);
+  color: var(--ball);
+}
+:root[data-theme='excel'] .f-o,
+:root[data-theme='excel'] .xl-memo.m-out {
+  background: var(--xl-fill-o);
+  color: var(--out);
+}
+:root[data-theme='excel'] .xl-memo.m-out {
+  text-decoration: line-through;
+}
+:root[data-theme='excel'] .xl-winrow {
+  font-weight: 700;
+  background: var(--xl-fill-b);
+}
+:root[data-theme='excel'] .xl-link {
+  color: #0563c1;
+  text-decoration: underline;
+  cursor: pointer;
+  z-index: 1;
+}
+/* 입력 셀 — 셀 안 편집기. 폰에선 탭하면 숫자 키보드. */
+:root[data-theme='excel'] .xl-editor {
+  padding: 0;
+  cursor: text;
+}
+:root[data-theme='excel'] .xl-edit {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0 4px;
+  font: inherit;
+  /* iOS는 16px 미만 입력칸에 포커스하면 화면을 확대한다 */
+  font-size: 16px;
+  color: inherit;
+  text-align: right;
+  caret-color: var(--xl-green);
+}
+
+/* 데이터 유효성 경고창 */
+:root[data-theme='excel'] .xl-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.35);
+}
+:root[data-theme='excel'] .xl-dialog {
+  width: min(420px, calc(100vw - 32px));
+  background: #fff;
+  border: 1px solid #b5b5b5;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size: 13px;
+  color: #1f1f1f;
+}
+:root[data-theme='excel'] .xl-dialog-title {
+  padding: 8px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--xl-line);
+}
+:root[data-theme='excel'] .xl-dialog-body {
+  display: flex;
+  gap: 14px;
+  padding: 16px 16px 8px;
+}
+:root[data-theme='excel'] .xl-dialog-body p {
+  margin: 0 0 6px;
+  line-height: 1.45;
+}
+:root[data-theme='excel'] .xl-dialog-icon {
+  flex: 0 0 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #c42b1c;
+  color: #fff;
+  font-weight: 700;
+}
+:root[data-theme='excel'] .xl-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px 14px;
+}
+:root[data-theme='excel'] .xl-btn {
+  min-width: 84px;
+  padding: 5px 12px;
+  border: 1px solid #c8c6c4;
+  border-radius: 3px;
+  background: #fff;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+:root[data-theme='excel'] .xl-btn.primary {
+  background: var(--xl-green);
+  border-color: var(--xl-green);
+  color: #fff;
+}
+
+/* ===================================================================
+   설정 시트 → 'Excel 옵션' 대화상자(회색 제목줄, 왼쪽 정렬, 아래 [확인])
+   =================================================================== */
+:root[data-theme='excel'] .settings-sheet {
+  border-radius: 0 !important;
+  padding-top: 0 !important;
+  font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size: 13px;
+}
+:root[data-theme='excel'] .settings-title {
+  margin: 0 -20px 4px;
+  padding: 9px 14px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 400;
+  background: var(--xl-chrome);
+  border-bottom: 1px solid var(--xl-line);
+}
+:root[data-theme='excel'] .settings-label {
+  font-weight: 400;
+}
+:root[data-theme='excel'] .settings-newgame {
+  background: #fff !important;
+  color: var(--text) !important;
+  border: 1px solid #c8c6c4 !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  font-weight: 400;
+}
+:root[data-theme='excel'] .settings-close {
+  align-self: flex-end;
+  min-width: 84px;
+  padding: 5px 12px;
+  background: var(--xl-green) !important;
+  color: #fff !important;
+  border: 1px solid var(--xl-green) !important;
+  border-radius: 3px !important;
+}
+:root[data-theme='excel'] .settings-install {
+  border-radius: 3px !important;
+  box-shadow: none !important;
+}
+
+/* 셀 공통 — 기본은 칸 안에서 자름(옆 칸 글자와 겹치지 않게). 제목·설명·링크만 옆 빈칸으로 넘침. */
+:root[data-theme='excel'] .xl-cell {
+  overflow: hidden;
+}
+:root[data-theme='excel'] .xl-cell.xl-title-cell,
+:root[data-theme='excel'] .xl-cell.xl-small,
+:root[data-theme='excel'] .xl-cell.xl-link {
+  overflow: visible;
+}
+/* 선택 셀(라디오처럼) — 자릿수·종류·KBO 구분 */
+:root[data-theme='excel'] .xl-opt {
+  cursor: pointer;
+  color: #555;
+}
+:root[data-theme='excel'] .xl-opt.on {
+  background: #d3f0e0;
+  color: var(--xl-green);
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--xl-green);
+}
+:root[data-theme='excel'] .xl-opt.on::before {
+  content: '✓ ';
+  white-space: pre;
+}
+/* 내 행 강조 · 가을야구(5위 이내) 순위 */
+:root[data-theme='excel'] .xl-me {
+  background: #fff8d6;
+  font-weight: 700;
+}
+:root[data-theme='excel'] .xl-ps {
+  color: #c55a11;
+  font-weight: 700;
+}
+:root[data-theme='excel'] .xl-link.xl-disabled {
+  color: #a6a6a6;
+  text-decoration: none;
+}
+:root[data-theme='excel'] .xl-edit.left {
+  text-align: left;
+}
+:root[data-theme='excel'] .xl-edit::placeholder {
+  color: #b0b0b0;
+}
+/* 시트 탭 이름 편집 */
+:root[data-theme='excel'] .xl-sheet-edit {
+  min-width: 64px;
+  padding: 0 10px;
+  border: none;
+  outline: 2px solid var(--xl-green);
+  outline-offset: -2px;
+  font: inherit;
+  font-size: 12px;
+  background: #fff;
+  color: #1f1f1f;
+}
