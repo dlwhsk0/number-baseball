@@ -323,6 +323,10 @@ Swarm의 `stop-grace-period`를 늘려 그 시간을 확보한다.
 
 ---
 
+> 접속 감시 모니터(디스코드 알림)는 별도 Application — env·배포는 [`monitoring-discord.md`](monitoring-discord.md).
+
+---
+
 ## 트러블슈팅
 - **빌드 실패 `ERR_PNPM_IGNORED_BUILDS`**: 이미 처리됨 — `server/package.json`에 `pnpm.ignoredBuiltDependencies:["esbuild"]` + `packageManager` 고정. pnpm 10 대응.
 - **WebSocket 400 / 연결 안 됨**: Traefik은 기본으로 ws 업그레이드 지원. Domain의 Container Port가 `3001`인지, `CORS_ORIGIN`에 프론트 오리진이 있는지 확인.
