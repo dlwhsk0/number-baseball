@@ -5,6 +5,7 @@ import type { Leaderboard } from '../net/protocol';
 import { teamById } from '../game/teams';
 import { tieRanks, tierOf, PLACEMENT_GAMES } from '../game/ranking';
 import { ExcelGrid } from './ExcelGrid';
+import { fillDummy } from './excelFiller';
 import { XL_COLS, type XlBar, type XlCell } from './excel';
 
 /**
@@ -98,6 +99,8 @@ export function ExcelKbo({ myTeam, nick, onPickTeam, onSelect }: Props) {
         onClick: () => setTab(t.id),
       }),
     );
+
+    fillDummy(m, 'kbo', 'I');
 
     if (error || !data) {
       put(`A${HEAD + 1}`, { v: error ?? '불러오는 중…', cls: 'xl-muted xl-small' });

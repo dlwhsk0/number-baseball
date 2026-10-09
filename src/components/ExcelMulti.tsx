@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { teamById } from '../game/teams';
 import { ExcelGrid } from './ExcelGrid';
+import { fillDummy } from './excelFiller';
 import type { XlBar, XlCell } from './excel';
 
 /**
@@ -123,6 +124,8 @@ export function ExcelMulti(p: Props) {
     r += 2;
     put(`A${r}`, { v: '▶ 오프라인으로 하기', cls: 'xl-link', onClick: p.onLocal });
     put(`C${r}`, { v: '한 기기로 번갈아', cls: 'xl-muted xl-small' });
+    // 설명(A8 등)이 옆 칸으로 넘치니 한 칸 넉넉히 띄운다.
+    fillDummy(m, 'multi', 'I');
     if (!p.online) put(`A${r + 2}`, { v: '오프라인 — 온라인 항목은 네트워크 연결이 필요합니다.', cls: 'xl-muted xl-small' });
     return m;
   }, [p]);

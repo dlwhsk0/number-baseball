@@ -5,6 +5,7 @@ import { isValidGuess } from '../game/logic';
 import type { RankedResult } from '../net/protocol';
 import { ExcelGrid } from './ExcelGrid';
 import { XL_COLS, type XlBar, type XlCell } from './excel';
+import { fillDummy } from './excelFiller';
 
 /**
  * 엑셀 위장 테마의 솔로 게임 — 전광판·타자석 대신 '진짜 셀'에서 한다.
@@ -172,6 +173,7 @@ export function ExcelSolo({
       m.set(`B${next + 1}`, { v: '↻ 새 문서', cls: 'xl-link', onClick: onNewGame });
       m.set(`D${next + 1}`, { v: '공유', cls: 'xl-link', onClick: onShare });
     }
+    fillDummy(m, 'solo', 'G');
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guesses, digits, maxAttempts, status, secret, memo, pending, ranked, draft, playing, inputRow]);
