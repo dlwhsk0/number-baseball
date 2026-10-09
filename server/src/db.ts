@@ -52,12 +52,28 @@ CREATE TABLE IF NOT EXISTS transfer_codes (
 );
 `;
 
+/** 첫 연결이 실패하면(DB가 앱보다 늦게 뜸·일시 장애) 이 간격으로 계속 다시 붙어 본다 — 한 번 실패로 재시작 전까지 랭킹이 꺼져 있지 않게. */
+const DB_RETRY_MIN_MS = 5_000;
+const DB_RETRY_MAX_MS = 60_000;
+
 export async function initDb(): Promise<void> {
   const url = process.env.DATABASE_URL;
   if (!url) {
     logger.warn('DATABASE_URL 없음 — 팬 랭킹 비활성(대전은 정상 동작)');
     return;
   }
+  if (await connectDb(url)) return;
+  // 서버 기동은 막지 않고 백그라운드에서 재시도.
+  let delay = DB_RETRY_MIN_MS;
+  const retry = async () => {
+    if (await connectDb(url)) return;
+    delay = Math.min(delay * 2, DB_RETRY_MAX_MS);
+    setTimeout(retry, delay).unref();
+  };
+  setTimeout(retry, delay).unref();
+}
+
+async function connectDb(url: string): Promise<boolean> {
   const p = new pg.Pool({ connectionString: url, max: 5 });
   p.on('error', (err) => logger.error({ err }, 'postgres pool error'));
   try {
@@ -65,9 +81,11 @@ export async function initDb(): Promise<void> {
     await migrateNicks(p);
     pool = p;
     logger.info('postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성');
+    return true;
   } catch (err) {
-    logger.error({ err }, 'postgres 초기화 실패 — 팬 랭킹 비활성');
+    logger.error({ err }, 'postgres 초기화 실패 — 팬 랭킹 비활성(재시도 예정)');
     await p.end().catch(() => {});
+    return false;
   }
 }
 

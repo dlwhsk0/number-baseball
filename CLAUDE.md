@@ -80,7 +80,7 @@
     무작위 대입 방지: IP당 10분 틀린 코드 10번. 닉네임 중복 에러에도 '기기 옮기기' 안내. 스모크 `transfer-smoke.mjs`.
     이벤트 `leaderboard`, 서버 30초 캐시(기록 시 무효화 — 세대 번호로 조회 중 기록된 옛 결과는 캐시 안 함). 솔로 랭킹전 결과의 [순위 보기]는 KBO 탭으로 이동.
     구단 대결 기록은 한 판의 쌍들을 한 트랜잭션으로.
-  - **저장소 = Postgres**(`server/src/db.ts`, env `DATABASE_URL`, 시작 시 `CREATE TABLE IF NOT EXISTS` — `players`/`solo_games`/`match_results`/`transfer_codes`). **없으면 랭킹만 비활성**(대전 정상). Dokploy 설정은 `docs/dokploy-deploy.md` §5-B.
+  - **저장소 = Postgres**(`server/src/db.ts`, env `DATABASE_URL`, 시작 시 `CREATE TABLE IF NOT EXISTS` — `players`/`solo_games`/`match_results`/`transfer_codes`). **없으면 랭킹만 비활성**(대전 정상). 연결 실패 시엔 백그라운드 재시도(5초→최대 60초 백오프, `initDb`) — 한 번 실패로 재시작 전까지 꺼져 있지 않게. Dokploy 설정은 `docs/dokploy-deploy.md` §5-B.
     스모크: `server/test/ranked-smoke.mjs`, `team-versus-smoke.mjs`, `nick-smoke.mjs`, `transfer-smoke.mjs`(DB 붙은 서버 필요).
 - **시작 인트로**(`src/components/Intro.tsx`): 앱을 열면 전광판이 켜지는 연출(세그먼트 플리커)로 타이틀을 잠깐 띄운다.
   **세션당 1회**(`sessionStorage.nb_intro`), ~1.8초 후 자동 또는 탭하면 즉시 닫힘. App의 `showIntro`가 제어.
