@@ -50,6 +50,10 @@
   --xl-fill-s: #ffeb9c;
   --xl-fill-b: #c6efce;
   --xl-fill-o: #ffc7ce;
+  /* S·B·O 글자색(기록 칸) — 흰 바탕에서 셋이 확실히 갈리게 채도 있게 */
+  --xl-txt-s: #c55a11;
+  --xl-txt-b: #0b8a3e;
+  --xl-txt-o: #c00000;
 }
 @media (max-width: 720px) {
   :root[data-theme='excel'] {
@@ -267,16 +271,16 @@
   color: #9a9a9a;
 }
 :root[data-theme='excel'] .hsbo.lamp-strike:not(.zero) {
-  background: var(--xl-fill-s);
-  color: var(--strike);
+  color: var(--xl-txt-s);
+  font-weight: 700;
 }
 :root[data-theme='excel'] .hsbo.lamp-ball:not(.zero) {
-  background: var(--xl-fill-b);
-  color: var(--ball);
+  color: var(--xl-txt-b);
+  font-weight: 700;
 }
 :root[data-theme='excel'] .hsbo.lamp-out:not(.zero) {
-  background: var(--xl-fill-o);
-  color: var(--out);
+  color: var(--xl-txt-o);
+  font-weight: 700;
 }
 :root[data-theme='excel'] .bulb {
   box-shadow: none !important;
@@ -1017,21 +1021,44 @@
   font-weight: 700;
   border-bottom: 1px solid #9fc9b0;
 }
-/* 조건부 서식 */
+/* 조건부 서식 — 기록의 S·B·O는 열 위치로 구분되니 글자색만. 메모 칸은 위치로 구분이 안 돼 채우기 유지. */
 :root[data-theme='excel'] .f-s,
+:root[data-theme='excel'] .f-b,
+:root[data-theme='excel'] .f-o {
+  font-weight: 700;
+}
+:root[data-theme='excel'] .f-s {
+  color: var(--xl-txt-s);
+}
+:root[data-theme='excel'] .f-b {
+  color: var(--xl-txt-b);
+}
+:root[data-theme='excel'] .f-o {
+  color: var(--xl-txt-o);
+}
 :root[data-theme='excel'] .xl-memo.m-strike {
   background: var(--xl-fill-s);
   color: var(--strike);
 }
-:root[data-theme='excel'] .f-b,
 :root[data-theme='excel'] .xl-memo.m-ball {
   background: var(--xl-fill-b);
   color: var(--ball);
 }
-:root[data-theme='excel'] .f-o,
 :root[data-theme='excel'] .xl-memo.m-out {
   background: var(--xl-fill-o);
   color: var(--out);
+}
+/* 오른쪽 더미 업무 표(excelFiller) — 합계 행·마이너스·진행 중 */
+:root[data-theme='excel'] .xl-total {
+  font-weight: 700;
+  border-top: 1px solid #7f7f7f;
+  border-bottom: 3px double #7f7f7f;
+}
+:root[data-theme='excel'] .xl-neg {
+  color: #c00000;
+}
+:root[data-theme='excel'] .xl-warn {
+  color: #c55a11;
 }
 :root[data-theme='excel'] .xl-memo.m-out {
   text-decoration: line-through;

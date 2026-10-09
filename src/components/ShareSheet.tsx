@@ -8,6 +8,7 @@ import {
   type CardFormat,
   type RecordSummary,
 } from '../share/recordCard';
+import { drawExcelCard } from '../share/excelCard';
 import type { Team } from '../game/teams';
 
 interface Props {
@@ -65,7 +66,10 @@ export function ShareSheet({ record, team, onClose }: Props) {
       .then((logo) =>
         Promise.all(
           (Object.keys(CARD_FORMATS) as CardFormat[]).map(async (f) => {
-            const blob = await canvasToBlob(drawRecordCard(record, f, { logo }));
+            // 엑셀 위장 중이면 이미지도 엑셀 창처럼(로고 없음).
+            const excel = document.documentElement.getAttribute('data-theme') === 'excel';
+            const canvas = excel ? drawExcelCard(record, f) : drawRecordCard(record, f, { logo });
+            const blob = await canvasToBlob(canvas);
             const url = URL.createObjectURL(blob);
             urls.push(url);
             return [f, { blob, url }] as const;

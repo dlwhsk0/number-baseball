@@ -27,6 +27,18 @@
          '응원 구단'을 고른 경우에만 구단 테마(App의 effectiveTheme과 같은 규칙 — 탭·랭킹전 무관). -->
     <script>
       try {
+        // 엑셀 바로가기 링크(`/?excel` 또는 `/?theme=excel`): 테마를 엑셀로 저장하고 주소에서 표시를 지운다.
+        //  직전 테마는 보스 키(`)로 돌아갈 수 있게 nb_theme_prev에. 구 주소는 아래 이사 스크립트가 쿼리째 넘기니 거기서 처리.
+        var q = new URLSearchParams(location.search);
+        if (location.hostname !== 'number-baseball-chi.vercel.app' && (q.has('excel') || q.get('theme') === 'excel')) {
+          var cur = localStorage.getItem('nb_theme');
+          if (cur && cur !== 'excel') localStorage.setItem('nb_theme_prev', cur);
+          localStorage.setItem('nb_theme', 'excel');
+          q.delete('excel');
+          if (q.get('theme') === 'excel') q.delete('theme');
+          var qs = q.toString();
+          history.replaceState(history.state, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
+        }
         var t = localStorage.getItem('nb_theme');
         var team = localStorage.getItem('nb_team');
         var teams = ['kia', 'samsung', 'lg', 'doosan', 'kt', 'ssg', 'lotte', 'hanwha', 'nc', 'kiwoom'];
