@@ -143,7 +143,7 @@ METRICS_TOKEN=           # 설정 시 /metrics에 Bearer 또는 ?token= 요구
   DATABASE_URL=postgresql://<user>:<비번>@<db-host>:5432/<db>
   ```
   같은 Dokploy(`dokploy-network`)라 내부 호스트로 붙는다. 비번은 레포에 적지 않는다(Dokploy env에만).
-- 확인: 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`. 실패하면 `팬 랭킹 비활성` 경고와 함께 **대전은 그대로 동작**.
+- 확인: 로그에 `postgres 연결 + 마이그레이션 완료 — 팬 랭킹 활성`. 실패하면 `팬 랭킹 비활성(재시도 예정)` 로그와 함께 **대전은 그대로 동작**하고, 백그라운드에서 5초→최대 60초 간격으로 계속 다시 붙는다(DB가 앱보다 늦게 떠도 재시작 없이 복구). `DATABASE_URL 없음` 경고면 재시도하지 않으니 env를 확인.
 - 라이브 스모크: `URL=https://homerun.techeer.cloud-yaho.cloud node server/test/ranked-smoke.mjs`
   (실제 DB에 테스트 기록이 LG 구단으로 쌓인다 — 필요하면 `DELETE FROM solo_games WHERE player_id = ...`로 정리.)
 
