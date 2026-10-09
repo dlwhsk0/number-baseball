@@ -1,0 +1,7 @@
+# 서버·DB 접속 감시 → 디스코드 알림(monitor/). 게임 서버와 별개 서비스로 띄운다.
+# 루트 컨텍스트에서 monitor/index.mjs만 가져옴(의존성 없음 — Node 22 전역 fetch).
+FROM node:22-alpine
+WORKDIR /app
+COPY monitor/index.mjs .
+USER node
+CMD ["node", "index.mjs"]
