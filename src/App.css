@@ -4994,26 +4994,34 @@
 .ps-wc {
   --ps-c: #a7db52;
 }
+/* 행 테두리가 구간 색을 읽도록 행에 변수를 올린다. */
+.board-row:has(.ps-ks) {
+  --ps-c: #3f76ff;
+}
+.board-row:has(.ps-po) {
+  --ps-c: #51dee7;
+}
+.board-row:has(.ps-spo) {
+  --ps-c: #26c97d;
+}
+.board-row:has(.ps-wc) {
+  --ps-c: #a7db52;
+}
 .board-rank.ps,
 /* tbody까지 — '.board-table td:first-child'(회색)와 우선순위가 같으면 뒤에 선언된 회색이 이긴다. */
 .board-table tbody td.ps {
   color: var(--text);
 }
-.board-table tbody td.ps {
-  box-shadow: inset 4px 0 0 var(--ps-c);
+/* 포인트색은 그냥 왼쪽 테두리 — 그 칸(행)의 왼쪽 모서리는 각지게 해 막대가 곧게 선다.
+   tr까지 — 내 구단 행('.board-table tr.me td' 테두리=그린)보다 우선해야 구간 색이 남는다. */
+.board-table tbody tr td.ps {
+  border-left: 4px solid var(--ps-c);
+  border-radius: 0;
 }
-.board-rank.ps {
-  position: relative;
-}
-.board-rank.ps::before {
-  content: '';
-  position: absolute;
-  left: -6px;
-  top: -3px;
-  bottom: -3px;
-  width: 4px;
-  border-radius: 2px;
-  background: var(--ps-c);
+.board-row:has(.board-rank.ps) {
+  border-left: 4px solid var(--ps-c);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 .ps-legend {
   list-style: none;
@@ -5231,9 +5239,8 @@
   color: var(--led);
 }
 .my-stat-rank b.ps {
-  padding-left: 7px;
-  box-shadow: inset 4px 0 0 var(--ps-c);
-  border-radius: 2px;
+  padding-left: 6px;
+  border-left: 4px solid var(--ps-c);
 }
 .my-stat-rank small {
   font-size: 0.7rem;
