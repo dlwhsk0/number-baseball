@@ -553,7 +553,7 @@ export default function App() {
   const applyNick = async (nick: string, t: string): Promise<{ nick: string } | { error: string }> => {
     const r = await claimNick({ playerId: getPlayerId(), nick, team: t });
     if (r.taken) {
-      return { error: `${r.error ?? '이미 누가 쓰고 있는 닉네임이에요.'} 내 닉네임이면 KBO 탭 → 기기 옮기기로 가져오세요.` };
+      return { error: `${r.error ?? '이미 누가 쓰고 있는 닉네임이에요.'} 내 닉네임이면 설정 → 기기 옮기기로 가져오세요.` };
     }
     // 서버·DB가 안 될 땐 일단 기기에 저장 — 다음 랭킹전 시작 때 서버가 확인해 맞춰 준다.
     const final = r.ok && r.nick ? r.nick : nick;
@@ -955,7 +955,6 @@ export default function App() {
           myTeam={team}
           nick={mNick.trim()}
           onPickTeam={() => setPicker({})}
-          onTransfer={() => setShowTransfer(true)}
           onSelect={onXlBar}
         />
       ) : section === 'kbo' ? (
@@ -963,7 +962,6 @@ export default function App() {
           myTeam={team}
           nick={mNick.trim()}
           onPickTeam={() => setPicker({})}
-          onTransfer={() => setShowTransfer(true)}
         />
       ) : launch === null && xl ? (
         <ExcelMulti
@@ -1397,6 +1395,17 @@ export default function App() {
                 </button>
               </div>
             )}
+            {/* 기록은 기기에 묶여 있어 새 기기·홈 화면 앱으로 갈 땐 코드로 옮긴다. */}
+            <div className="settings-row">
+              <span className="settings-label">{xl ? '통합 문서 이동' : '기록'}</span>
+              <button
+                type="button"
+                className="settings-install"
+                onClick={() => setShowTransfer(true)}
+              >
+                {xl ? '기기 옮기기' : '📲 기기 옮기기'}
+              </button>
+            </div>
             <button
               type="button"
               className="settings-close"
