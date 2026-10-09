@@ -25,7 +25,7 @@ import type {
   GuessRecord,
 } from './types.js';
 import { logger } from './logger.js';
-import { initDb, recordMatches, leaderboard, dbEnabled, claimNick, createTransferCode, redeemTransferCode, TRANSFER_CODE_LEN } from './db.js';
+import { initDb, dbHealth, recordMatches, leaderboard, dbEnabled, claimNick, createTransferCode, redeemTransferCode, TRANSFER_CODE_LEN } from './db.js';
 import { rankedStart, rankedGuess, isPlayerId, discardRankedGame } from './ranked.js';
 import { pairMatches } from './ranking.js';
 import { isTeamId } from './teams.js';
@@ -53,11 +53,24 @@ const GRACE_MS = Number(process.env.GRACE_MS) || 90000;
 // 스피드 시작 매치업 연출 길이 — 레이스 시각(startedAt)을 이만큼 미뤄 연출이 시간을 잡아먹지 않게.
 const SPEED_INTRO_MS = Number(process.env.SPEED_INTRO_MS ?? 3000);
 
-// 게임용 공개 서버(PORT). Traefik이 도메인을 이 포트로만 라우팅 → /health만 공개.
+// 게임용 공개 서버(PORT). Traefik이 도메인을 이 포트로만 라우팅 → /health·/health/db만 공개.
+// /health는 컨테이너 헬스체크용이라 DB와 무관하게 200(DB가 죽어도 대전은 돼야 하니 재시작시키면 안 됨).
+// /health/db는 외부 모니터(monitor/, 디스코드 알림)용 — DB가 정상이 아니면 503 + 사유.
 const httpServer = createServer((req, res) => {
-  if ((req.url || '') === '/health') {
+  const url = req.url || '';
+  if (url === '/health') {
     res.writeHead(200, { 'content-type': 'text/plain' });
     res.end('ok');
+    return;
+  }
+  if (url === '/health/db') {
+    dbHealth().then((db) => {
+      res.writeHead(db === 'ok' ? 200 : 503, {
+        'content-type': 'application/json',
+        'cache-control': 'no-store',
+      });
+      res.end(JSON.stringify({ db }));
+    });
     return;
   }
   res.writeHead(404);
