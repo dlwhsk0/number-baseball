@@ -29,12 +29,10 @@ interface Props {
   myTeam: string | null;
   nick: string;
   onPickTeam: () => void;
-  /** 기기 옮기기 시트 열기. */
-  onTransfer: () => void;
   onSelect: (bar: XlBar) => void;
 }
 
-export function ExcelKbo({ myTeam, nick, onPickTeam, onTransfer, onSelect }: Props) {
+export function ExcelKbo({ myTeam, nick, onPickTeam, onSelect }: Props) {
   const [tab, setTab] = useState<Tab>('solo');
   const [data, setData] = useState<Leaderboard | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,8 +89,6 @@ export function ExcelKbo({ myTeam, nick, onPickTeam, onTransfer, onSelect }: Pro
       cls: 'xl-r xl-muted',
     });
     if (me) put('D6', { v: tierOf(me.avg).name, cls: 'xl-c' });
-    // 기록은 기기에 묶여 있어 새 기기·홈 화면 앱으로 갈 땐 코드로 옮긴다.
-    put('D2', { v: '기기 옮기기', cls: 'xl-link', onClick: onTransfer });
 
     put('A8', { v: '구분', cls: 'xl-head-cell' });
     TABS.forEach((t, i) =>
@@ -163,7 +159,7 @@ export function ExcelKbo({ myTeam, nick, onPickTeam, onTransfer, onSelect }: Pro
       put(`A${r + 1}`, { v: '실패한 판은 0점으로 평균에 들어가요', cls: 'xl-muted xl-small' });
     }
     return m;
-  }, [data, error, tab, myTeam, nick, onPickTeam, onTransfer]);
+  }, [data, error, tab, myTeam, nick, onPickTeam]);
 
   return <ExcelGrid cells={cells} sel={sel} onSel={setSel} onBar={onSelect} widths={{ B: 1.7 }} />;
 }

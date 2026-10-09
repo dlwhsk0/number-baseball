@@ -5572,14 +5572,3 @@
   font-weight: 600;
   color: var(--out);
 }
-.kbo-transfer {
-  align-self: flex-end;
-  margin: -4px 2px 0;
-  padding: 2px 4px;
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
