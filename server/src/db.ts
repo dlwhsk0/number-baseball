@@ -89,6 +89,33 @@ async function connectDb(url: string): Promise<boolean> {
   }
 }
 
+/**
+ * 모니터링용 DB 상태(`/health/db`). 'disabled'=DATABASE_URL 없음, 'init_failed'=시작 때 연결 실패
+ * (풀이 안 만들어져 재시작 전까진 계속 꺼져 있음), 'query_failed'=지금 SELECT 1 실패·타임아웃.
+ */
+export type DbHealth = 'ok' | 'disabled' | 'init_failed' | 'query_failed';
+const HEALTH_TIMEOUT_MS = 3000;
+export async function dbHealth(): Promise<DbHealth> {
+  if (!process.env.DATABASE_URL) return 'disabled';
+  if (!pool) return 'init_failed';
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    // 풀에 연결 타임아웃이 없어(DB가 응답 없으면 무한 대기) 헬스체크만 따로 끊는다.
+    await Promise.race([
+      pool.query('SELECT 1'),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), HEALTH_TIMEOUT_MS);
+      }),
+    ]);
+    return 'ok';
+  } catch (err) {
+    logger.warn({ err }, 'db health check 실패');
+    return 'query_failed';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ---------- 캐시(순위표는 30초, 기록이 들어오면 즉시 무효화) ----------
 const CACHE_MS = 30_000;
 const cache = new Map<string, { at: number; value: unknown }>();
