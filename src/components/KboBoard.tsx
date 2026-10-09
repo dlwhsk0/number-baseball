@@ -34,8 +34,36 @@ function Cols() {
   );
 }
 
-/** 가을야구 — KBO는 5위까지 포스트시즌(공동 5위 포함). */
-const POSTSEASON = 5;
+/**
+ * 가을야구 — KBO 포스트시즌 진출 구간(네이버 스포츠 팀 순위표와 같은 구분·색).
+ * 1위 한국시리즈 · 2위 플레이오프 · 3위 준플레이오프 · 4~5위 와일드카드. 동순위면 같은 구간(공동 5위도 와일드카드).
+ */
+const POSTSEASON = [
+  { key: 'ks', label: '한국시리즈', to: 1 },
+  { key: 'po', label: '플레이오프', to: 2 },
+  { key: 'spo', label: '준플레이오프', to: 3 },
+  { key: 'wc', label: '와일드카드', to: 5 },
+] as const;
+
+/** 순위 → 포스트시즌 구간 클래스(`ps ps-<구간>`). 순위 없음·6위 이하는 undefined. */
+function psClass(rank: number | null | undefined): string | undefined {
+  if (rank == null || rank < 1) return undefined;
+  const t = POSTSEASON.find((p) => rank <= p.to);
+  return t ? `ps ps-${t.key}` : undefined;
+}
+
+/** 표 아래 구간 범례. */
+function PsLegend() {
+  return (
+    <ul className="ps-legend">
+      {POSTSEASON.map((p) => (
+        <li key={p.key} className={`ps-${p.key}`}>
+          {p.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** 평균 점수 등급 배지(루키~MVP). */
 function TierBadge({ avg, big = false }: { avg: number; big?: boolean }) {
@@ -96,7 +124,7 @@ function MyStat({ me, nick, onEdit }: { me: PlayerRow | null; nick: string; onEd
           <small>점</small>
         </span>
         <span className="my-stat-rank">
-          <b className={me.rank <= POSTSEASON ? 'ps' : undefined}>{me.rank}위</b>
+          <b className={psClass(me.rank)}>{me.rank}위</b>
           <small>{me.games}판</small>
         </span>
       </div>
@@ -123,7 +151,7 @@ function MyStat({ me, nick, onEdit }: { me: PlayerRow | null; nick: string; onEd
 function PlayerLine({ p, mine = false }: { p: PlayerRow; mine?: boolean }) {
   return (
     <>
-      <span className={`board-rank${p.rank != null && p.rank <= POSTSEASON ? ' ps' : ''}`}>
+      <span className={`board-rank ${psClass(p.rank) ?? ''}`}>
         {p.rank ?? '-'}
       </span>
       <span className="board-name">
@@ -269,7 +297,7 @@ export function KboBoard({ myTeam, nick, onPickTeam, onTransfer }: Props) {
                   {data.team.map((t, i) => (
                     <tr key={t.team} className={t.team === myTeam ? 'me' : ''}>
                       {/* 판이 없는 구단은 0점 동점 정렬일 뿐이라 순위를 매기지 않는다. */}
-                      <td className={t.games > 0 && teamRanks[i] <= POSTSEASON ? 'ps' : undefined}>
+                      <td className={t.games > 0 ? psClass(teamRanks[i]) : undefined}>
                         {t.games > 0 ? teamRanks[i] : '-'}
                       </td>
                       <td>
@@ -284,6 +312,7 @@ export function KboBoard({ myTeam, nick, onPickTeam, onTransfer }: Props) {
                   ))}
                 </tbody>
               </table>
+              <PsLegend />
               <p className="board-foot">성공 = 맞힌 판 · 평균 = 맞힌 판의 평균 시도</p>
             </>
           ) : tab === 'player' ? (
@@ -308,6 +337,7 @@ export function KboBoard({ myTeam, nick, onPickTeam, onTransfer }: Props) {
                   <PlayerLine p={me} mine />
                 </div>
               )}
+              {players.length > 0 && <PsLegend />}
               <p className="board-foot">
                 {TIERS.filter((t) => t.min > 0)
                   .map((t) => `${t.name} ${t.min}+`)
@@ -334,7 +364,7 @@ export function KboBoard({ myTeam, nick, onPickTeam, onTransfer }: Props) {
                 <tbody>
                   {data.versus.map((v, i) => (
                     <tr key={v.team} className={v.team === myTeam ? 'me' : ''}>
-                      <td className={v.w + v.l + v.d > 0 && vsRanks[i] <= POSTSEASON ? 'ps' : undefined}>
+                      <td className={v.w + v.l + v.d > 0 ? psClass(vsRanks[i]) : undefined}>
                         {v.w + v.l + v.d > 0 ? vsRanks[i] : '-'}
                       </td>
                       <td>
@@ -349,6 +379,7 @@ export function KboBoard({ myTeam, nick, onPickTeam, onTransfer }: Props) {
                   ))}
                 </tbody>
               </table>
+              <PsLegend />
               <p className="board-foot">승률 = 승 ÷ (승+패) · 차 = 1위와의 게임차</p>
             </>
           )}
