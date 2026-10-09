@@ -4977,11 +4977,66 @@
   color: var(--muted);
   text-align: center;
 }
-/* 가을야구 — KBO는 5위까지 포스트시즌(공동 5위 포함). 순위 칸에 .ps(동순위 반영해 컴포넌트가 붙임). */
+/*
+ * 가을야구 — 네이버 스포츠 KBO 팀 순위표처럼 구간별 색 막대.
+ * 1위 한국시리즈 · 2위 플레이오프 · 3위 준플레이오프 · 4~5위 와일드카드(동순위 반영해 컴포넌트가 .ps .ps-<구간>).
+ * 색은 글자가 아니라 막대로만 — 밝은 하늘·연두는 라이트 테마에서 글자로 쓰면 안 읽힌다.
+ */
+.ps-ks {
+  --ps-c: #3f76ff;
+}
+.ps-po {
+  --ps-c: #51dee7;
+}
+.ps-spo {
+  --ps-c: #26c97d;
+}
+.ps-wc {
+  --ps-c: #a7db52;
+}
 .board-rank.ps,
 /* tbody까지 — '.board-table td:first-child'(회색)와 우선순위가 같으면 뒤에 선언된 회색이 이긴다. */
 .board-table tbody td.ps {
-  color: var(--strike);
+  color: var(--text);
+}
+.board-table tbody td.ps {
+  box-shadow: inset 4px 0 0 var(--ps-c);
+}
+.board-rank.ps {
+  position: relative;
+}
+.board-rank.ps::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: -3px;
+  bottom: -3px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--ps-c);
+}
+.ps-legend {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+.ps-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ps-legend li::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--ps-c);
 }
 .board-name {
   display: flex;
@@ -5176,7 +5231,9 @@
   color: var(--led);
 }
 .my-stat-rank b.ps {
-  color: var(--strike);
+  padding-left: 7px;
+  box-shadow: inset 4px 0 0 var(--ps-c);
+  border-radius: 2px;
 }
 .my-stat-rank small {
   font-size: 0.7rem;
